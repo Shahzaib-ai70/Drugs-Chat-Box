@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+database.db
+*.log
+*.zip
+.DS_Store
+.wwebjs_auth
+session_telegram*
