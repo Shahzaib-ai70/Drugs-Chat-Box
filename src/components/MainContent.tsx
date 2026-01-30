@@ -256,6 +256,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   }, [activeChatId, activeService]);
 
   useEffect(() => {
+    // Clear state immediately when switching services to prevent data leak
+    setChats([]);
+    setMyProfile(null);
+    setMessagesByChat({});
+    setQrValue('');
+    setIsConnected(false);
+    setIsAuthenticating(false);
+    setLoadingStatus(null);
+    setConnectionStatus('CONNECTING');
+
     if (!isWhatsApp || !activeService?.id) return;
 
     // Connect to Socket.io (automatically detects host)
