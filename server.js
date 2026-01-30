@@ -934,38 +934,67 @@ io.on('connection', (socket) => {
                 
                 if (mapped.length === 0 && session.client.pupPage) {
                     try {
+                        log(`[${serviceId}] Standard fetch returned 0 chats. Attempting Extended Store Fallback (15s)...`);
+                        
                         const storeMapped = await session.client.pupPage.evaluate(async () => {
-                            // Wait up to 5s for models to populate
+                            // Helper to sleep
+                            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+                            
+                            // Wait up to 15s for Store.Chats to be populated
                             const start = Date.now();
-                            while (Date.now() - start < 5000) {
-                                if (window.Store && window.Store.Chats && window.Store.Chats.models && window.Store.Chats.models.length > 0) break;
-                                await new Promise(r => setTimeout(r, 500));
+                            while (Date.now() - start < 15000) {
+                                if (window.Store && window.Store.Chats && window.Store.Chats.models && window.Store.Chats.models.length > 0) {
+                                    return window.Store.Chats.models.map((c) => {
+                                        const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
+                                        const name = c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown';
+                                        const last = c.lastMessage || c.__x_lastMessage || {};
+                                        return {
+                                            id,
+                                            name,
+                                            isGroup: !!c.isGroup || !!c.__x_isGroup,
+                                            unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
+                                            lastMessage: last.body || '',
+                                            lastTimestamp: last.timestamp || last.t || 0
+                                        };
+                                    });
+                                }
+                                await sleep(1000);
                             }
-
-                            const models = window.Store?.Chats?.models || [];
-                            return models.map((c) => {
-                                const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
-                                const name = c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown';
-                                const last = c.lastMessage || c.__x_lastMessage || {};
-                                return {
-                                    id,
-                                    name,
-                                    isGroup: !!c.isGroup || !!c.__x_isGroup,
-                                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
-                                    lastMessage: last.body || '',
-                                    lastTimestamp: last.timestamp || last.t || 0
-                                };
-                            });
+                            return []; // Timed out
                         });
+
                         if (Array.isArray(storeMapped) && storeMapped.length > 0) {
                             session.chats = storeMapped;
                             io.to(serviceId).emit('wa_chats', storeMapped);
                             log(`[${serviceId}] Force sync Store fallback succeeded: ${storeMapped.length} chats`);
                         } else {
-                            log(`[${serviceId}] Force sync Store fallback returned 0 chats after wait`);
+                            log(`[${serviceId}] Store fallback failed after 15s. Attempting PAGE RELOAD...`);
+                            
+                            // Nuclear Option: Reload the page
+                            await session.client.pupPage.reload({ waitUntil: ['domcontentloaded', 'networkidle0'], timeout: 30000 });
+                            log(`[${serviceId}] Page reloaded. Waiting 10s for hydration...`);
+                            await new Promise(r => setTimeout(r, 10000));
+                            
+                            // Final Try
+                            const finalChats = await session.client.getChats();
+                            if (finalChats.length > 0) {
+                                const finalMapped = finalChats.map(c => ({
+                                    id: c.id?._serialized || c.id || '',
+                                    name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                                    isGroup: !!c.isGroup,
+                                    unreadCount: c.unreadCount,
+                                    lastMessage: c.lastMessage?.body,
+                                    lastTimestamp: c.lastMessage?.timestamp
+                                }));
+                                session.chats = finalMapped;
+                                io.to(serviceId).emit('wa_chats', finalMapped);
+                                log(`[${serviceId}] RECOVERY SUCCESS: Found ${finalMapped.length} chats after reload.`);
+                            } else {
+                                log(`[${serviceId}] RECOVERY FAILED: Still 0 chats after reload.`);
+                            }
                         }
                     } catch(e) {
-                        log(`[${serviceId}] Force sync Store fallback error: ${e}`);
+                        log(`[${serviceId}] Deep recovery error: ${e}`);
                     }
                 }
             } catch (err) {
