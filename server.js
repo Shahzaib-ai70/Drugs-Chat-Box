@@ -236,107 +236,117 @@ const initializeWhatsApp = (serviceId) => {
     }
 
     log(`[${serviceId}] Attempting to fetch chats...`);
-    try {
-      const chats = await client.getChats();
-      log(`[${serviceId}] Raw chats count: ${chats.length}`);
-      
-      // 1. Fetch own profile pic
-      let myProfilePic = null;
-      try {
-        if (client.info && client.info.wid) {
-            myProfilePic = await client.getProfilePicUrl(client.info.wid._serialized);
-        }
-      } catch (e) { log(`[${serviceId}] Failed to fetch my profile pic: ` + e); }
-      
-      if (client.info) {
-          io.to(serviceId).emit('wa_user_info', {
-            name: client.info.pushname,
-            id: client.info.wid._serialized,
-            profilePicUrl: myProfilePic
-          });
-      }
-
-      // 2. Map basic chat info IMMEDIATELY (Fast)
-      const mappedBasic = chats.map(c => {
-          const id = c.id?._serialized || c.id || '';
-          const name = c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown';
-          return {
-            id: id,
-            name: name,
-            isGroup: !!c.isGroup,
-            unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-            lastMessage: c.lastMessage?.body || '',
-            lastTimestamp: c.lastMessage?.timestamp || 0,
-            profilePicUrl: '', // Placeholder
-            lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''
-          };
-      });
-      
-      sessionState.chats = mappedBasic;
-      io.to(serviceId).emit('wa_chats', mappedBasic);
-      log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
-
-      // AUTO-RETRY LOGIC: If chats are empty, retry up to 3 times
-      if (mappedBasic.length === 0) {
-          log(`[${serviceId}] Warning: 0 chats found. Retrying in 3s...`);
-          setTimeout(async () => {
-             try {
-                const retryChats = await client.getChats();
-                if (retryChats.length > 0) {
-                    log(`[${serviceId}] Retry success! Found ${retryChats.length} chats.`);
-                    // Re-run mapping
-                    const retryMapped = retryChats.map(c => ({
-                        id: c.id?._serialized || c.id || '',
-                        name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                        isGroup: !!c.isGroup,
-                        unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                        lastMessage: c.lastMessage?.body || '',
-                        lastTimestamp: c.lastMessage?.timestamp || 0,
-                        profilePicUrl: '',
-                        lastSeen: ''
-                    }));
-                    sessionState.chats = retryMapped;
-                    io.to(serviceId).emit('wa_chats', retryMapped);
-                }
-             } catch(e) { log(`[${serviceId}] Retry failed: ${e}`); }
-          }, 3000);
-      }
-
-      // 3. Fetch profile pics in background (Slow but non-blocking)
-      // We process in chunks to avoid overwhelming the client
-      (async () => {
-          const mappedWithPics = [...mappedBasic];
-          let updatedCount = 0;
+    // Use Sync Queue for initial fetch
+    syncQueue.add(async () => {
+        try {
+          // Use Promise.race for timeout
+          const getChatsPromise = client.getChats();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000));
+          const chats = await Promise.race([getChatsPromise, timeoutPromise]);
           
-          for (let i = 0; i < chats.length; i++) {
-              const c = chats[i];
-              try {
-                  const contact = await c.getContact();
-                  const profilePicUrl = await contact.getProfilePicUrl();
-                  if (profilePicUrl) {
-                      mappedWithPics[i].profilePicUrl = profilePicUrl;
-                      updatedCount++;
-                  }
-              } catch (e) {
-                  // Ignore profile pic errors
-              }
-              
-              // Emit update every 10 items or at the end
-              if ((updatedCount > 0 && updatedCount % 10 === 0) || i === chats.length - 1) {
-                   sessionState.chats = mappedWithPics;
-                   io.to(serviceId).emit('wa_chats', mappedWithPics);
-              }
+          log(`[${serviceId}] Raw chats count: ${chats.length}`);
+          
+          // 1. Fetch own profile pic
+          let myProfilePic = null;
+          try {
+            if (client.info && client.info.wid) {
+                myProfilePic = await client.getProfilePicUrl(client.info.wid._serialized);
+            }
+          } catch (e) { log(`[${serviceId}] Failed to fetch my profile pic: ` + e); }
+          
+          if (client.info) {
+              io.to(serviceId).emit('wa_user_info', {
+                name: client.info.pushname,
+                id: client.info.wid._serialized,
+                profilePicUrl: myProfilePic
+              });
           }
-          log(`[${serviceId}] Completed profile pic fetch. Updated ${updatedCount} chats.`);
-      })();
 
-    } catch (err) {
-      log(`[${serviceId}] Error fetching chats: ` + err);
-      // Only emit empty if we really have nothing
-      if (!sessionState.chats || sessionState.chats.length === 0) {
-           io.to(serviceId).emit('wa_chats', []);
-      }
-    }
+          // 2. Map basic chat info IMMEDIATELY (Fast)
+          const mappedBasic = chats.map(c => {
+              const id = c.id?._serialized || c.id || '';
+              const name = c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown';
+              return {
+                id: id,
+                name: name,
+                isGroup: !!c.isGroup,
+                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                lastMessage: c.lastMessage?.body || '',
+                lastTimestamp: c.lastMessage?.timestamp || 0,
+                profilePicUrl: '', // Placeholder
+                lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''
+              };
+          });
+          
+          sessionState.chats = mappedBasic;
+          io.to(serviceId).emit('wa_chats', mappedBasic);
+          log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
+
+          // AUTO-RETRY LOGIC: If chats are empty, retry up to 3 times
+          if (mappedBasic.length === 0) {
+              log(`[${serviceId}] Warning: 0 chats found. Retrying in 3s...`);
+              setTimeout(async () => {
+                // Use Sync Queue for retry
+                syncQueue.add(async () => {
+                    try {
+                        const retryChats = await client.getChats();
+                        if (retryChats.length > 0) {
+                            log(`[${serviceId}] Retry success! Found ${retryChats.length} chats.`);
+                            // Re-run mapping
+                            const retryMapped = retryChats.map(c => ({
+                                id: c.id?._serialized || c.id || '',
+                                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                                isGroup: !!c.isGroup,
+                                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                                lastMessage: c.lastMessage?.body || '',
+                                lastTimestamp: c.lastMessage?.timestamp || 0,
+                                profilePicUrl: '',
+                                lastSeen: ''
+                            }));
+                            sessionState.chats = retryMapped;
+                            io.to(serviceId).emit('wa_chats', retryMapped);
+                        }
+                    } catch(e) { log(`[${serviceId}] Retry failed: ${e}`); }
+                });
+              }, 3000);
+          }
+
+          // 3. Fetch profile pics in background (Slow but non-blocking)
+          // We process in chunks to avoid overwhelming the client
+          (async () => {
+              const mappedWithPics = [...mappedBasic];
+              let updatedCount = 0;
+              
+              for (let i = 0; i < chats.length; i++) {
+                  const c = chats[i];
+                  try {
+                      const contact = await c.getContact();
+                      const profilePicUrl = await contact.getProfilePicUrl();
+                      if (profilePicUrl) {
+                          mappedWithPics[i].profilePicUrl = profilePicUrl;
+                          updatedCount++;
+                      }
+                  } catch (e) {
+                      // Ignore profile pic errors
+                  }
+                  
+                  // Emit update every 10 items or at the end
+                  if ((updatedCount > 0 && updatedCount % 10 === 0) || i === chats.length - 1) {
+                      sessionState.chats = mappedWithPics;
+                      io.to(serviceId).emit('wa_chats', mappedWithPics);
+                  }
+              }
+              log(`[${serviceId}] Completed profile pic fetch. Updated ${updatedCount} chats.`);
+          })();
+
+        } catch (err) {
+          log(`[${serviceId}] Error fetching chats: ` + err);
+          // Only emit empty if we really have nothing
+          if (!sessionState.chats || sessionState.chats.length === 0) {
+              io.to(serviceId).emit('wa_chats', []);
+          }
+        }
+    });
   };
 
   client.on('ready', () => {
