@@ -41,7 +41,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
-const port = 3005;
+const port = process.env.PORT || 3005;
 
 // Debug Endpoint
 app.get('/debug', (req, res) => {

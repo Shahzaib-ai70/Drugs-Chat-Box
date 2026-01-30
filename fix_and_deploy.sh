@@ -66,11 +66,23 @@ echo " -> Building frontend..."
 npm run build
 
 echo " -> Starting server with PM2..."
-pm2 start server.js --name dlchats-app --port $PORT --spa
+PORT=$PORT pm2 start server.js --name dlchats-app --spa --update-env
 
-# 4. Reload Nginx
+# 4. Resolve Nginx Conflicts
 echo ""
-echo "[4] Reloading Nginx..."
+echo "[4] Resolving Nginx Conflicts..."
+if [ -L /etc/nginx/sites-enabled/whatsapp-dashboard ]; then
+    echo " -> Disabling 'whatsapp-dashboard' to prevent domain conflicts..."
+    rm /etc/nginx/sites-enabled/whatsapp-dashboard
+fi
+if [ -L /etc/nginx/sites-enabled/default ]; then
+    echo " -> Disabling 'default' site to prevent conflicts..."
+    rm /etc/nginx/sites-enabled/default
+fi
+
+# 5. Reload Nginx
+echo ""
+echo "[5] Reloading Nginx..."
 nginx -t
 if [ $? -eq 0 ]; then
     systemctl reload nginx
