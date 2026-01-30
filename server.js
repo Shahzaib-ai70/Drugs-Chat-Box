@@ -712,7 +712,7 @@ io.on('connection', (socket) => {
       }
   });
 
-  socket.on('force_sync_chats', (serviceId) => {
+  socket.on('force_sync_chats', async (serviceId) => {
     log(`Force sync requested for ${serviceId}`);
     const session = sessions.get(serviceId);
     if (session && session.client) {
@@ -722,7 +722,14 @@ io.on('connection', (socket) => {
         }
 
         if (session.status === 'CONNECTED') {
-          session.client.getChats().then(chats => {
+          try {
+              log(`[${serviceId}] Executing force sync...`);
+              // Use Promise.race for timeout
+              const getChatsPromise = session.client.getChats();
+              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 20000));
+              
+              const chats = await Promise.race([getChatsPromise, timeoutPromise]);
+              
               const mapped = chats.map(c => ({
                 id: c.id?._serialized || c.id || '',
                 name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
@@ -731,12 +738,16 @@ io.on('connection', (socket) => {
                 lastMessage: c.lastMessage?.body,
                 lastTimestamp: c.lastMessage?.timestamp
               }));
+              
               session.chats = mapped;
               io.to(serviceId).emit('wa_chats', mapped);
               log(`Force sync completed for ${serviceId}, found ${mapped.length} chats`);
-          }).catch(err => {
+          } catch (err) {
               log(`Force sync error for ${serviceId}: ` + err);
-          });
+              socket.emit('wa_error', 'Sync failed: ' + err.message);
+              // Ensure we stop the spinner even on error
+              socket.emit('wa_chats', session.chats || []); 
+          }
       }
     }
   });
