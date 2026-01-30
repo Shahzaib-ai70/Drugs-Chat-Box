@@ -285,6 +285,38 @@ const initializeWhatsApp = (serviceId) => {
           io.to(serviceId).emit('wa_chats', mappedBasic);
           log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
 
+          if (mappedBasic.length === 0 && client.pupPage) {
+              try {
+                  const storeMapped = await client.pupPage.evaluate(() => {
+                      const models = window.Store?.Chats?.models || [];
+                      return models.map((c) => {
+                          const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
+                          const name = c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown';
+                          const last = c.lastMessage || c.__x_lastMessage || {};
+                          return {
+                              id,
+                              name,
+                              isGroup: !!c.isGroup || !!c.__x_isGroup,
+                              unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
+                              lastMessage: last.body || '',
+                              lastTimestamp: last.timestamp || last.t || 0,
+                              profilePicUrl: '',
+                              lastSeen: ''
+                          };
+                      });
+                  });
+                  if (Array.isArray(storeMapped) && storeMapped.length > 0) {
+                      sessionState.chats = storeMapped;
+                      io.to(serviceId).emit('wa_chats', storeMapped);
+                      log(`[${serviceId}] Fallback via Store succeeded: ${storeMapped.length} chats`);
+                  } else {
+                      log(`[${serviceId}] Store fallback returned 0 chats`);
+                  }
+              } catch(e) {
+                  log(`[${serviceId}] Store fallback error: ${e}`);
+              }
+          }
+
           // AUTO-RETRY LOGIC: If chats are empty, retry with progressive backoff
           if (mappedBasic.length === 0) {
               const retryDelays = [5000, 15000, 45000]; // Retry at 5s, 15s, 45s
@@ -890,6 +922,36 @@ io.on('connection', (socket) => {
                 session.chats = mapped;
                 io.to(serviceId).emit('wa_chats', mapped);
                 log(`Force sync completed for ${serviceId}, found ${mapped.length} chats`);
+                
+                if (mapped.length === 0 && session.client.pupPage) {
+                    try {
+                        const storeMapped = await session.client.pupPage.evaluate(() => {
+                            const models = window.Store?.Chats?.models || [];
+                            return models.map((c) => {
+                                const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
+                                const name = c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown';
+                                const last = c.lastMessage || c.__x_lastMessage || {};
+                                return {
+                                    id,
+                                    name,
+                                    isGroup: !!c.isGroup || !!c.__x_isGroup,
+                                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
+                                    lastMessage: last.body || '',
+                                    lastTimestamp: last.timestamp || last.t || 0
+                                };
+                            });
+                        });
+                        if (Array.isArray(storeMapped) && storeMapped.length > 0) {
+                            session.chats = storeMapped;
+                            io.to(serviceId).emit('wa_chats', storeMapped);
+                            log(`[${serviceId}] Force sync Store fallback succeeded: ${storeMapped.length} chats`);
+                        } else {
+                            log(`[${serviceId}] Force sync Store fallback returned 0 chats`);
+                        }
+                    } catch(e) {
+                        log(`[${serviceId}] Force sync Store fallback error: ${e}`);
+                    }
+                }
             } catch (err) {
                 log(`Force sync error for ${serviceId}: ` + err);
                 socket.emit('wa_error', 'Sync failed: ' + err.message);
