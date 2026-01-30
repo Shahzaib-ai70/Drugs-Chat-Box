@@ -283,33 +283,47 @@ const initializeWhatsApp = (serviceId) => {
           io.to(serviceId).emit('wa_chats', mappedBasic);
           log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
 
-          // AUTO-RETRY LOGIC: If chats are empty, retry up to 3 times
+          // AUTO-RETRY LOGIC: If chats are empty, retry with progressive backoff
           if (mappedBasic.length === 0) {
-              log(`[${serviceId}] Warning: 0 chats found. Retrying in 3s...`);
-              setTimeout(async () => {
-                // Use Sync Queue for retry
-                syncQueue.add(async () => {
-                    try {
-                        const retryChats = await client.getChats();
-                        if (retryChats.length > 0) {
-                            log(`[${serviceId}] Retry success! Found ${retryChats.length} chats.`);
-                            // Re-run mapping
-                            const retryMapped = retryChats.map(c => ({
-                                id: c.id?._serialized || c.id || '',
-                                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                                isGroup: !!c.isGroup,
-                                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                                lastMessage: c.lastMessage?.body || '',
-                                lastTimestamp: c.lastMessage?.timestamp || 0,
-                                profilePicUrl: '',
-                                lastSeen: ''
-                            }));
-                            sessionState.chats = retryMapped;
-                            io.to(serviceId).emit('wa_chats', retryMapped);
-                        }
-                    } catch(e) { log(`[${serviceId}] Retry failed: ${e}`); }
-                });
-              }, 3000);
+              const retryDelays = [5000, 15000, 45000]; // Retry at 5s, 15s, 45s
+              
+              retryDelays.forEach((delay, index) => {
+                  setTimeout(() => {
+                      // Use Sync Queue for retry
+                      syncQueue.add(async () => {
+                          // Check if we already found chats in a previous retry to avoid redundant work
+                          if (sessionState.chats && sessionState.chats.length > 0) {
+                              return;
+                          }
+
+                          log(`[${serviceId}] Retry attempt ${index + 1}/${retryDelays.length} for empty chats...`);
+                          try {
+                              const retryPromise = client.getChats();
+                              const timeoutP = new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 60000));
+                              const retryChats = await Promise.race([retryPromise, timeoutP]);
+
+                              if (retryChats.length > 0) {
+                                  log(`[${serviceId}] Retry ${index + 1} success! Found ${retryChats.length} chats.`);
+                                  // Re-run mapping
+                                  const retryMapped = retryChats.map(c => ({
+                                      id: c.id?._serialized || c.id || '',
+                                      name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                                      isGroup: !!c.isGroup,
+                                      unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                                      lastMessage: c.lastMessage?.body || '',
+                                      lastTimestamp: c.lastMessage?.timestamp || 0,
+                                      profilePicUrl: '',
+                                      lastSeen: ''
+                                  }));
+                                  sessionState.chats = retryMapped;
+                                  io.to(serviceId).emit('wa_chats', retryMapped);
+                              } else {
+                                  log(`[${serviceId}] Retry ${index + 1} still found 0 chats.`);
+                              }
+                          } catch(e) { log(`[${serviceId}] Retry ${index + 1} failed: ${e}`); }
+                      });
+                  }, delay);
+              });
           }
 
           // 3. Fetch profile pics in background (Slow but non-blocking)
