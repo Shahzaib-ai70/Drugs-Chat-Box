@@ -81,7 +81,8 @@ fi
 echo ""
 echo "[6] Attempting SSL Setup (Certbot)..."
 if command -v certbot &> /dev/null; then
-    certbot --nginx -d app.dlchats.site -d drugs.dlchats.site --non-interactive --agree-tos -m admin@dlchats.site --redirect
+    # Added --expand to handle existing certificates automatically
+    certbot --nginx -d app.dlchats.site -d drugs.dlchats.site --non-interactive --agree-tos -m admin@dlchats.site --redirect --expand
 else
     echo " -> Certbot not found. Skipping SSL."
 fi
