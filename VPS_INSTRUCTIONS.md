@@ -1,53 +1,28 @@
-# Deployment Instructions for Hostinger VPS (Add-on Project)
+# VPS Deployment & Fix Instructions
 
-Since you already have a project running on this VPS, we will deploy this new app safely alongside it using a separate directory and the `app.dlchats.site` subdomain.
+## 🚨 One-Click Fix (Recommended)
 
-## 1. Safe Setup (Don't touch existing project)
-We will use a dedicated directory so we don't interfere with your current files.
+If you are seeing "502 Bad Gateway" or your old project is missing, run this **Single Command** on your VPS:
 
-1. Connect to your VPS via SSH.
-2. Create a new folder for this specific app:
 ```bash
-sudo mkdir -p /var/www/dlchats-app
-```
-3. Set permissions (if needed):
-```bash
-sudo chown -R $USER:$USER /var/www/dlchats-app
+cd /var/www/dlchats-app && git pull origin main && sudo bash fix_and_deploy.sh
 ```
 
-## 2. Clone from GitHub & Install
-1. **Clone the repository** directly into the folder:
-```bash
-git clone https://github.com/Shahzaib-ai70/Drugs-Chat-Box.git /var/www/dlchats-app
-```
+This script will automatically:
+1. **Restore your old project** (whatsapp-dashboard) if it was accidentally removed.
+2. **Configure the new project** (app.dlchats.site) on Port 3005.
+3. **Build the frontend** and start the server.
+4. **Fix Nginx** configuration.
 
-2. Enter the directory and install dependencies:
-```bash
-cd /var/www/dlchats-app
-npm install --production
-```
-*(If you haven't installed Puppeteer dependencies yet on this server, run this once:)*
-```bash
-sudo apt install -y ca-certificates fonts-liberation libappindicator3-1 libasound2 libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release wget xdg-utils
-```
+---
 
-## 3. Start with PM2 (Non-blocking)
-We use a unique name `dlchats-app` so it doesn't conflict with your other PM2 processes.
-```bash
-pm2 start ecosystem.config.cjs
-pm2 save
-```
-*Your app is now running on port 3005.*
+## Manual Steps (Only if script fails)
 
-## 4. Nginx Configuration (Subdomain)
-We will create a **new** Nginx config file for `app.dlchats.site`. This ensures your main domain `dlchats.site` remains untouched.
+### 1. Update Server Code
+Ensure `server.js` listens on `127.0.0.1` (already done in code).
 
-1. Create the config file:
-```bash
-sudo nano /etc/nginx/sites-available/dlchats-app
-```
-
-2. Paste this content:
+### 2. Nginx Configuration
+Edit `/etc/nginx/sites-available/dlchats-app`:
 ```nginx
 server {
     listen 80;
@@ -63,21 +38,9 @@ server {
     }
 }
 ```
-3. Save and Exit (`Ctrl+X`, then `Y`, then `Enter`).
 
-4. Enable the site and reload Nginx:
+### 3. Restart Services
 ```bash
-sudo ln -s /etc/nginx/sites-available/dlchats-app /etc/nginx/sites-enabled/
-sudo nginx -t
+pm2 restart dlchats-app
 sudo systemctl reload nginx
 ```
-
-## 5. SSL (HTTPS) for Subdomain
-Secure only this subdomain.
-```bash
-sudo certbot --nginx -d app.dlchats.site
-```
-
-## 6. Done!
-- Open **https://app.dlchats.site** to see your new app.
-- Your existing site on `dlchats.site` is completely unaffected.
