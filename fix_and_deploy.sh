@@ -9,21 +9,14 @@ APP_DIR="/var/www/dlchats-app"
 DOMAIN="app.dlchats.site drugs.dlchats.site"
 PORT=3005
 
-# 1. Restore Old Project (Safe-guarding user's existing work)
+# 1. DELETE ALL OLD CONFLICTING CONFIGS (Emergency Clean)
 echo ""
-echo "[1] Checking for Old Project Backup..."
-if [ -f /root/nginx_backups/whatsapp-dashboard ]; then
-    echo " -> Found backup of 'whatsapp-dashboard'. Restoring it..."
-    cp /root/nginx_backups/whatsapp-dashboard /etc/nginx/sites-available/whatsapp-dashboard
-    ln -sf /etc/nginx/sites-available/whatsapp-dashboard /etc/nginx/sites-enabled/
-    echo " -> Old project restored."
-else
-    echo " -> No backup found in /root/nginx_backups/. Checking sites-available..."
-    if [ -f /etc/nginx/sites-available/whatsapp-dashboard ]; then
-        echo " -> It exists in sites-available. Enabling it..."
-        ln -sf /etc/nginx/sites-available/whatsapp-dashboard /etc/nginx/sites-enabled/
-    fi
-fi
+echo "[1] EMERGENCY CLEAN: Removing ALL old Nginx configs..."
+# We are NOT restoring whatsapp-dashboard because it is causing conflicts.
+# We will create a fresh config for the new app ONLY.
+rm -f /etc/nginx/sites-enabled/whatsapp-dashboard
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-available/whatsapp-dashboard
 
 # 2. Setup New Project Nginx Config
 echo ""
@@ -68,17 +61,11 @@ npm run build
 echo " -> Starting server with PM2..."
 PORT=$PORT pm2 start server.js --name dlchats-app --spa --update-env
 
-# 4. Resolve Nginx Conflicts
+# 4. Resolve Nginx Conflicts (Redundant but safe)
 echo ""
-echo "[4] Resolving Nginx Conflicts..."
-if [ -L /etc/nginx/sites-enabled/whatsapp-dashboard ]; then
-    echo " -> Disabling 'whatsapp-dashboard' to prevent domain conflicts..."
-    rm /etc/nginx/sites-enabled/whatsapp-dashboard
-fi
-if [ -L /etc/nginx/sites-enabled/default ]; then
-    echo " -> Disabling 'default' site to prevent conflicts..."
-    rm /etc/nginx/sites-enabled/default
-fi
+echo "[4] Final check for conflicts..."
+rm -f /etc/nginx/sites-enabled/whatsapp-dashboard
+rm -f /etc/nginx/sites-enabled/default
 
 # 5. Reload Nginx
 echo ""
