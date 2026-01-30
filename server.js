@@ -175,10 +175,10 @@ const initializeWhatsApp = (serviceId) => {
         '--no-zygote', 
         '--single-process', 
         '--disable-gpu',
-        '--disable-extensions', // Reduce memory
-        '--disable-component-extensions-with-background-pages', // Reduce memory
-        '--disable-default-apps', // Reduce memory
-        '--mute-audio', // Reduce memory
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
         '--no-default-browser-check',
         '--autoplay-policy=user-gesture-required',
         '--disable-background-timer-throttling',
@@ -186,7 +186,7 @@ const initializeWhatsApp = (serviceId) => {
         '--disable-breakpad',
         '--disable-client-side-phishing-detection',
         '--disable-component-update',
-        '--disable-features=TranslateUI',
+        '--disable-features=TranslateUI,site-per-process,AudioServiceOutOfProcess,IsolateOrigins', 
         '--disable-hang-monitor',
         '--disable-ipc-flooding-protection',
         '--disable-notifications',
@@ -203,7 +203,8 @@ const initializeWhatsApp = (serviceId) => {
         '--no-pings',
         '--password-store=basic',
         '--use-gl=swiftshader',
-        '--use-mock-keychain'
+        '--use-mock-keychain',
+        '--block-new-web-contents'
       ]
     }
   });
