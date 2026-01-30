@@ -161,6 +161,8 @@ const initializeWhatsApp = (serviceId) => {
   }
 
   log(`Initializing WhatsApp Client for service: ${serviceId}`);
+  const mem = process.memoryUsage();
+  log(`[System Check] Active Sessions: ${sessions.size}. Memory: RSS=${(mem.rss/1024/1024).toFixed(2)}MB`);
   
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: serviceId }),
@@ -1162,11 +1164,25 @@ io.on('connection', (socket) => {
           }
 
           try {
-              await session.client.logout();
-              await session.client.destroy();
+              if (session.client) {
+                  try { await session.client.logout(); } catch(e) { log(`[${serviceId}] Logout error (ignored): ${e}`); }
+                  try { await session.client.destroy(); } catch(e) { log(`[${serviceId}] Destroy error (ignored): ${e}`); }
+              }
           } catch (e) {
-              log(`[${serviceId}] Error during logout: ` + e);
+              log(`[${serviceId}] Error during logout process: ` + e);
           }
+
+          // Force cleanup session folder to prevent corruption
+          try {
+             const authPath = path.join(__dirname, '.wwebjs_auth', `session-${serviceId}`);
+             if (fs.existsSync(authPath)) {
+                 log(`[${serviceId}] Force deleting session folder: ${authPath}`);
+                 fs.rmSync(authPath, { recursive: true, force: true });
+             }
+          } catch(e) {
+             log(`[${serviceId}] Failed to delete session folder: ${e}`);
+          }
+
           sessions.delete(serviceId);
           io.to(serviceId).emit('status', 'DISCONNECTED');
       }
