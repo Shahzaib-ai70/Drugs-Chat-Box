@@ -6,7 +6,7 @@ echo "   DLCHATS-APP FRESH START & DEPLOY TOOL"
 echo "==================================================="
 
 APP_DIR="/var/www/dlchats-app"
-DOMAIN="app.dlchats.site"
+DOMAIN="app.dlchats.site drugs.dlchats.site"
 PORT=3005
 
 # 1. Restore Old Project (Safe-guarding user's existing work)

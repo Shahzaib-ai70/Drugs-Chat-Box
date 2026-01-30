@@ -258,8 +258,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   useEffect(() => {
     if (!isWhatsApp || !activeService?.id) return;
 
-    // Connect to Socket.io on backend port 3005
-    const socket = io('http://localhost:3005');
+    // Connect to Socket.io (automatically detects host)
+    const socket = io();
     socketRef.current = socket;
 
     if (Notification.permission !== 'granted') {
