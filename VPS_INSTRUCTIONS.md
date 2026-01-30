@@ -1,46 +1,27 @@
 # VPS Deployment & Fix Instructions
 
-## 🚨 One-Click Fix (Recommended)
+## 🚨 Fresh Install (If folder is missing)
 
-If you are seeing "502 Bad Gateway" or your old project is missing, run this **Single Command** on your VPS:
+If you see `No such file or directory` or `502 Bad Gateway`, run these commands one by one:
 
 ```bash
-cd /var/www/dlchats-app && git pull origin main && sudo bash fix_and_deploy.sh
-```
+# 1. Remove any partial installation
+sudo rm -rf /var/www/dlchats-app
 
-This script will automatically:
-1. **Restore your old project** (whatsapp-dashboard) if it was accidentally removed.
-2. **Configure the new project** (app.dlchats.site) on Port 3005.
-3. **Build the frontend** and start the server.
-4. **Fix Nginx** configuration.
+# 2. Download the project fresh
+sudo git clone https://github.com/Shahzaib-ai70/Drugs-Chat-Box.git /var/www/dlchats-app
+
+# 3. Enter the folder
+cd /var/www/dlchats-app
+
+# 4. Run the Master Fix Script
+sudo bash fix_and_deploy.sh
+```
 
 ---
 
-## Manual Steps (Only if script fails)
-
-### 1. Update Server Code
-Ensure `server.js` listens on `127.0.0.1` (already done in code).
-
-### 2. Nginx Configuration
-Edit `/etc/nginx/sites-available/dlchats-app`:
-```nginx
-server {
-    listen 80;
-    server_name app.dlchats.site;
-
-    location / {
-        proxy_pass http://127.0.0.1:3005;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-### 3. Restart Services
-```bash
-pm2 restart dlchats-app
-sudo systemctl reload nginx
-```
+## What does fix_and_deploy.sh do?
+1. **Restores your old project** (whatsapp-dashboard) automatically.
+2. **Sets up the new project** (app.dlchats.site) on Port 3005.
+3. **Builds the frontend** so the white screen goes away.
+4. **Fixes Nginx** configuration for both sites.
