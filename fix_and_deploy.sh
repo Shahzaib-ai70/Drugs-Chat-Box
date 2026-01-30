@@ -24,11 +24,12 @@ else
     echo " -> Swap already exists."
 fi
 
-# 1. DELETE ALL OLD CONFLICTING CONFIGS (Nuclear Option)
+# 1. DELETE ONLY CONFLICTING CONFIGS (Safe Mode)
 echo ""
-echo "[1] NUCLEAR CLEAN: Removing ALL enabled Nginx sites..."
-# This ensures NO other site (including hidden ones) can conflict.
-rm -f /etc/nginx/sites-enabled/*
+echo "[1] Removing old 'default' config if exists..."
+rm -f /etc/nginx/sites-enabled/default
+# Remove our own previous config to update it, but leave others alone
+rm -f /etc/nginx/sites-enabled/dlchats-app
 
 # 2. Setup New Project Nginx Config
 echo ""
