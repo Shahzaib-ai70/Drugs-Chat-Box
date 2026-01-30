@@ -237,6 +237,32 @@ const initializeWhatsApp = (serviceId) => {
       io.to(serviceId).emit('wa_chats', mappedBasic);
       log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
 
+      // AUTO-RETRY LOGIC: If chats are empty, retry up to 3 times
+      if (mappedBasic.length === 0) {
+          log(`[${serviceId}] Warning: 0 chats found. Retrying in 3s...`);
+          setTimeout(async () => {
+             try {
+                const retryChats = await client.getChats();
+                if (retryChats.length > 0) {
+                    log(`[${serviceId}] Retry success! Found ${retryChats.length} chats.`);
+                    // Re-run mapping
+                    const retryMapped = retryChats.map(c => ({
+                        id: c.id?._serialized || c.id || '',
+                        name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                        isGroup: !!c.isGroup,
+                        unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                        lastMessage: c.lastMessage?.body || '',
+                        lastTimestamp: c.lastMessage?.timestamp || 0,
+                        profilePicUrl: '',
+                        lastSeen: ''
+                    }));
+                    sessionState.chats = retryMapped;
+                    io.to(serviceId).emit('wa_chats', retryMapped);
+                }
+             } catch(e) { log(`[${serviceId}] Retry failed: ${e}`); }
+          }, 3000);
+      }
+
       // 3. Fetch profile pics in background (Slow but non-blocking)
       // We process in chunks to avoid overwhelming the client
       (async () => {
