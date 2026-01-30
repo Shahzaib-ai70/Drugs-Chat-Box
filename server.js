@@ -26,6 +26,19 @@ const log = (msg) => console.log(`[MASTER] ${msg}`);
 
 // DB Setup
 const db = new Database('database.db', { verbose: log });
+
+// Migration: Add port column if missing
+try {
+  const columns = db.prepare('PRAGMA table_info(user_services)').all();
+  const hasPort = columns.some(c => c.name === 'port');
+  if (!hasPort) {
+    log('Migrating DB: Adding port column to user_services');
+    db.prepare('ALTER TABLE user_services ADD COLUMN port INTEGER').run();
+  }
+} catch (e) {
+  log(`Migration Error: ${e.message}`);
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS user_services (
     id TEXT PRIMARY KEY,
@@ -87,11 +100,21 @@ const spawnWorker = (service) => {
 };
 
 // Startup: Restore all services
-const services = db.prepare('SELECT * FROM user_services').all();
-services.forEach((s, i) => {
-    // Stagger startup
-    setTimeout(() => spawnWorker(s), i * 2000);
-});
+try {
+    const services = db.prepare('SELECT * FROM user_services').all();
+    services.forEach((s, i) => {
+        // Stagger startup
+        setTimeout(() => {
+            try {
+                spawnWorker(s);
+            } catch (e) {
+                log(`Failed to restore service ${s.id}: ${e.message}`);
+            }
+        }, i * 2000);
+    });
+} catch (e) {
+    log(`Startup Error: ${e.message}`);
+}
 
 // --- APIs ---
 
