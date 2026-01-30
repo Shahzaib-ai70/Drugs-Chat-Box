@@ -175,7 +175,7 @@ const initializeWhatsApp = (serviceId) => {
         '--disable-accelerated-2d-canvas', 
         '--no-first-run', 
         '--no-zygote', 
-        '--single-process', 
+        // '--single-process', // REMOVED for stability with high RAM
         '--disable-gpu',
         '--disable-extensions',
         '--disable-component-extensions-with-background-pages',

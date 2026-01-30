@@ -75,7 +75,7 @@ echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering
 killall -9 node 2>/dev/null
 # Removed --spa flag as it's not needed for custom server.js and caused errors
-PORT=$PORT pm2 start server.js --name dlchats-app --update-env
+PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=16384"
 
 # 4. Final check for conflicts (Redundant but safe)
 echo ""
