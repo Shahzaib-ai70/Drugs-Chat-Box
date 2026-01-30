@@ -81,11 +81,15 @@ function App() {
         if (!Array.isArray(data)) return; 
         const mappedServices = data.map((item: any) => {
           const serviceDef = AVAILABLE_SERVICES.find(s => s.id === item.service_id);
-          if (!serviceDef) return null;
+          // Fallback if exact match not found (e.g. legacy IDs), try to guess by name or default to WA
+          const def = serviceDef || (item.service_id.startsWith('tg') ? AVAILABLE_SERVICES.find(s => s.id === 'tg1') : AVAILABLE_SERVICES.find(s => s.id === 'wa1'));
+          
+          if (!def) return null;
           return {
             id: item.id,
-            service: serviceDef,
-            customName: item.custom_name
+            service: def,
+            customName: item.custom_name,
+            port: item.port
           };
         }).filter(Boolean) as AddedService[];
         setAddedServices(mappedServices);
@@ -93,42 +97,40 @@ function App() {
       .catch(console.error);
   }, [invitationCode]);
 
-  const handleAddService = (service: ServiceItem, name: string, quantity: number) => {
+  const handleAddService = async (service: ServiceItem, name: string, quantity: number) => {
     if (!invitationCode) return;
 
-    const newServices: AddedService[] = [];
-
-    // Create local objects immediately
     for (let i = 0; i < quantity; i++) {
-      const id = Date.now() + '-' + i;
-      newServices.push({
-        id,
-        service,
-        customName: name
-      });
-
-      // Send to backend in background (fire-and-forget for UI purposes)
-      fetch('/api/services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          serviceId: service.id,
-          customName: name,
-          ownerCode: invitationCode
-        })
-      }).catch(err => {
-        console.error('Failed to save service:', err);
-        // In a real app, we might show a toast error or revert state
-      });
-    }
-
-    // Update state immediately (Optimistic UI)
-    setAddedServices(prev => [...prev, ...newServices]);
-    
-    // Set last added as active
-    if (newServices.length > 0) {
-      setActiveServiceId(newServices[newServices.length - 1].id);
+        try {
+            const res = await fetch('/api/create_service', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customName: name,
+                    serviceType: service.id, // Backend checks startsWith('tg') or defaults to wa
+                    ownerCode: invitationCode
+                })
+            });
+            const data = await res.json();
+            
+            if (data.success && data.service) {
+                const newService: AddedService = {
+                    id: data.service.id,
+                    service: service,
+                    customName: data.service.custom_name,
+                    port: data.service.port
+                };
+                
+                setAddedServices(prev => [...prev, newService]);
+                
+                // Set last added as active if it's the last one
+                if (i === quantity - 1) {
+                    setActiveServiceId(newService.id);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to create service:', e);
+        }
     }
   };
 

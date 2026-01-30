@@ -268,8 +268,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     if (!isWhatsApp || !activeService?.id) return;
 
-    // Connect to Socket.io (automatically detects host)
-    const socket = io();
+    // Connect to specific worker port
+    const socketUrl = activeService.port 
+      ? `${window.location.protocol}//${window.location.hostname}:${activeService.port}` 
+      : undefined;
+      
+    console.log(`Connecting to socket at: ${socketUrl || 'default'}`);
+
+    const socket = io(socketUrl);
     socketRef.current = socket;
 
     if (Notification.permission !== 'granted') {
@@ -497,7 +503,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isWhatsApp, activeService?.id]);
+  }, [isWhatsApp, activeService?.id, activeService?.port]);
 
   useEffect(() => {
     if (!qrValue) return;

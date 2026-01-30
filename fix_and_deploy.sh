@@ -29,6 +29,16 @@ else
     echo " -> Swap already exists."
 fi
 
+# 0.6. FIREWALL CONFIGURATION (For Isolated Workers)
+echo ""
+echo "[0.6] Configuring Firewall..."
+if command -v ufw &> /dev/null; then
+    ufw allow 3000:3050/tcp
+    echo " -> Opened ports 3000-3050 for isolated worker instances"
+else
+    echo " -> UFW not found. Skipping firewall config."
+fi
+
 # 1. DELETE ONLY CONFLICTING CONFIGS (Safe Mode)
 echo ""
 echo "[1] Removing old 'default' config if exists..."

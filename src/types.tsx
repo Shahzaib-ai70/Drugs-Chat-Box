@@ -12,4 +12,5 @@ export interface AddedService {
   id: string;
   service: ServiceItem;
   customName: string;
+  port?: number;
 }
