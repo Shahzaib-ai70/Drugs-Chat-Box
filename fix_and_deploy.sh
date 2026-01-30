@@ -9,14 +9,11 @@ APP_DIR="/var/www/dlchats-app"
 DOMAIN="app.dlchats.site drugs.dlchats.site"
 PORT=3005
 
-# 1. DELETE ALL OLD CONFLICTING CONFIGS (Emergency Clean)
+# 1. DELETE ALL OLD CONFLICTING CONFIGS (Nuclear Option)
 echo ""
-echo "[1] EMERGENCY CLEAN: Removing ALL old Nginx configs..."
-# We are NOT restoring whatsapp-dashboard because it is causing conflicts.
-# We will create a fresh config for the new app ONLY.
-rm -f /etc/nginx/sites-enabled/whatsapp-dashboard
-rm -f /etc/nginx/sites-enabled/default
-rm -f /etc/nginx/sites-available/whatsapp-dashboard
+echo "[1] NUCLEAR CLEAN: Removing ALL enabled Nginx sites..."
+# This ensures NO other site (including hidden ones) can conflict.
+rm -f /etc/nginx/sites-enabled/*
 
 # 2. Setup New Project Nginx Config
 echo ""
@@ -61,15 +58,12 @@ npm run build
 echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering
 killall -9 node 2>/dev/null
-PORT=$PORT pm2 start server.js --name dlchats-app --spa --update-env
+# Removed --spa flag as it's not needed for custom server.js and caused errors
+PORT=$PORT pm2 start server.js --name dlchats-app --update-env
 
-# 4. Resolve Nginx Conflicts (Redundant but safe)
+# 4. Final check for conflicts (Redundant but safe)
 echo ""
-echo "[4] Final check for conflicts..."
-# Aggressively remove ANY site that matches our domain pattern to be safe
-# (Assuming user doesn't have other important sites starting with these names in default)
-rm -f /etc/nginx/sites-enabled/whatsapp-dashboard
-rm -f /etc/nginx/sites-enabled/default
+echo "[4] Final check..."
 
 # 5. Reload Nginx
 echo ""
@@ -81,6 +75,15 @@ if [ $? -eq 0 ]; then
     echo " -> Nginx restarted successfully."
 else
     echo " -> Nginx configuration error! Check output above."
+fi
+
+# 6. Attempt SSL (Optional)
+echo ""
+echo "[6] Attempting SSL Setup (Certbot)..."
+if command -v certbot &> /dev/null; then
+    certbot --nginx -d app.dlchats.site -d drugs.dlchats.site --non-interactive --agree-tos -m admin@dlchats.site --redirect
+else
+    echo " -> Certbot not found. Skipping SSL."
 fi
 
 echo ""
