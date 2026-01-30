@@ -1139,12 +1139,12 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
-app.get('*', (req, res) => {
-  // Don't interfere with API or Socket.io paths
-  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
-      return res.status(404).json({ error: 'Not found' });
-  }
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+app.get(/.*/, (req, res) => {
+    // Don't interfere with API or Socket.io paths
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 log('Attempting to start server...');
