@@ -1152,8 +1152,8 @@ server.on('error', (e) => {
   log('Server error: ' + e);
 });
 
-server.listen(port, () => {
-  log(`Server running at http://127.0.0.1:${port}`);
+server.listen(port, '127.0.0.1', () => {
+  log(`Server running locally on VPS at http://127.0.0.1:${port}`);
 });
 
   // Keep process alive hack
