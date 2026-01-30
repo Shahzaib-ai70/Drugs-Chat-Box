@@ -29,12 +29,13 @@ else
     echo " -> Swap already exists."
 fi
 
-# 0.6. FIREWALL CONFIGURATION (For Isolated Workers)
+# 0.6. FIREWALL CONFIGURATION
 echo ""
 echo "[0.6] Configuring Firewall..."
 if command -v ufw &> /dev/null; then
-    ufw allow 3000:3050/tcp
-    echo " -> Opened ports 3000-3050 for isolated worker instances"
+    # We do NOT want to expose worker ports externally anymore
+    # ufw allow 3000:3050/tcp 
+    echo " -> Worker ports are internal only (Gateway Architecture)"
 else
     echo " -> UFW not found. Skipping firewall config."
 fi

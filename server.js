@@ -4,7 +4,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, fork } from 'child_process';
 import http from 'http';
 import { Server } from 'socket.io'; // For admin/global events if needed
 import fs from 'fs';
@@ -108,12 +108,21 @@ const spawnWorker = (service) => {
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
-    const child = spawn('node', ['worker.js'], {
+    // Use fork for IPC communication
+    const child = fork('worker.js', [], {
         env: { ...process.env, PORT: port, SERVICE_ID: service.id, SERVICE_TYPE: serviceType },
-        stdio: 'inherit' // Pipe logs to master stdout
+        stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
 
     workers.set(service.id, { process: child, port, startTime: Date.now() });
+
+    // IPC: Listen for events from Worker and relay to Frontend
+    child.on('message', (msg) => {
+        if (msg.type === 'event') {
+            // log(`Relay event ${msg.event} from ${service.id}`);
+            io.to(service.id).emit(msg.event, msg.data);
+        }
+    });
 
     child.on('exit', (code) => {
         log(`Worker ${service.id} exited with code ${code}`);
@@ -245,6 +254,49 @@ if (fs.existsSync(distPath)) {
       res.status(200).send('<h1>Server is Running</h1><p>Frontend build is missing. Please run build.</p>');
   });
 }
+
+// Socket.IO Gateway Logic
+io.on('connection', (socket) => {
+    log(`Client connected to Master Gateway: ${socket.id}`);
+
+    socket.on('join_service', (serviceId) => {
+        log(`Socket ${socket.id} joining service ${serviceId}`);
+        socket.join(serviceId);
+        
+        // Request latest state from worker
+        const worker = workers.get(serviceId);
+        if (worker && worker.process) {
+            worker.process.send({ type: 'command', command: 'request_state' });
+        }
+    });
+
+    socket.on('sendMessage', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker && worker.process) {
+            worker.process.send({ type: 'command', command: 'sendMessage', data });
+        } else {
+            socket.emit('error', 'Service not running');
+        }
+    });
+
+    socket.on('mark_read', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'mark_read', data });
+    });
+
+    socket.on('force_sync_chats', (serviceId) => {
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'force_sync_chats' });
+    });
+
+    socket.on('tg_password', (data) => {
+        const { serviceId, password } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'tg_password', data: password });
+    });
+});
 
 server.listen(PORT, () => {
     log(`Master Server running on port ${PORT}`);

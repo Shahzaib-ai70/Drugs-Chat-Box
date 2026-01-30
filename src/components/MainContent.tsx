@@ -268,12 +268,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     if (!isWhatsApp || !activeService?.id) return;
 
-    // Connect to specific worker port
-    const socketUrl = activeService.port 
-      ? `${window.location.protocol}//${window.location.hostname}:${activeService.port}` 
-      : undefined;
+    // Connect to Gateway (Master Server)
+    const socketUrl = undefined; // Connects to window.location.origin
       
-    console.log(`Connecting to socket at: ${socketUrl || 'default'}`);
+    console.log(`Connecting to socket at: ${socketUrl || 'default (Gateway)'}`);
 
     const socket = io(socketUrl);
     socketRef.current = socket;
@@ -503,7 +501,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isWhatsApp, activeService?.id, activeService?.port]);
+  }, [isWhatsApp, activeService?.id]);
 
   useEffect(() => {
     if (!qrValue) return;

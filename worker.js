@@ -48,6 +48,72 @@ const io = new Server(server, {
   }
 });
 
+// Monkey-patch io.to to relay events to Master via IPC
+const originalTo = io.to.bind(io);
+io.to = (room) => {
+    const originalObj = originalTo(room);
+    const originalEmit = originalObj.emit.bind(originalObj);
+    return {
+        ...originalObj,
+        emit: (event, data) => {
+            // Send to Master via IPC
+            if (process.send) {
+                process.send({ type: 'event', event, data, serviceId: SERVICE_ID });
+            }
+            // Emit locally as well
+            originalEmit(event, data);
+        }
+    };
+};
+
+// IPC Command Handler
+process.on('message', async (msg) => {
+    if (msg.type !== 'command') return;
+    const { command, data } = msg;
+
+    if (command === 'request_state') {
+        log('IPC: State requested');
+        if (sessionState.qr && sessionState.qr !== 'CONNECTED') io.to(SERVICE_ID).emit('qr', sessionState.qr);
+        io.to(SERVICE_ID).emit('status', sessionState.status);
+        if (sessionState.chats.length > 0) io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
+    } else if (command === 'sendMessage') {
+        handleSendMessage(data);
+    } else if (command === 'mark_read') {
+        // Implement mark_read if needed
+    } else if (command === 'force_sync_chats') {
+        handleForceSync();
+    } else if (command === 'tg_password') {
+        if (sessionState.passwordResolver) {
+            sessionState.passwordResolver(data);
+            sessionState.passwordResolver = null;
+        }
+    }
+});
+
+const handleSendMessage = async (data) => {
+    const body = data.message || data.body;
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            await sessionState.client.sendMessage(data.chatId, body); 
+        } catch(e) { log(`Send Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            await sessionState.client.sendMessage(data.chatId, { message: body });
+        } catch(e) { log(`Send Error: ${e}`); }
+    }
+};
+
+const handleForceSync = () => {
+     log('Force sync requested');
+     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+         if (sessionState.client.pupPage) sessionState.client.pupPage.reload();
+         // Also trigger fetch
+         // fetchAndEmitChats is defined inside initializeWhatsApp, so we can't call it easily here unless we expose it.
+         // But reloading page usually triggers ready/auth events which trigger fetch.
+     }
+};
+
+
 // State
 const sessionState = {
     client: null,
@@ -432,25 +498,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('sendMessage', async (data) => {
-      if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-          try {
-             await sessionState.client.sendMessage(data.chatId, data.message); 
-          } catch(e) { log(`Send Error: ${e}`); }
-      } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-          try {
-             await sessionState.client.sendMessage(data.chatId, { message: data.message });
-          } catch(e) { log(`Send Error: ${e}`); }
-      }
+      handleSendMessage(data);
   });
   
   // Handle force_sync
   socket.on('force_sync_chats', () => {
-     log('Force sync requested');
-     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-         if (sessionState.client.pupPage) sessionState.client.pupPage.reload();
-     } else if (SERVICE_TYPE === 'telegram') {
-         // TG fetch
-     }
+     handleForceSync();
   });
 });
 
