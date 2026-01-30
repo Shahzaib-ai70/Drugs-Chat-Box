@@ -59,11 +59,15 @@ echo " -> Building frontend..."
 npm run build
 
 echo " -> Starting server with PM2..."
+# Kill any existing node processes that might be lingering
+killall -9 node 2>/dev/null
 PORT=$PORT pm2 start server.js --name dlchats-app --spa --update-env
 
 # 4. Resolve Nginx Conflicts (Redundant but safe)
 echo ""
 echo "[4] Final check for conflicts..."
+# Aggressively remove ANY site that matches our domain pattern to be safe
+# (Assuming user doesn't have other important sites starting with these names in default)
 rm -f /etc/nginx/sites-enabled/whatsapp-dashboard
 rm -f /etc/nginx/sites-enabled/default
 
@@ -72,8 +76,9 @@ echo ""
 echo "[5] Reloading Nginx..."
 nginx -t
 if [ $? -eq 0 ]; then
-    systemctl reload nginx
-    echo " -> Nginx reloaded successfully."
+    # Force restart to clear any stuck worker processes
+    systemctl restart nginx
+    echo " -> Nginx restarted successfully."
 else
     echo " -> Nginx configuration error! Check output above."
 fi

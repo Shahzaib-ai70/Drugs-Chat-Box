@@ -43,6 +43,9 @@ app.use(bodyParser.json());
 const server = http.createServer(app);
 const port = process.env.PORT || 3005;
 
+// Explicitly bind to localhost (127.0.0.1) if running on VPS to ensure Nginx proxying works correctly
+const host = '127.0.0.1';
+
 // Debug Endpoint
 app.get('/debug', (req, res) => {
   const status = {};
