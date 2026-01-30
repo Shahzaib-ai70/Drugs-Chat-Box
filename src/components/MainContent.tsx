@@ -795,7 +795,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                             {(!m.ack || m.ack <= 0) && <Clock size={13} />}
                                             {m.ack === 1 && <Check size={14} />}
                                             {m.ack === 2 && <CheckCheck size={14} />}
-                                            {m.ack >= 3 && <CheckCheck size={14} className="text-blue-500" />}
+                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-blue-500" />}
                                         </span>
                                     )}
                                 </div>
