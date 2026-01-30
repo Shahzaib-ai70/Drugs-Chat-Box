@@ -84,7 +84,7 @@ echo " -> Installing dependencies..."
 npm install
 
 echo " -> Building frontend..."
-npm run build
+npm run build || { echo "Build failed! Exiting."; exit 1; }
 
 echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import http from 'http';
 import { Server } from 'socket.io'; // For admin/global events if needed
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,22 +25,24 @@ const BASE_WORKER_PORT = 3006;
 // Logging
 const log = (msg) => console.log(`[MASTER] ${msg}`);
 
-// DB Setup
-const db = new Database('database.db', { verbose: log });
+// Global Error Handlers
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  // Keep running if possible, but log critical error
+});
 
-// Migration: Add port column if missing
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
+// Database Setup
+let db;
 try {
-  const columns = db.prepare('PRAGMA table_info(user_services)').all();
-  const hasPort = columns.some(c => c.name === 'port');
-  if (!hasPort) {
-    log('Migrating DB: Adding port column to user_services');
-    db.prepare('ALTER TABLE user_services ADD COLUMN port INTEGER').run();
-  }
-} catch (e) {
-  log(`Migration Error: ${e.message}`);
-}
+  db = new Database('database.db', { verbose: log });
+  db.pragma('journal_mode = WAL');
 
-db.exec(`
+  // Initialize Tables
+  db.exec(`
   CREATE TABLE IF NOT EXISTS user_services (
     id TEXT PRIMARY KEY,
     service_id TEXT NOT NULL,
@@ -56,17 +59,38 @@ db.exec(`
   );
 `);
 
+  // Migration: Add port column if missing
+  try {
+    const columns = db.prepare('PRAGMA table_info(user_services)').all();
+    const hasPort = columns.some(c => c.name === 'port');
+    if (!hasPort) {
+      log('Migrating DB: Adding port column to user_services');
+      db.prepare('ALTER TABLE user_services ADD COLUMN port INTEGER').run();
+    }
+  } catch (e) {
+    log(`Migration Error: ${e.message}`);
+  }
+} catch (dbError) {
+  console.error('FATAL DATABASE ERROR:', dbError);
+  // If DB fails, we can't do much, but we can start a fallback server to report error
+}
+
 // Process Manager State
 const workers = new Map(); // serviceId -> { process, port, startTime }
 
 // Helper: Get Next Free Port
-const getNextFreePort = () => {
+const getNextFreePort = (start = 3006) => {
+  try {
     const usedPorts = db.prepare('SELECT port FROM user_services WHERE port IS NOT NULL').all().map(r => r.port);
-    let port = BASE_WORKER_PORT;
+    let port = start;
     while (usedPorts.includes(port)) {
-        port++;
+      port++;
     }
     return port;
+  } catch (e) {
+    log('DB Error in getNextFreePort, returning random safe port');
+    return Math.floor(Math.random() * 1000) + 3100;
+  }
 };
 
 // Helper: Spawn Worker
@@ -207,12 +231,20 @@ app.post('/api/translate', async (req, res) => {
 });
 
 // Serve Static Frontend (Vite Build)
-app.use(express.static(path.join(__dirname, 'dist')));
-
-// SPA Fallback: Serve index.html for any unknown routes
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  
+  // SPA Fallback: Serve index.html for any unknown routes
+  app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  log('WARNING: dist folder not found. Running in API-only mode or Build Failed.');
+  app.get('/', (req, res) => {
+      res.status(200).send('<h1>Server is Running</h1><p>Frontend build is missing. Please run build.</p>');
+  });
+}
 
 server.listen(PORT, () => {
     log(`Master Server running on port ${PORT}`);
