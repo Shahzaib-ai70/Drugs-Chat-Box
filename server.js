@@ -206,6 +206,14 @@ app.post('/api/translate', async (req, res) => {
      res.json({ translatedText: `[Translated] ${req.body.text}` });
 });
 
+// Serve Static Frontend (Vite Build)
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// SPA Fallback: Serve index.html for any unknown routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 server.listen(PORT, () => {
     log(`Master Server running on port ${PORT}`);
 });
