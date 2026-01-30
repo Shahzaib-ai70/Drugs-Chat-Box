@@ -9,6 +9,21 @@ APP_DIR="/var/www/dlchats-app"
 DOMAIN="app.dlchats.site drugs.dlchats.site"
 PORT=3005
 
+# 0.5. AUTOMATIC SWAP FILE CREATION (Prevent OOM)
+echo ""
+echo "[0.5] Checking for Swap File..."
+if [ $(swapon --show | wc -l) -le 1 ]; then
+    echo " -> No swap detected. Creating 4GB Swap File (This is critical for multiple Chrome instances)..."
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+    echo " -> Swap created successfully!"
+else
+    echo " -> Swap already exists."
+fi
+
 # 1. DELETE ALL OLD CONFLICTING CONFIGS (Nuclear Option)
 echo ""
 echo "[1] NUCLEAR CLEAN: Removing ALL enabled Nginx sites..."

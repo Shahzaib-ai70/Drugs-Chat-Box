@@ -115,6 +115,45 @@ const io = new Server(server, {
 // State management for multiple sessions
 const sessions = new Map(); // serviceId -> { client, qr, status, chats }
 
+// Resource Queue for throttling heavy operations
+class ResourceQueue {
+  constructor(concurrency = 1, delay = 0) {
+    this.concurrency = concurrency;
+    this.delay = delay;
+    this.queue = [];
+    this.active = 0;
+  }
+
+  async add(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      this.process();
+    });
+  }
+
+  async process() {
+    if (this.active >= this.concurrency || this.queue.length === 0) return;
+
+    this.active++;
+    const { fn, resolve, reject } = this.queue.shift();
+
+    try {
+      const result = await fn();
+      resolve(result);
+    } catch (e) {
+      reject(e);
+    } finally {
+      if (this.delay > 0) await new Promise(r => setTimeout(r, this.delay));
+      this.active--;
+      this.process();
+    }
+  }
+}
+
+// Global Queues
+const initQueue = new ResourceQueue(1, 5000); // 1 initialization at a time, 5s cooldown
+const syncQueue = new ResourceQueue(2, 1000); // 2 concurrent syncs, 1s cooldown
+
 // Initialize WhatsApp Client for a specific service
 const initializeWhatsApp = (serviceId) => {
   if (sessions.has(serviceId) && sessions.get(serviceId).client) {
@@ -448,7 +487,11 @@ const initializeWhatsApp = (serviceId) => {
     io.to(serviceId).emit('auth_failure', msg);
   });
 
-  client.initialize().catch(err => {
+  // Use Global Queue for Initialization
+  initQueue.add(async () => {
+      log(`[${serviceId}] Starting Puppeteer initialization via Queue...`);
+      await client.initialize();
+  }).catch(err => {
       log(`Failed to initialize WhatsApp client for ${serviceId}: ` + err);
   });
 
@@ -798,33 +841,35 @@ io.on('connection', (socket) => {
         }
 
         if (session.status === 'CONNECTED') {
-          try {
-              log(`[${serviceId}] Executing force sync...`);
-              // Use Promise.race for timeout
-              const getChatsPromise = session.client.getChats();
-              // Increased timeout to 60s for slow VPS/Many Accounts
-              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000));
-              
-              const chats = await Promise.race([getChatsPromise, timeoutPromise]);
-              
-              const mapped = chats.map(c => ({
-                id: c.id?._serialized || c.id || '',
-                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                isGroup: !!c.isGroup,
-                unreadCount: c.unreadCount,
-                lastMessage: c.lastMessage?.body,
-                lastTimestamp: c.lastMessage?.timestamp
-              }));
-              
-              session.chats = mapped;
-              io.to(serviceId).emit('wa_chats', mapped);
-              log(`Force sync completed for ${serviceId}, found ${mapped.length} chats`);
-          } catch (err) {
-              log(`Force sync error for ${serviceId}: ` + err);
-              socket.emit('wa_error', 'Sync failed: ' + err.message);
-              // Ensure we stop the spinner even on error
-              socket.emit('wa_chats', session.chats || []); 
-          }
+          syncQueue.add(async () => {
+            try {
+                log(`[${serviceId}] Executing force sync via Queue...`);
+                // Use Promise.race for timeout
+                const getChatsPromise = session.client.getChats();
+                // Increased timeout to 60s for slow VPS/Many Accounts
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000));
+                
+                const chats = await Promise.race([getChatsPromise, timeoutPromise]);
+                
+                const mapped = chats.map(c => ({
+                  id: c.id?._serialized || c.id || '',
+                  name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                  isGroup: !!c.isGroup,
+                  unreadCount: c.unreadCount,
+                  lastMessage: c.lastMessage?.body,
+                  lastTimestamp: c.lastMessage?.timestamp
+                }));
+                
+                session.chats = mapped;
+                io.to(serviceId).emit('wa_chats', mapped);
+                log(`Force sync completed for ${serviceId}, found ${mapped.length} chats`);
+            } catch (err) {
+                log(`Force sync error for ${serviceId}: ` + err);
+                socket.emit('wa_error', 'Sync failed: ' + err.message);
+                // Ensure we stop the spinner even on error
+                socket.emit('wa_chats', session.chats || []); 
+            }
+          });
       }
     }
   });
