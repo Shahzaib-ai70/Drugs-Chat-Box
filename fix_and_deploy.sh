@@ -50,13 +50,20 @@ rm -f /etc/nginx/sites-enabled/dlchats-app
 # 2. Setup New Project Nginx Config (FORCE OVERWRITE)
 echo ""
 echo "[2] Configuring Nginx for New Project ($DOMAIN)..."
+
+# 2.1 Fix Nginx Bucket Size (Global Setting)
+# We create a separate config file in conf.d to ensure it's in the http block
+echo "server_names_hash_bucket_size 128;" > /etc/nginx/conf.d/dlchats-params.conf
+echo " -> Created /etc/nginx/conf.d/dlchats-params.conf to fix long domain names"
+
+# 2.2 Create Site Config
 # Using a HEREDOC with strict content to avoid manual nano errors
 cat > /etc/nginx/sites-available/dlchats-app <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
 
-    server_names_hash_bucket_size 64;
+    # Removed server_names_hash_bucket_size from here as it belongs in http block (handled above)
 
     location / {
         proxy_pass http://127.0.0.1:$PORT;
