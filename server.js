@@ -691,17 +691,29 @@ try {
 
     log('Table created/verified');
 
-    // Restore sessions on startup
+    // Restore sessions on startup with STAGGERED initialization
     const stmt = db.prepare('SELECT * FROM user_services');
     const services = stmt.all();
-    services.forEach(service => {
-        log(`Restoring session for service: ${service.custom_name} (${service.id})`);
-        if (service.service_id && service.service_id.startsWith('tg')) {
-             initializeTelegram(service.id);
-        } else {
-             initializeWhatsApp(service.id);
+    
+    log(`Found ${services.length} services to restore. Starting staggered initialization...`);
+    
+    (async () => {
+        for (const service of services) {
+            log(`Restoring session for service: ${service.custom_name} (${service.id})`);
+            try {
+                if (service.service_id && service.service_id.startsWith('tg')) {
+                     await initializeTelegram(service.id);
+                } else {
+                     initializeWhatsApp(service.id);
+                }
+                // Wait 10 seconds between starts to let CPU/RAM settle
+                await new Promise(resolve => setTimeout(resolve, 10000));
+            } catch (e) {
+                log(`Failed to restore ${service.id}: ${e}`);
+            }
         }
-    });
+        log('All services restored.');
+    })();
 
 } catch (err) {
     log('DB Error: ' + err);
@@ -790,7 +802,8 @@ io.on('connection', (socket) => {
               log(`[${serviceId}] Executing force sync...`);
               // Use Promise.race for timeout
               const getChatsPromise = session.client.getChats();
-              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 20000));
+              // Increased timeout to 60s for slow VPS/Many Accounts
+              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000));
               
               const chats = await Promise.race([getChatsPromise, timeoutPromise]);
               
