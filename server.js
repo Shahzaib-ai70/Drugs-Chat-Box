@@ -341,6 +341,17 @@ const initializeWhatsApp = (serviceId) => {
 
                           log(`[${serviceId}] Retry attempt ${index + 1}/${retryDelays.length} for empty chats...`);
                           try {
+                              // For the final retry, try to reload the page if still empty
+                              if (index === retryDelays.length - 1 && client.pupPage) {
+                                  log(`[${serviceId}] Final retry: Reloading page to force sync...`);
+                                  try {
+                                      await client.pupPage.reload({ waitUntil: ['domcontentloaded', 'networkidle0'], timeout: 30000 });
+                                      await new Promise(r => setTimeout(r, 10000)); // Wait for hydration
+                                  } catch (reErr) {
+                                      log(`[${serviceId}] Reload failed: ${reErr}`);
+                                  }
+                              }
+
                               const retryPromise = client.getChats();
                               const timeoutP = new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 60000));
                               const retryChats = await Promise.race([retryPromise, timeoutP]);
@@ -362,6 +373,36 @@ const initializeWhatsApp = (serviceId) => {
                                   io.to(serviceId).emit('wa_chats', retryMapped);
                               } else {
                                   log(`[${serviceId}] Retry ${index + 1} still found 0 chats.`);
+                                  // Try Store fallback one last time
+                                  if (index === retryDelays.length - 1 && client.pupPage) {
+                                       try {
+                                           const storeChats = await client.pupPage.evaluate(() => {
+                                               return window.Store?.Chats?.models?.map(c => ({
+                                                   id: c.id?._serialized,
+                                                   name: c.formattedTitle || c.name,
+                                                   unreadCount: c.unreadCount,
+                                                   isGroup: c.isGroup
+                                               })) || [];
+                                           });
+                                           if (storeChats.length > 0) {
+                                               log(`[${serviceId}] Final retry Store fallback found ${storeChats.length} chats`);
+                                               // Emit what we found, even if incomplete
+                                               // We need to map it properly to avoid UI errors
+                                                const storeMapped = storeChats.map(c => ({
+                                                    id: c.id || '',
+                                                    name: c.name || 'Unknown',
+                                                    isGroup: !!c.isGroup,
+                                                    unreadCount: c.unreadCount || 0,
+                                                    lastMessage: '',
+                                                    lastTimestamp: 0,
+                                                    profilePicUrl: '',
+                                                    lastSeen: ''
+                                                }));
+                                                sessionState.chats = storeMapped;
+                                                io.to(serviceId).emit('wa_chats', storeMapped);
+                                           }
+                                       } catch (e) { log(`[${serviceId}] Final store fallback error: ${e}`); }
+                                  }
                               }
                           } catch(e) { log(`[${serviceId}] Retry ${index + 1} failed: ${e}`); }
                       });

@@ -276,18 +276,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         Notification.requestPermission();
     }
 
-    // --- Mark Read Logic ---
-    // Whenever activeChatId changes, emit 'mark_read' if we are connected
-    // This effect needs to be separate or we can hook it into the render/selection logic, 
-    // but putting it here (inside the main connection effect) is tricky because activeChatId is not a dep.
-    // Instead, we will add a separate useEffect below for activeChatId changes.
-    // -----------------------
+    // Handle connection logic
+    const handleJoin = () => {
+        console.log('Joining service room:', activeService.id);
+        socket.emit('join_service', activeService.id);
+    };
 
-    socket.on('connect', () => {
-      console.log('Connected to backend');
-      // Join specific room for this service
-      socket.emit('join_service', activeService.id);
-    });
+    if (socket.connected) {
+        handleJoin();
+    } else {
+        socket.on('connect', handleJoin);
+    }
 
     socket.on('status', (status) => {
         console.log('Status update:', status);
