@@ -15,12 +15,15 @@ sudo mkdir -p /var/www/dlchats-app
 sudo chown -R $USER:$USER /var/www/dlchats-app
 ```
 
-## 2. Upload & Install
-1. **Upload `hostinger_deploy.zip`** into the `/var/www/dlchats-app` folder.
-2. Unzip and install:
+## 2. Clone from GitHub & Install
+1. **Clone the repository** directly into the folder:
+```bash
+git clone https://github.com/Shahzaib-ai70/Drugs-Chat-Box.git /var/www/dlchats-app
+```
+
+2. Enter the directory and install dependencies:
 ```bash
 cd /var/www/dlchats-app
-unzip hostinger_deploy.zip
 npm install --production
 ```
 *(If you haven't installed Puppeteer dependencies yet on this server, run this once:)*
@@ -51,7 +54,7 @@ server {
     server_name app.dlchats.site;
 
     location / {
-        proxy_pass http://localhost:3005;
+        proxy_pass http://127.0.0.1:3005;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

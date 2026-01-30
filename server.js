@@ -1153,7 +1153,7 @@ server.on('error', (e) => {
 });
 
 server.listen(port, () => {
-  log(`Server running at http://localhost:${port}`);
+  log(`Server running at http://127.0.0.1:${port}`);
 });
 
   // Keep process alive hack
