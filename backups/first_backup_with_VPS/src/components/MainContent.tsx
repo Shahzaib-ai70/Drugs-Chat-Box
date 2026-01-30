@@ -256,16 +256,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   }, [activeChatId, activeService]);
 
   useEffect(() => {
-    // Clear state immediately when switching services to prevent data leak
-    setChats([]);
-    setMyProfile(null);
-    setMessagesByChat({});
-    setQrValue('');
-    setIsConnected(false);
-    setIsAuthenticating(false);
-    setLoadingStatus(null);
-    setConnectionStatus('CONNECTING');
-
     if (!isWhatsApp || !activeService?.id) return;
 
     // Connect to Socket.io (automatically detects host)
@@ -328,17 +318,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       // If we receive chats, we are definitely connected
       setIsConnected(true);
       setIsAuthenticating(false);
-
-      // Frontend Auto-Retry: If chats are empty, try again after a delay
-      if (Array.isArray(list) && list.length === 0 && isWhatsApp && activeService?.id) {
-          console.log('Received empty chat list, scheduling auto-retry...');
-          setTimeout(() => {
-              if (socketRef.current) {
-                  console.log('Auto-retrying chat sync...');
-                  socketRef.current.emit('force_sync_chats', activeService.id);
-              }
-          }, 3000); // Retry after 3 seconds
-      }
     });
     
     socket.on('wa_user_info', (info) => {

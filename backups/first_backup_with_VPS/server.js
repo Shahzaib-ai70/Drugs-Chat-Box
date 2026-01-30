@@ -127,45 +127,7 @@ const initializeWhatsApp = (serviceId) => {
     authStrategy: new LocalAuth({ clientId: serviceId }),
     puppeteer: {
       headless: true,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox', 
-        '--disable-dev-shm-usage', 
-        '--disable-accelerated-2d-canvas', 
-        '--no-first-run', 
-        '--no-zygote', 
-        '--single-process', 
-        '--disable-gpu',
-        '--disable-extensions', // Reduce memory
-        '--disable-component-extensions-with-background-pages', // Reduce memory
-        '--disable-default-apps', // Reduce memory
-        '--mute-audio', // Reduce memory
-        '--no-default-browser-check',
-        '--autoplay-policy=user-gesture-required',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-client-side-phishing-detection',
-        '--disable-component-update',
-        '--disable-features=TranslateUI',
-        '--disable-hang-monitor',
-        '--disable-ipc-flooding-protection',
-        '--disable-notifications',
-        '--disable-offer-store-unmasked-wallet-cards',
-        '--disable-popup-blocking',
-        '--disable-print-preview',
-        '--disable-prompt-on-repost',
-        '--disable-renderer-backgrounding',
-        '--disable-speech-api',
-        '--disable-sync',
-        '--hide-scrollbars',
-        '--ignore-gpu-blacklist',
-        '--metrics-recording-only',
-        '--no-pings',
-        '--password-store=basic',
-        '--use-gl=swiftshader',
-        '--use-mock-keychain'
-      ]
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--single-process', '--disable-gpu']
     }
   });
 
@@ -750,7 +712,7 @@ io.on('connection', (socket) => {
       }
   });
 
-  socket.on('force_sync_chats', async (serviceId) => {
+  socket.on('force_sync_chats', (serviceId) => {
     log(`Force sync requested for ${serviceId}`);
     const session = sessions.get(serviceId);
     if (session && session.client) {
@@ -760,14 +722,7 @@ io.on('connection', (socket) => {
         }
 
         if (session.status === 'CONNECTED') {
-          try {
-              log(`[${serviceId}] Executing force sync...`);
-              // Use Promise.race for timeout
-              const getChatsPromise = session.client.getChats();
-              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 20000));
-              
-              const chats = await Promise.race([getChatsPromise, timeoutPromise]);
-              
+          session.client.getChats().then(chats => {
               const mapped = chats.map(c => ({
                 id: c.id?._serialized || c.id || '',
                 name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
@@ -776,16 +731,12 @@ io.on('connection', (socket) => {
                 lastMessage: c.lastMessage?.body,
                 lastTimestamp: c.lastMessage?.timestamp
               }));
-              
               session.chats = mapped;
               io.to(serviceId).emit('wa_chats', mapped);
               log(`Force sync completed for ${serviceId}, found ${mapped.length} chats`);
-          } catch (err) {
+          }).catch(err => {
               log(`Force sync error for ${serviceId}: ` + err);
-              socket.emit('wa_error', 'Sync failed: ' + err.message);
-              // Ensure we stop the spinner even on error
-              socket.emit('wa_chats', session.chats || []); 
-          }
+          });
       }
     }
   });
