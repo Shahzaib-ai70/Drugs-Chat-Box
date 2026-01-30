@@ -47,13 +47,16 @@ rm -f /etc/nginx/sites-enabled/default
 # Remove our own previous config to update it, but leave others alone
 rm -f /etc/nginx/sites-enabled/dlchats-app
 
-# 2. Setup New Project Nginx Config
+# 2. Setup New Project Nginx Config (FORCE OVERWRITE)
 echo ""
 echo "[2] Configuring Nginx for New Project ($DOMAIN)..."
+# Using a HEREDOC with strict content to avoid manual nano errors
 cat > /etc/nginx/sites-available/dlchats-app <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
+
+    server_names_hash_bucket_size 64;
 
     location / {
         proxy_pass http://127.0.0.1:$PORT;
@@ -61,6 +64,8 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_cache_bypass \$http_upgrade;
     }
 }
@@ -68,6 +73,8 @@ EOF
 
 # Enable it
 ln -sf /etc/nginx/sites-available/dlchats-app /etc/nginx/sites-enabled/
+# Remove default to be safe
+rm -f /etc/nginx/sites-enabled/default
 
 # 3. Deep Clean Build and Start App
 echo ""
@@ -107,6 +114,18 @@ if [ $? -eq 0 ]; then
     echo " -> Nginx restarted successfully."
 else
     echo " -> Nginx configuration error! Check output above."
+fi
+
+# 5.5 Health Check
+echo ""
+echo "[5.5] Verifying Deployment..."
+sleep 5
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/health)
+if [ "$HTTP_CODE" == "200" ]; then
+    echo " -> Health Check PASSED: App is running on port $PORT"
+else
+    echo " -> Health Check FAILED: App returned $HTTP_CODE (Expected 200)"
+    pm2 logs dlchats-app --lines 20 --nostream
 fi
 
 # 6. Attempt SSL (Optional)

@@ -239,6 +239,11 @@ app.post('/api/translate', async (req, res) => {
      res.json({ translatedText: `[Translated] ${req.body.text}` });
 });
 
+// Health Check
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Serve Static Frontend (Vite Build)
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
