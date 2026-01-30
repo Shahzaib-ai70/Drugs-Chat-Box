@@ -286,8 +286,16 @@ const initializeWhatsApp = (serviceId) => {
           log(`[${serviceId}] Emitted ${mappedBasic.length} basic chats (no pics yet)`);
 
           if (mappedBasic.length === 0 && client.pupPage) {
+              log(`[${serviceId}] Native fetch returned 0 chats. Attempting Store fallback...`);
               try {
-                  const storeMapped = await client.pupPage.evaluate(() => {
+                  const storeMapped = await client.pupPage.evaluate(async () => {
+                      // Wait up to 5s for models to populate
+                      const start = Date.now();
+                      while (Date.now() - start < 5000) {
+                          if (window.Store && window.Store.Chats && window.Store.Chats.models && window.Store.Chats.models.length > 0) break;
+                          await new Promise(r => setTimeout(r, 500));
+                      }
+                      
                       const models = window.Store?.Chats?.models || [];
                       return models.map((c) => {
                           const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
@@ -305,12 +313,13 @@ const initializeWhatsApp = (serviceId) => {
                           };
                       });
                   });
+                  
                   if (Array.isArray(storeMapped) && storeMapped.length > 0) {
                       sessionState.chats = storeMapped;
                       io.to(serviceId).emit('wa_chats', storeMapped);
-                      log(`[${serviceId}] Fallback via Store succeeded: ${storeMapped.length} chats`);
+                      log(`[${serviceId}] Store fallback success: Found ${storeMapped.length} chats`);
                   } else {
-                      log(`[${serviceId}] Store fallback returned 0 chats`);
+                      log(`[${serviceId}] Store fallback returned 0 chats after wait`);
                   }
               } catch(e) {
                   log(`[${serviceId}] Store fallback error: ${e}`);
@@ -925,7 +934,14 @@ io.on('connection', (socket) => {
                 
                 if (mapped.length === 0 && session.client.pupPage) {
                     try {
-                        const storeMapped = await session.client.pupPage.evaluate(() => {
+                        const storeMapped = await session.client.pupPage.evaluate(async () => {
+                            // Wait up to 5s for models to populate
+                            const start = Date.now();
+                            while (Date.now() - start < 5000) {
+                                if (window.Store && window.Store.Chats && window.Store.Chats.models && window.Store.Chats.models.length > 0) break;
+                                await new Promise(r => setTimeout(r, 500));
+                            }
+
                             const models = window.Store?.Chats?.models || [];
                             return models.map((c) => {
                                 const id = c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '';
@@ -946,7 +962,7 @@ io.on('connection', (socket) => {
                             io.to(serviceId).emit('wa_chats', storeMapped);
                             log(`[${serviceId}] Force sync Store fallback succeeded: ${storeMapped.length} chats`);
                         } else {
-                            log(`[${serviceId}] Force sync Store fallback returned 0 chats`);
+                            log(`[${serviceId}] Force sync Store fallback returned 0 chats after wait`);
                         }
                     } catch(e) {
                         log(`[${serviceId}] Force sync Store fallback error: ${e}`);
