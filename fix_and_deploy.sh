@@ -11,6 +11,11 @@ PORT=3005
 
 # 0.5. AUTOMATIC SWAP FILE CREATION (Prevent OOM)
 echo ""
+echo "[0.5] Optimizing System Limits..."
+# Increase File Descriptors for many Puppeteer instances
+ulimit -n 65535
+echo " -> File descriptors limit increased to 65535"
+
 echo "[0.5] Checking for Swap File..."
 if [ $(swapon --show | wc -l) -le 1 ]; then
     echo " -> No swap detected. Creating 4GB Swap File (This is critical for multiple Chrome instances)..."
