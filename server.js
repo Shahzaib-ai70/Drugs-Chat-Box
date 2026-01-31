@@ -340,8 +340,11 @@ const translate = require('translate-google');
 
 // Translation Endpoint
 app.post('/api/translate', async (req, res) => {
-    const { text, targetLang } = req.body;
+    let { text, targetLang } = req.body;
     if (!text) return res.json({ translatedText: '' });
+
+    // Map 'he' to 'iw' for Google Translate compatibility
+    if (targetLang === 'he') targetLang = 'iw';
     
     try {
         const translated = await translate(text, { to: targetLang || 'en' });
