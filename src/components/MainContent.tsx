@@ -463,9 +463,23 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             if (tempMatchIndex !== -1) {
                 console.log('Replacing optimistic message with real message:', msg.id);
                 // Replace the temp message with the real one
+                const tempId = currentMessages[tempMatchIndex].id;
+                
+                // Copy originalBody from temp message
                 if (currentMessages[tempMatchIndex].originalBody) {
                     msg.originalBody = currentMessages[tempMatchIndex].originalBody;
+                    
+                    // CRITICAL: Update localStorage mapping from tempId to realId immediately
+                    // This ensures persistence even if callback hasn't returned yet
+                    if (outgoingOriginals[tempId]) {
+                        setOutgoingOriginals(prev => {
+                            const newState = { ...prev, [msg.id]: outgoingOriginals[tempId] };
+                            // Optional: Clean up old temp ID to save space, but keeping it is safer for race conditions
+                            return newState;
+                        });
+                    }
                 }
+                
                 currentMessages[tempMatchIndex] = msg;
                 // Re-sort to be safe, though usually timestamp shouldn't change much
                 currentMessages.sort((a, b) => a.timestamp - b.timestamp);
