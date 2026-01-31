@@ -241,9 +241,13 @@ app.post('/api/admin/generate-code', (req, res) => {
 
     if (code) {
         // Check for duplicate
-        const existing = db.prepare('SELECT code FROM invitation_codes WHERE code = ?').get(code);
-        if (existing) {
-            return res.status(400).json({ success: false, error: 'Code already exists' });
+        try {
+            const existing = db.prepare('SELECT code FROM invitation_codes WHERE code = ?').get(code);
+            if (existing) {
+                return res.status(400).json({ success: false, error: 'Code already exists' });
+            }
+        } catch (e) {
+             return res.status(500).json({ success: false, error: 'Database error checking duplicate' });
         }
     } else {
         // Generate random if no custom code
@@ -251,32 +255,73 @@ app.post('/api/admin/generate-code', (req, res) => {
     }
 
     try {
-        db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
+        // Explicitly set status to active
+        db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, status) VALUES (?, ?, ?, ?)').run(code, Date.now(), ownerName, 'active');
         res.json({ success: true, code });
     } catch (e) {
         console.error('Error generating code:', e);
-        res.status(500).json({ success: false, error: 'Database error' });
+        // If column status missing, try without it (fallback for old DBs if migration failed)
+        try {
+             db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
+             res.json({ success: true, code });
+        } catch (retryError) {
+             res.status(500).json({ success: false, error: 'Database error' });
+        }
     }
 });
 
 app.delete('/api/admin/code/:code', (req, res) => {
     const { code } = req.params;
-    db.prepare('DELETE FROM invitation_codes WHERE code = ?').run(code);
-    res.json({ success: true });
+    try {
+        db.prepare('DELETE FROM invitation_codes WHERE code = ?').run(code);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.put('/api/admin/code/:code', (req, res) => {
     const { code } = req.params;
     const { ownerName } = req.body;
-    db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
-    res.json({ success: true });
+    try {
+        db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
+        res.json({ success: true });
+    } catch (e) {
+         res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.post('/api/verify-code', (req, res) => {
     const { code } = req.body;
-    const found = db.prepare('SELECT * FROM invitation_codes WHERE code = ? AND status = "active"').get(code);
-    if (found) res.json({ valid: true, owner: found.owner_name });
-    else res.json({ valid: false });
+    if (!db) return res.status(500).json({ valid: false, error: 'Database not initialized' });
+    
+    try {
+        // First try with status check
+        const found = db.prepare('SELECT * FROM invitation_codes WHERE code = ? AND status = "active"').get(code);
+        if (found) return res.json({ valid: true, owner: found.owner_name });
+        
+        // If not found, check if it exists but status is missing (fallback)
+        const anyFound = db.prepare('SELECT * FROM invitation_codes WHERE code = ?').get(code);
+        if (anyFound && !anyFound.status) {
+             // If status column is null or undefined (shouldn't happen with active migration, but safety net)
+             // Treat as valid if it exists
+             return res.json({ valid: true, owner: anyFound.owner_name });
+        }
+
+        res.json({ valid: false });
+    } catch (e) {
+        console.error('Verify Code Error:', e);
+        // Fallback: if 'no such column status' error, try query without status
+        if (e.message.includes('no such column: status')) {
+             try {
+                const foundOld = db.prepare('SELECT * FROM invitation_codes WHERE code = ?').get(code);
+                if (foundOld) return res.json({ valid: true, owner: foundOld.owner_name });
+             } catch (e2) {
+                 return res.status(500).json({ valid: false, error: 'Database Error' });
+             }
+        }
+        res.status(500).json({ valid: false, error: 'Internal Server Error' });
+    }
 });
 
 // Translation Endpoint (Pass-through or simple implementation)
