@@ -186,7 +186,8 @@ app.get('/api/services', (req, res) => {
 app.post('/api/create_service', (req, res) => {
     const { customName, serviceType, ownerCode } = req.body; // serviceType: 'whatsapp' or 'telegram'
     const id = (Date.now()).toString(36) + Math.random().toString(36).substr(2);
-    const serviceId = serviceType === 'telegram' ? `tg_${id}` : id; // Simple ID generation
+    // Fix: Check if serviceType starts with 'tg' to support tg1, tg2, etc.
+    const serviceId = (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) ? `tg_${id}` : id;
 
     try {
         const port = getNextFreePort();
