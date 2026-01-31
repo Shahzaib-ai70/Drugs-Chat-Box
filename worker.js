@@ -89,8 +89,55 @@ process.on('message', async (msg) => {
             sessionState.passwordResolver(data);
             sessionState.passwordResolver = null;
         }
+    } else if (command === 'download_media') {
+        handleDownloadMedia(data);
     }
 });
+
+const handleDownloadMedia = async (data) => {
+    const { messageId, chatId } = data;
+    // log(`Downloading media for ${messageId} in ${chatId}`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            // Try to find in recent chats first to avoid network fetch if possible
+            const chat = await sessionState.client.getChatById(chatId);
+            const messages = await chat.fetchMessages({ limit: 20 }); 
+            const msg = messages.find(m => m.id._serialized === messageId);
+            
+            if (msg && msg.hasMedia) {
+                const downloaded = await msg.downloadMedia();
+                if (downloaded) {
+                     io.to(SERVICE_ID).emit('media_loaded', {
+                        msgId: messageId,
+                        chatId,
+                        media: { mimetype: downloaded.mimetype, data: downloaded.data, filename: downloaded.filename }
+                     });
+                }
+            }
+        } catch (e) { log(`WA Media Download Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+         try {
+             const messages = await sessionState.client.getMessages(chatId, { ids: [parseInt(messageId) || 0] }); // Telegram IDs are integers usually
+             if (messages && messages.length > 0) {
+                 const msg = messages[0];
+                 if (msg.media) {
+                     const buffer = await sessionState.client.downloadMedia(msg, {});
+                     const base64 = buffer.toString('base64');
+                     let mimetype = 'application/octet-stream';
+                     if (msg.media.photo) mimetype = 'image/jpeg';
+                     else if (msg.media.document) mimetype = msg.media.document.mimeType || 'application/octet-stream';
+                     
+                     io.to(SERVICE_ID).emit('media_loaded', {
+                        msgId: messageId,
+                        chatId,
+                        media: { mimetype, data: base64, filename: 'media' }
+                     });
+                 }
+             }
+         } catch (e) { log(`TG Media Download Error: ${e}`); }
+    }
+};
 
 const handleSendMessage = async (data) => {
     const body = data.message || data.body;
@@ -437,6 +484,14 @@ const initializeWhatsApp = async () => {
     let chatId = msg.to;
     try { chatId = (await msg.getChat()).id._serialized; } catch (e) { chatId = msg.id.remote || msg.to; }
     
+    let media = null;
+    if (msg.hasMedia) {
+        try {
+            const downloaded = await msg.downloadMedia();
+            if (downloaded) media = { mimetype: downloaded.mimetype, data: downloaded.data, filename: downloaded.filename };
+        } catch (e) {}
+    }
+
     const mappedMsg = {
         id: msg.id._serialized,
         chatId: chatId,
@@ -446,7 +501,7 @@ const initializeWhatsApp = async () => {
         timestamp: msg.timestamp,
         type: msg.type,
         hasMedia: msg.hasMedia,
-        media: null, // Don't download own media usually
+        media: media, 
         ack: msg.ack
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
@@ -531,6 +586,20 @@ const initializeTelegram = async () => {
     const message = event.message;
     const sender = await message.getSender();
     const chatId = message.chatId.toString();
+    
+    let media = null;
+    if (message.media) {
+         try {
+             const buffer = await client.downloadMedia(message, {});
+             const base64 = buffer.toString('base64');
+             let mimetype = 'application/octet-stream';
+             if (message.media.photo) mimetype = 'image/jpeg';
+             else if (message.media.document) mimetype = message.media.document.mimeType || 'application/octet-stream';
+             
+             media = { mimetype, data: base64, filename: 'media' };
+         } catch(e) { log(`TG Media Download Error: ${e}`); }
+    }
+
     const mappedMsg = {
         id: message.id.toString(),
         chatId: chatId,
@@ -540,7 +609,7 @@ const initializeTelegram = async () => {
         timestamp: message.date,
         type: 'chat',
         hasMedia: !!message.media,
-        media: null,
+        media: media,
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);

@@ -839,6 +839,29 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         )}
                                     </div>
                                 )}
+                                {m.hasMedia && !m.media && (
+                                    <div className="mb-2 p-3 bg-gray-100 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+                                         onClick={(e) => {
+                                             e.stopPropagation();
+                                             if (socketRef.current && activeService?.id) {
+                                                 socketRef.current.emit('download_media', { 
+                                                     serviceId: activeService.id, 
+                                                     chatId: m.chatId, 
+                                                     messageId: m.id 
+                                                 });
+                                                 // Optional: Show loading state locally
+                                             }
+                                         }}
+                                    >
+                                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-500">
+                                             <Download size={20} />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-700">Media omitted</span>
+                                            <span className="text-xs text-gray-500">Click to download</span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Message Body */}
                                 <div className="leading-relaxed whitespace-pre-wrap break-words">

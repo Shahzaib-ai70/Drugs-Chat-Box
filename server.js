@@ -426,6 +426,12 @@ io.on('connection', (socket) => {
         const worker = workers.get(serviceId);
         if (worker) worker.process.send({ type: 'command', command: 'tg_password', data: password });
     });
+
+    socket.on('download_media', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'download_media', data });
+    });
 });
 
 server.listen(PORT, () => {
