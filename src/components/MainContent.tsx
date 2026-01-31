@@ -757,7 +757,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   // Render Remote Browser for Facebook
     if (activeService?.service.id.startsWith('fb')) {
         return (
-            <RemoteBrowserView socket={socketInstance} serviceId={activeService.id} />
+            <RemoteBrowserView 
+                socket={socketInstance} 
+                serviceId={activeService.id} 
+                translationSettings={translationSettings}
+            />
         );
     }
 
