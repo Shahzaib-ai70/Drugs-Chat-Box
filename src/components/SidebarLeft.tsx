@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronsLeft, Plus, RotateCw, ExternalLink, Trash2, RefreshCcw } from 'lucide-react';
 import type { ServiceItem } from '../types';
+import { io } from 'socket.io-client';
 
 interface AddedService {
   id: string;
@@ -26,6 +27,58 @@ const SidebarLeft = ({
   const [activeTab, setActiveTab] = useState('Normal');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Unread Count Logic
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const socketRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Connect to Master Gateway
+    const socket = io(); // Connects to current host/port, proxied to 3005 in dev or direct in prod
+    socketRef.current = socket;
+    
+    socket.on('connect', () => {
+        console.log('SidebarLeft: Socket connected', socket.id);
+    });
+
+    socket.on('unread_total', (data: { serviceId: string, count: number }) => {
+        console.log('SidebarLeft: Received unread_total', data);
+        setUnreadCounts(prev => {
+            const newState = {
+                ...prev,
+                [data.serviceId]: data.count
+            };
+            console.log('SidebarLeft: Updated unreadCounts', newState);
+            return newState;
+        });
+    });
+
+    return () => {
+        socket.disconnect();
+    };
+  }, []);
+
+  // Join service rooms to receive notifications
+  useEffect(() => {
+      const joinRooms = () => {
+        if (socketRef.current && addedServices.length > 0) {
+            addedServices.forEach(s => {
+                socketRef.current.emit('join_service', s.id);
+            });
+        }
+      };
+
+      if (socketRef.current) {
+          joinRooms();
+          socketRef.current.on('connect', joinRooms);
+      }
+
+      return () => {
+          if (socketRef.current) {
+              socketRef.current.off('connect', joinRooms);
+          }
+      };
+  }, [addedServices]);
 
   // Close context menu on click outside
   useEffect(() => {
@@ -107,23 +160,32 @@ const SidebarLeft = ({
                 </div>
               </div>
               
-              {isActive && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" 
-                    title="Refresh"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onRefreshService?.(item.id);
-                    }}
-                  >
-                    <RotateCw size={14} />
-                  </button>
-                  <button className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" title="Open External">
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Badge */}
+                {unreadCounts[item.id] > 0 && (
+                  <div className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm animate-in zoom-in-50">
+                      {unreadCounts[item.id]}
+                  </div>
+                )}
+                
+                {isActive && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" 
+                      title="Refresh"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          onRefreshService?.(item.id);
+                      }}
+                    >
+                      <RotateCw size={14} />
+                    </button>
+                    <button className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" title="Open External">
+                      <ExternalLink size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
