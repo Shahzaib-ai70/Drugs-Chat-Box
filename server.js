@@ -163,17 +163,17 @@ try {
 
 // --- APIs ---
 
-// List Services (Public - filtered by owner if needed, but current logic seems open or code-based)
-// The frontend filters by owner_code usually.
+// List Services (Public - filtered by owner)
+// STRICTLY require owner_code to prevent data leaks
 app.get('/api/services', (req, res) => {
-    const ownerCode = req.query.owner_code;
-    let query = 'SELECT * FROM user_services';
-    let params = [];
-    if (ownerCode) {
-        query += ' WHERE owner_code = ?';
-        params.push(ownerCode);
+    const ownerCode = req.query.owner_code || req.query.code; // Support both for safety
+    
+    if (!ownerCode) {
+        return res.json([]); // Return empty if no code provided
     }
-    const list = db.prepare(query).all(params);
+
+    const list = db.prepare('SELECT * FROM user_services WHERE owner_code = ?').all(ownerCode);
+    
     res.json(list.map(s => ({
         ...s,
         port: s.port || workers.get(s.id)?.port // Return port so frontend can connect

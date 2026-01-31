@@ -75,10 +75,11 @@ function App() {
   useEffect(() => {
     if (!invitationCode) return;
 
-    fetch(`/api/services?code=${invitationCode}`)
+    // Use owner_code to match backend expectation
+    fetch(`/api/services?owner_code=${invitationCode}`)
       .then(res => res.json())
       .then(data => {
-        if (!Array.isArray(data)) return; 
+        if (!Array.isArray(data)) return;  
         const mappedServices = data.map((item: any) => {
           const serviceDef = AVAILABLE_SERVICES.find(s => s.id === item.service_id);
           // Fallback if exact match not found (e.g. legacy IDs), try to guess by name or default to WA
@@ -143,7 +144,11 @@ function App() {
     
     // 2. Notify backend to remove from DB
     try {
-        await fetch(`/api/services/${id}`, { method: 'DELETE' });
+        await fetch('/api/delete_service', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
     } catch (e) {
         console.error('Failed to delete service from DB:', e);
     }
