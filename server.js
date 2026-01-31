@@ -195,7 +195,12 @@ app.post('/api/create_service', (req, res) => {
     const { customName, serviceType, ownerCode } = req.body; // serviceType: 'whatsapp' or 'telegram'
     const id = (Date.now()).toString(36) + Math.random().toString(36).substr(2);
     // Fix: Check if serviceType starts with 'tg' to support tg1, tg2, etc.
-    const serviceId = (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) ? `tg_${id}` : id;
+    let serviceId = id;
+    if (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) {
+        serviceId = `tg_${id}`;
+    } else if (serviceType === 'facebook' || (serviceType && serviceType.startsWith('fb'))) {
+        serviceId = `fb_${id}`;
+    }
 
     try {
         const port = getNextFreePort();
@@ -467,6 +472,18 @@ io.on('connection', (socket) => {
         const { serviceId } = data;
         const worker = workers.get(serviceId);
         if (worker) worker.process.send({ type: 'command', command: 'download_media', data });
+    });
+
+    socket.on('fb_login_submit', (data) => {
+        const { serviceId, email, password } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_login_submit', data: { email, password } });
+    });
+
+    socket.on('fb_2fa_submit', (data) => {
+        const { serviceId, code } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_2fa_submit', data: { code } });
     });
 });
 

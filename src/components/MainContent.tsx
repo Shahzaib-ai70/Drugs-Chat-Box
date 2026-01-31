@@ -735,6 +735,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     return () => clearInterval(timer);
   }, [qrValue]);
 
+  const handleFacebookLogin = () => {
+    if (!loginEmail || !loginPassword || !activeService?.id) return;
+    setLoadingStatus({ percent: 10, message: 'Logging in...' });
+    socketRef.current?.emit('fb_login_submit', { serviceId: activeService.id, email: loginEmail, password: loginPassword });
+  };
+
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {
       return (
@@ -885,7 +891,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     autoFocus
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && password2FA) {
-                                            socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                            if (serviceName.toLowerCase().includes('facebook')) {
+                                                socketRef.current?.emit('fb_2fa_submit', { serviceId: activeService?.id, code: password2FA });
+                                            } else {
+                                                socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                            }
                                             setIs2FARequired(false);
                                             setLoadingStatus({ percent: 50, message: 'Verifying password...' });
                                         }
@@ -896,7 +906,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <button
                                 onClick={() => {
                                     if (password2FA) {
-                                        socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                        if (serviceName.toLowerCase().includes('facebook')) {
+                                            socketRef.current?.emit('fb_2fa_submit', { serviceId: activeService?.id, code: password2FA });
+                                        } else {
+                                            socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                        }
                                         setIs2FARequired(false);
                                         setLoadingStatus({ percent: 50, message: 'Verifying password...' });
                                     }
@@ -1310,6 +1324,55 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             )}
         </div>
       );
+    }
+
+    // Facebook Login Screen
+    if (isLoginRequired) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+                <div className="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full">
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white mb-4">
+                            <FaFacebookF size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">Login to Facebook</h2>
+                        <p className="text-gray-500 text-center mt-2">Enter your credentials to sync messages</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Email or Phone</label>
+                            <input 
+                                type="text" 
+                                value={loginEmail}
+                                onChange={(e) => setLoginEmail(e.target.value)}
+                                className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                                placeholder="email@example.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input 
+                                type="password" 
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                                placeholder="••••••••"
+                                onKeyDown={(e) => e.key === 'Enter' && handleFacebookLogin()}
+                            />
+                        </div>
+                        <button 
+                            onClick={handleFacebookLogin}
+                            disabled={!loginEmail || !loginPassword}
+                            className={`w-full h-12 rounded-xl font-bold text-white transition-all shadow-lg shadow-blue-200 mt-2
+                                ${loginEmail && loginPassword ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-gray-300 cursor-not-allowed'}`}
+                        >
+                            Login
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     // QR Code Screen - Only show if we actually have a QR code or status says so
