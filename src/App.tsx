@@ -38,15 +38,44 @@ function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<'current' | 'global'>('global');
 
-  const [globalSettings, setGlobalSettings] = useState<TranslationSettings>({
-    sourceLang: 'auto',
-    targetLang: 'en',
-    translateBeforeSendingLang: 'he',
-    autoTranslateIncoming: false,
-    autoTranslateOutgoing: false
+  const [globalSettings, setGlobalSettings] = useState<TranslationSettings>(() => {
+    try {
+      const saved = localStorage.getItem('translation_global_settings');
+      return saved ? JSON.parse(saved) : {
+        sourceLang: 'auto',
+        targetLang: 'en',
+        translateBeforeSendingLang: 'he',
+        autoTranslateIncoming: false,
+        autoTranslateOutgoing: false
+      };
+    } catch (e) {
+      return {
+        sourceLang: 'auto',
+        targetLang: 'en',
+        translateBeforeSendingLang: 'he',
+        autoTranslateIncoming: false,
+        autoTranslateOutgoing: false
+      };
+    }
   });
 
-  const [chatSettings, setChatSettings] = useState<Record<string, TranslationSettings>>({});
+  const [chatSettings, setChatSettings] = useState<Record<string, TranslationSettings>>(() => {
+    try {
+      const saved = localStorage.getItem('translation_chat_settings');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem('translation_global_settings', JSON.stringify(globalSettings));
+  }, [globalSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('translation_chat_settings', JSON.stringify(chatSettings));
+  }, [chatSettings]);
 
   // Helper to normalize Chat IDs (strip suffixes)
   const normalizeId = (id: string) => {
