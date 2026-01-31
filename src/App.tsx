@@ -14,7 +14,16 @@ import './App.css';
 
 function App() {
   // Auth State
-  const [invitationCode, setInvitationCode] = useState<string | null>(localStorage.getItem('invitation_code'));
+  const [invitationCode, setInvitationCode] = useState<string | null>(() => {
+    // Migration: Move local storage to session storage to enforce fresh login on new tabs
+    const local = localStorage.getItem('invitation_code');
+    if (local) {
+      sessionStorage.setItem('invitation_code', local);
+      localStorage.removeItem('invitation_code');
+      return local;
+    }
+    return sessionStorage.getItem('invitation_code');
+  });
   const [isAdmin, setIsAdmin] = useState<boolean>(!!localStorage.getItem('admin_token'));
   
   // Check URL for /admin
@@ -161,7 +170,7 @@ function App() {
 
   // Auth Handlers
   const handleInvitationLogin = (code: string) => {
-    localStorage.setItem('invitation_code', code);
+    sessionStorage.setItem('invitation_code', code);
     setInvitationCode(code);
   };
 
@@ -181,7 +190,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('invitation_code');
+    sessionStorage.removeItem('invitation_code');
     setInvitationCode(null);
     setAddedServices([]);
     setActiveServiceId(null);
