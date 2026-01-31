@@ -121,7 +121,11 @@ function App() {
         const mappedServices = data.map((item: any) => {
           const serviceDef = AVAILABLE_SERVICES.find(s => s.id === item.service_id);
           // Fallback if exact match not found (e.g. legacy IDs), try to guess by name or default to WA
-          const def = serviceDef || (item.service_id.startsWith('tg') ? AVAILABLE_SERVICES.find(s => s.id === 'tg1') : AVAILABLE_SERVICES.find(s => s.id === 'wa1'));
+          const def = serviceDef || (
+            item.service_id.startsWith('tg') ? AVAILABLE_SERVICES.find(s => s.id === 'tg1') : 
+            item.service_id.startsWith('fb') ? AVAILABLE_SERVICES.find(s => s.id === 'fb') :
+            AVAILABLE_SERVICES.find(s => s.id === 'wa1')
+          );
           
           if (!def) return null;
           return {

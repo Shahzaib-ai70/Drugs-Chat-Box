@@ -2,6 +2,7 @@ import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCc
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
 import { FaWhatsapp, FaFacebookF } from 'react-icons/fa';
+import RemoteBrowserView from './RemoteBrowserView';
 import type { AddedService } from '../types';
 import type { TranslationSettings } from './TranslationPanel';
 import { useEffect, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ interface PendingOriginal {
 }
 
 const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
-  const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram') || !!activeService?.service.name.toLowerCase().includes('facebook');
+  const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
   const [qrValue, setQrValue] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
@@ -748,6 +749,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     setLoadingStatus({ percent: 10, message: 'Logging in...' });
     socketRef.current?.emit('fb_login_submit', { serviceId: activeService.id, email: loginEmail, password: loginPassword });
   };
+
+  // Render Remote Browser for Facebook
+  if (activeService?.service.id.startsWith('fb')) {
+    return (
+        <RemoteBrowserView socket={socketRef.current} serviceId={activeService.id} />
+    );
+  }
 
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {

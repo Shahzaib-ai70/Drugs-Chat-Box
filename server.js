@@ -480,6 +480,12 @@ io.on('connection', (socket) => {
         if (worker) worker.process.send({ type: 'command', command: 'fb_login_submit', data: { email, password } });
     });
 
+    socket.on('fb_input_event', (data) => {
+        const { serviceId, event } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_input_event', data: event });
+    });
+
     socket.on('fb_2fa_submit', (data) => {
         const { serviceId, code } = data;
         const worker = workers.get(serviceId);

@@ -59,8 +59,8 @@ io.to = (room) => {
 const sessionState = {
     browser: null,
     page: null,
-    status: 'INITIALIZING', // INITIALIZING, LOGIN_NEEDED, 2FA_NEEDED, READY
-    chats: []
+    status: 'INITIALIZING', 
+    isScreencasting: false
 };
 
 // Initialize Facebook
@@ -68,17 +68,27 @@ const initFacebook = async () => {
     try {
         log('Launching Puppeteer for Facebook...');
         sessionState.browser = await puppeteer.launch({
-            headless: true, // Use headless for server
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            headless: true,
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox', 
+                '--disable-dev-shm-usage',
+                '--window-size=1000,800' // Fixed viewport
+            ]
         });
         
         sessionState.page = await sessionState.browser.newPage();
+        await sessionState.page.setViewport({ width: 1000, height: 800 });
         await sessionState.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         
         log('Navigating to Facebook...');
         await sessionState.page.goto('https://www.facebook.com/messages/t', { waitUntil: 'networkidle2' });
         
-        await checkLoginState();
+        // Start Screencast immediately
+        startScreencast();
+        
+        // Notify frontend we are ready to stream
+        io.to(SERVICE_ID).emit('ready');
 
     } catch (e) {
         log('Init Error: ' + e);
@@ -86,63 +96,24 @@ const initFacebook = async () => {
     }
 };
 
-const checkLoginState = async () => {
-    if (!sessionState.page) return;
-    
-    try {
-        // Check for login form
-        const loginForm = await sessionState.page.$('#email');
-        if (loginForm) {
-            log('Login Required');
-            sessionState.status = 'LOGIN_NEEDED';
-            io.to(SERVICE_ID).emit('fb_login_required', { serviceId: SERVICE_ID });
-            return;
+const startScreencast = () => {
+    if (sessionState.isScreencasting) return;
+    sessionState.isScreencasting = true;
+    log('Starting Screencast...');
+
+    setInterval(async () => {
+        if (!sessionState.page) return;
+        try {
+            const screenshot = await sessionState.page.screenshot({ 
+                type: 'jpeg', 
+                quality: 60, 
+                encoding: 'base64' 
+            });
+            io.to(SERVICE_ID).emit('fb_screen_update', { data: screenshot });
+        } catch (e) {
+            // log('Screen capture error: ' + e);
         }
-
-        // Check for 2FA (this selector is a guess, need to be robust)
-        // Usually FB 2FA asks for code.
-        const twoFactor = await sessionState.page.$('input[name="approvals_code"]'); 
-        if (twoFactor) {
-            log('2FA Required');
-            sessionState.status = '2FA_NEEDED';
-            io.to(SERVICE_ID).emit('fb_2fa_required', { serviceId: SERVICE_ID });
-            return;
-        }
-
-        // Check if logged in (Messenger interface)
-        // Look for chat list container or specific messenger elements
-        // This is tricky without visual inspection, assuming if no login form, we might be in.
-        // Or check for "Keep me signed in" or similar if still on login page.
-        
-        const messengerElement = await sessionState.page.$('[role="navigation"]'); // Generic sidebar
-        if (messengerElement) {
-            log('Facebook Ready');
-            sessionState.status = 'READY';
-            io.to(SERVICE_ID).emit('ready');
-            io.to(SERVICE_ID).emit('status', 'READY');
-            // Start scraping chats
-            scrapeChats();
-        } else {
-             // Maybe stuck or loading
-             log('Unknown state, checking again...');
-             setTimeout(checkLoginState, 2000);
-        }
-
-    } catch (e) {
-        log('Check State Error: ' + e);
-    }
-};
-
-const scrapeChats = async () => {
-    if (sessionState.status !== 'READY' || !sessionState.page) return;
-    
-    // TODO: Implement actual scraping logic
-    // For now, emit dummy chats to prove it works
-    const dummyChats = [
-        { id: 'fb_1', name: 'Facebook User', unreadCount: 1, lastMessage: 'Hello from FB', lastTimestamp: Math.floor(Date.now()/1000) }
-    ];
-    sessionState.chats = dummyChats;
-    io.to(SERVICE_ID).emit('wa_chats', dummyChats); // Reuse wa_chats event for compatibility
+    }, 500); // 2 FPS
 };
 
 // IPC Command Handler
@@ -151,70 +122,22 @@ process.on('message', async (msg) => {
     const { command, data } = msg;
 
     if (command === 'request_state') {
-        io.to(SERVICE_ID).emit('status', sessionState.status);
-        if (sessionState.status === 'LOGIN_NEEDED') io.to(SERVICE_ID).emit('fb_login_required', { serviceId: SERVICE_ID });
-        if (sessionState.status === '2FA_NEEDED') io.to(SERVICE_ID).emit('fb_2fa_required', { serviceId: SERVICE_ID });
-        if (sessionState.chats.length > 0) io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-    } else if (command === 'fb_login_submit') {
-        const { email, password } = data;
-        log('Attempting Login...');
-        if (sessionState.page) {
-            try {
-                // Try to find email field
-                const emailSelector = await sessionState.page.waitForSelector('#email, input[name="email"]', { timeout: 5000 }).catch(() => null);
-                if (!emailSelector) throw new Error('Email field not found');
-                await emailSelector.type(email);
-
-                // Try to find password field
-                const passSelector = await sessionState.page.waitForSelector('#pass, input[name="pass"]', { timeout: 5000 }).catch(() => null);
-                if (!passSelector) throw new Error('Password field not found');
-                await passSelector.type(password);
-
-                // Try to find login button
-                const loginBtn = await sessionState.page.waitForSelector('[name="login"], button[type="submit"], input[type="submit"]', { timeout: 5000 }).catch(() => null);
-                if (!loginBtn) throw new Error('Login button not found');
-                
-                await Promise.all([
-                    sessionState.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(e => log('Nav timeout (ignoring): ' + e)),
-                    loginBtn.click()
-                ]);
-
-                // Check for errors on page
-                const errorMsg = await sessionState.page.evaluate(() => {
-                    const el = document.querySelector('#login_error_box, .login_error_box, [role="alert"]');
-                    return el ? el.innerText : null;
-                });
-
-                if (errorMsg) {
-                    throw new Error('Facebook Error: ' + errorMsg);
-                }
-
-                checkLoginState();
-            } catch (e) {
-                log('Login Error: ' + e);
-                io.to(SERVICE_ID).emit('fb_login_error', { message: e.message });
+        io.to(SERVICE_ID).emit('status', 'READY'); // Always claim ready so frontend shows view
+    } else if (command === 'fb_input_event') {
+        if (!sessionState.page) return;
+        const { type, x, y, text, key } = data;
+        try {
+            if (type === 'click') {
+                await sessionState.page.mouse.click(x, y);
+            } else if (type === 'type') {
+                await sessionState.page.keyboard.type(text);
+            } else if (type === 'key') {
+                await sessionState.page.keyboard.press(key);
+            } else if (type === 'scroll') {
+                 // Simple scroll support
+                 await sessionState.page.evaluate((d) => window.scrollBy(0, d), data.delta);
             }
-        }
-    } else if (command === 'fb_2fa_submit') {
-        const { code } = data;
-        log('Submitting 2FA...');
-        if (sessionState.page) {
-            try {
-                await sessionState.page.type('input[name="approvals_code"]', code);
-                await sessionState.page.click('#checkpointSubmitButton'); // Selector guess
-                await sessionState.page.waitForNavigation({ waitUntil: 'networkidle2' });
-                checkLoginState();
-            } catch (e) {
-                log('2FA Error: ' + e);
-            }
-        }
-    } else if (command === 'sendMessage') {
-        // Implement sending message via Puppeteer
-        log('Sending message (mock): ' + data.body);
-        const mockId = 'fb_msg_' + Date.now();
-        if (msg.requestId && process.send) {
-             process.send({ type: 'response', requestId: msg.requestId, data: { status: 'success', messageId: mockId } });
-        }
+        } catch (e) { log('Input error: ' + e); }
     }
 });
 
