@@ -1,4 +1,5 @@
-import { X, ChevronDown, Languages, Globe, Settings2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, ChevronDown, Languages, Globe, Settings2, Search, Check } from 'lucide-react';
 
 export interface TranslationSettings {
   sourceLang: string;
@@ -19,21 +20,204 @@ interface TranslationPanelProps {
 
 const LANGUAGES = [
   { code: 'auto', name: 'Auto Detect' },
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'ru', name: 'Russian' },
+  { code: 'af', name: 'Afrikaans' },
+  { code: 'sq', name: 'Albanian' },
+  { code: 'am', name: 'Amharic' },
   { code: 'ar', name: 'Arabic' },
-  { code: 'hi', name: 'Hindi' },
+  { code: 'hy', name: 'Armenian' },
+  { code: 'az', name: 'Azerbaijani' },
+  { code: 'eu', name: 'Basque' },
+  { code: 'be', name: 'Belarusian' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'bs', name: 'Bosnian' },
+  { code: 'bg', name: 'Bulgarian' },
+  { code: 'ca', name: 'Catalan' },
+  { code: 'ceb', name: 'Cebuano' },
+  { code: 'ny', name: 'Chichewa' },
+  { code: 'zh-CN', name: 'Chinese (Simplified)' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)' },
+  { code: 'co', name: 'Corsican' },
+  { code: 'hr', name: 'Croatian' },
+  { code: 'cs', name: 'Czech' },
+  { code: 'da', name: 'Danish' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'en', name: 'English' },
+  { code: 'eo', name: 'Esperanto' },
+  { code: 'et', name: 'Estonian' },
+  { code: 'tl', name: 'Filipino' },
+  { code: 'fi', name: 'Finnish' },
+  { code: 'fr', name: 'French' },
+  { code: 'fy', name: 'Frisian' },
+  { code: 'gl', name: 'Galician' },
+  { code: 'ka', name: 'Georgian' },
+  { code: 'de', name: 'German' },
+  { code: 'el', name: 'Greek' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'ht', name: 'Haitian Creole' },
+  { code: 'ha', name: 'Hausa' },
+  { code: 'haw', name: 'Hawaiian' },
   { code: 'he', name: 'Hebrew' },
-  { code: 'pt', name: 'Portuguese' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'hmn', name: 'Hmong' },
+  { code: 'hu', name: 'Hungarian' },
+  { code: 'is', name: 'Icelandic' },
+  { code: 'ig', name: 'Igbo' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'ga', name: 'Irish' },
   { code: 'it', name: 'Italian' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'jw', name: 'Javanese' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'kk', name: 'Kazakh' },
+  { code: 'km', name: 'Khmer' },
+  { code: 'rw', name: 'Kinyarwanda' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ku', name: 'Kurdish (Kurmanji)' },
+  { code: 'ky', name: 'Kyrgyz' },
+  { code: 'lo', name: 'Lao' },
+  { code: 'la', name: 'Latin' },
+  { code: 'lv', name: 'Latvian' },
+  { code: 'lt', name: 'Lithuanian' },
+  { code: 'lb', name: 'Luxembourgish' },
+  { code: 'mk', name: 'Macedonian' },
+  { code: 'mg', name: 'Malagasy' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'mt', name: 'Maltese' },
+  { code: 'mi', name: 'Maori' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'mn', name: 'Mongolian' },
+  { code: 'my', name: 'Myanmar (Burmese)' },
+  { code: 'ne', name: 'Nepali' },
+  { code: 'no', name: 'Norwegian' },
+  { code: 'or', name: 'Odia (Oriya)' },
+  { code: 'ps', name: 'Pashto' },
+  { code: 'fa', name: 'Persian' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ro', name: 'Romanian' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'sm', name: 'Samoan' },
+  { code: 'gd', name: 'Scots Gaelic' },
+  { code: 'sr', name: 'Serbian' },
+  { code: 'st', name: 'Sesotho' },
+  { code: 'sn', name: 'Shona' },
+  { code: 'sd', name: 'Sindhi' },
+  { code: 'si', name: 'Sinhala' },
+  { code: 'sk', name: 'Slovak' },
+  { code: 'sl', name: 'Slovenian' },
+  { code: 'so', name: 'Somali' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'su', name: 'Sundanese' },
+  { code: 'sw', name: 'Swahili' },
+  { code: 'sv', name: 'Swedish' },
+  { code: 'tg', name: 'Tajik' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'tt', name: 'Tatar' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'th', name: 'Thai' },
   { code: 'tr', name: 'Turkish' },
+  { code: 'tk', name: 'Turkmen' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'ug', name: 'Uyghur' },
+  { code: 'uz', name: 'Uzbek' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'cy', name: 'Welsh' },
+  { code: 'xh', name: 'Xhosa' },
+  { code: 'yi', name: 'Yiddish' },
+  { code: 'yo', name: 'Yoruba' },
+  { code: 'zu', name: 'Zulu' }
 ];
+
+interface SearchableLanguageSelectProps {
+    value: string;
+    onChange: (value: string) => void;
+    label: string;
+    excludeAuto?: boolean;
+}
+
+const SearchableLanguageSelect = ({ value, onChange, label, excludeAuto = false }: SearchableLanguageSelectProps) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Close on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredLanguages = LANGUAGES
+        .filter(l => excludeAuto ? l.code !== 'auto' : true)
+        .filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const selectedLang = LANGUAGES.find(l => l.code === value);
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <label className="block text-xs font-medium text-gray-500 mb-2">{label}</label>
+            
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 px-3 flex items-center justify-between hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            >
+                <span className="truncate">{selectedLang ? selectedLang.name : value}</span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-2 border-b border-gray-50">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search language..."
+                                className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 border-none rounded-lg focus:ring-0 text-gray-700 placeholder-gray-400"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="max-h-[200px] overflow-y-auto">
+                        {filteredLanguages.length > 0 ? (
+                            filteredLanguages.map(l => (
+                                <button
+                                    key={l.code}
+                                    onClick={() => {
+                                        onChange(l.code);
+                                        setIsOpen(false);
+                                        setSearchTerm('');
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                                        value === l.code ? 'bg-blue-50/50 text-blue-600 font-medium' : 'text-gray-700'
+                                    }`}
+                                >
+                                    {l.name}
+                                    {value === l.code && <Check size={14} className="text-blue-600" />}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-3 py-4 text-center text-xs text-gray-400">
+                                No languages found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeChange, activeChatId }: TranslationPanelProps) => {
   const handleChange = (key: keyof TranslationSettings, value: any) => {
@@ -119,33 +303,18 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
           </div>
           
           <div className={`space-y-4 transition-opacity duration-200 ${settings.autoTranslateIncoming ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Translate incoming from</label>
-              <div className="relative">
-                <select 
-                    value={settings.sourceLang}
-                    onChange={(e) => handleChange('sourceLang', e.target.value)}
-                    className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 px-3 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                >
-                  {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableLanguageSelect 
+                label="Translate incoming from"
+                value={settings.sourceLang}
+                onChange={(val) => handleChange('sourceLang', val)}
+            />
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Translate to</label>
-              <div className="relative">
-                <select 
-                    value={settings.targetLang}
-                    onChange={(e) => handleChange('targetLang', e.target.value)}
-                    className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 px-3 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                >
-                  {LANGUAGES.filter(l => l.code !== 'auto').map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableLanguageSelect 
+                label="Translate to"
+                value={settings.targetLang}
+                onChange={(val) => handleChange('targetLang', val)}
+                excludeAuto={true}
+            />
           </div>
         </div>
 
@@ -176,19 +345,12 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
           </div>
 
           <div className={`space-y-4 transition-opacity duration-200 ${settings.autoTranslateOutgoing ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Translate my messages to</label>
-              <div className="relative">
-                <select 
-                    value={settings.translateBeforeSendingLang}
-                    onChange={(e) => handleChange('translateBeforeSendingLang', e.target.value)}
-                    className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 px-3 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                >
-                   {LANGUAGES.filter(l => l.code !== 'auto').map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
+             <SearchableLanguageSelect 
+                label="Translate my messages to"
+                value={settings.translateBeforeSendingLang}
+                onChange={(val) => handleChange('translateBeforeSendingLang', val)}
+                excludeAuto={true}
+            />
           </div>
         </div>
       </div>
