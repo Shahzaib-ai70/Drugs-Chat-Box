@@ -394,6 +394,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     const socket = io(socketUrl);
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     if (Notification.permission !== 'granted') {
         Notification.requestPermission();
@@ -753,11 +754,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   };
 
   // Render Remote Browser for Facebook
-  if (activeService?.service.id.startsWith('fb')) {
-    return (
-        <RemoteBrowserView socket={socketRef.current} serviceId={activeService.id} />
-    );
-  }
+    if (activeService?.service.id.startsWith('fb')) {
+        return (
+            <RemoteBrowserView socket={socketInstance} serviceId={activeService.id} />
+        );
+    }
 
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {
