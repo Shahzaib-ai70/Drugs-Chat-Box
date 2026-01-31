@@ -334,11 +334,21 @@ app.post('/api/verify-code', (req, res) => {
     }
 });
 
-// Translation Endpoint (Pass-through or simple implementation)
+const translate = require('translate-google');
+
+// Translation Endpoint
 app.post('/api/translate', async (req, res) => {
-     // ... copy implementation if needed, or omit if not critical ...
-     // For brevity, simple mock
-     res.json({ translatedText: `[Translated] ${req.body.text}` });
+    const { text, targetLang } = req.body;
+    if (!text) return res.json({ translatedText: '' });
+    
+    try {
+        const translated = await translate(text, { to: targetLang || 'en' });
+        res.json({ translatedText: translated });
+    } catch (e) {
+        console.error('Translation Error:', e);
+        // Fallback to mock if API fails (e.g. rate limit)
+        res.json({ translatedText: `[Failed] ${text}` });
+    }
 });
 
 // Health Check

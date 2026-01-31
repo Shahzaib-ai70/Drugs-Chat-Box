@@ -417,6 +417,27 @@ const initializeWhatsApp = async () => {
     fetchAndEmitChats();
   });
 
+  client.on('message_ack', async (msg, ack) => {
+    /*
+        ACK Values:
+        1: Sent
+        2: Received
+        3: Read
+        0: Pending/Error
+    */
+    const chatId = msg.to || msg.from; // For outgoing, usually 'to'. For group, might be different.
+    // robust chatId resolution
+    let resolvedChatId = chatId;
+    try { resolvedChatId = (await msg.getChat()).id._serialized; } catch (e) { resolvedChatId = msg.id.remote || chatId; }
+
+    log(`Message ACK: ${msg.id._serialized} -> ${ack}`);
+    io.to(SERVICE_ID).emit('wa_message_ack', {
+        chatId: resolvedChatId,
+        id: msg.id._serialized,
+        ack: ack
+    });
+  });
+
   client.on('authenticated', () => {
     log(`Authenticated`);
     sessionState.status = 'AUTHENTICATED';
