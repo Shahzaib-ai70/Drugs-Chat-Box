@@ -160,13 +160,39 @@ process.on('message', async (msg) => {
         log('Attempting Login...');
         if (sessionState.page) {
             try {
-                await sessionState.page.type('#email', email);
-                await sessionState.page.type('#pass', password);
-                await sessionState.page.click('[name="login"]');
-                await sessionState.page.waitForNavigation({ waitUntil: 'networkidle2' });
+                // Try to find email field
+                const emailSelector = await sessionState.page.waitForSelector('#email, input[name="email"]', { timeout: 5000 }).catch(() => null);
+                if (!emailSelector) throw new Error('Email field not found');
+                await emailSelector.type(email);
+
+                // Try to find password field
+                const passSelector = await sessionState.page.waitForSelector('#pass, input[name="pass"]', { timeout: 5000 }).catch(() => null);
+                if (!passSelector) throw new Error('Password field not found');
+                await passSelector.type(password);
+
+                // Try to find login button
+                const loginBtn = await sessionState.page.waitForSelector('[name="login"], button[type="submit"], input[type="submit"]', { timeout: 5000 }).catch(() => null);
+                if (!loginBtn) throw new Error('Login button not found');
+                
+                await Promise.all([
+                    sessionState.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(e => log('Nav timeout (ignoring): ' + e)),
+                    loginBtn.click()
+                ]);
+
+                // Check for errors on page
+                const errorMsg = await sessionState.page.evaluate(() => {
+                    const el = document.querySelector('#login_error_box, .login_error_box, [role="alert"]');
+                    return el ? el.innerText : null;
+                });
+
+                if (errorMsg) {
+                    throw new Error('Facebook Error: ' + errorMsg);
+                }
+
                 checkLoginState();
             } catch (e) {
                 log('Login Error: ' + e);
+                io.to(SERVICE_ID).emit('fb_login_error', { message: e.message });
             }
         }
     } else if (command === 'fb_2fa_submit') {

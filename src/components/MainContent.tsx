@@ -514,6 +514,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setLoadingStatus(null);
     });
 
+    socket.on('fb_login_error', ({ message }) => {
+        console.error('Facebook Login Error:', message);
+        alert('Login Failed: ' + message);
+        setIsAuthenticating(false);
+        setLoadingStatus(null);
+        setIsLoginRequired(true); // Ensure form is visible
+    });
+
     socket.on('fb_2fa_required', () => {
         console.log('Facebook 2FA Required');
         setIs2FARequired(true);
