@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 
 interface InvitationLoginProps {
     onLogin: (code: string) => void;
-    onAdminClick: () => void;
 }
 
-export default function InvitationLogin({ onLogin, onAdminClick }: InvitationLoginProps) {
+export default function InvitationLogin({ onLogin }: InvitationLoginProps) {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);

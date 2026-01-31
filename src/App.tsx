@@ -191,7 +191,7 @@ function App() {
   }
 
   if (!invitationCode) {
-    return <InvitationLogin onLogin={handleInvitationLogin} onAdminClick={() => window.location.href = '/admin'} />;
+    return <InvitationLogin onLogin={handleInvitationLogin} />;
   }
 
   const activeService = addedServices.find(s => s.id === activeServiceId);
