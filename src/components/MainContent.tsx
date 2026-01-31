@@ -302,6 +302,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         if (status === 'CONNECTED' || status === 'AUTHENTICATED' || status === 'READY') {
             setIsConnected(true);
             setIsAuthenticating(false);
+            setQrValue(''); // Clear QR code if connected
             // Don't clear chats here, as we might already have them or be about to receive them
         }
     });
@@ -311,6 +312,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       if (qr === 'CONNECTED') {
         setIsConnected(true);
         setIsAuthenticating(false);
+        setQrValue(''); // Clear QR code
       } else {
         setQrValue(qr);
         setSecondsLeft(20);
@@ -322,6 +324,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     socket.on('authenticated', () => {
         console.log('Authenticated');
         setIsAuthenticating(true);
+        setQrValue(''); // Clear QR code on authentication
         // Start showing loading state
         setLoadingStatus({ percent: 0, message: 'Authenticating...' });
         setIsLoadingChats(true);
@@ -331,6 +334,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       console.log('WhatsApp Ready');
       setIsConnected(true);
       setIsAuthenticating(false);
+      setQrValue(''); // Clear QR code
       setIsLoadingChats(true);
     });
     socket.on('wa_chats', (list) => {
@@ -1083,84 +1087,97 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       );
     }
 
-    // QR Code Screen
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
-        <div className="bg-white p-10 rounded-2xl shadow-xl max-w-4xl w-full flex gap-12 items-center">
-            <div className="flex-1">
-                <h1 className="text-3xl font-light text-gray-800 mb-8">Use {serviceName} on your computer</h1>
-                {serviceName.toLowerCase().includes('telegram') ? (
-                    <ol className="space-y-6 text-gray-600 text-lg">
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">1.</span>
-                            Open Telegram on your phone
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">2.</span>
-                            Go to <strong>Settings</strong> {'>'} <strong>Devices</strong>
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">3.</span>
-                            Tap <strong>Link Desktop Device</strong>
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">4.</span>
-                            Point your phone to this screen
-                        </li>
-                    </ol>
-                ) : (
-                    <ol className="space-y-6 text-gray-600 text-lg">
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">1.</span>
-                            Open WhatsApp on your phone
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">2.</span>
-                            Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">3.</span>
-                            Tap on <strong>Link a Device</strong>
-                        </li>
-                        <li className="flex gap-4">
-                            <span className="font-medium text-gray-900">4.</span>
-                            Point your phone to this screen to capture the code
-                        </li>
-                    </ol>
-                )}
-                <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">Need help to get started?</div>
-            </div>
-            
-            <div className="flex flex-col items-center">
-                <div className="relative group">
-                    <div className="border-4 border-white shadow-lg rounded-xl overflow-hidden">
-                        {qrValue ? (
-                            <QRCode value={qrValue} size={260} />
+    // QR Code Screen - Only show if we actually have a QR code or status says so
+    if (qrValue || connectionStatus === 'QR_READY') {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+                <div className="bg-white p-10 rounded-2xl shadow-xl max-w-4xl w-full flex gap-12 items-center">
+                    <div className="flex-1">
+                        <h1 className="text-3xl font-light text-gray-800 mb-8">Use {serviceName} on your computer</h1>
+                        {serviceName.toLowerCase().includes('telegram') ? (
+                            <ol className="space-y-6 text-gray-600 text-lg">
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">1.</span>
+                                    Open Telegram on your phone
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">2.</span>
+                                    Go to <strong>Settings</strong> {'>'} <strong>Devices</strong>
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">3.</span>
+                                    Tap <strong>Link Desktop Device</strong>
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">4.</span>
+                                    Point your phone to this screen
+                                </li>
+                            </ol>
                         ) : (
-                            <div className="w-[260px] h-[260px] bg-gray-100 flex items-center justify-center animate-pulse">
-                                <div className="text-gray-400">Generating QR...</div>
-                            </div>
+                            <ol className="space-y-6 text-gray-600 text-lg">
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">1.</span>
+                                    Open WhatsApp on your phone
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">2.</span>
+                                    Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">3.</span>
+                                    Tap on <strong>Link a Device</strong>
+                                </li>
+                                <li className="flex gap-4">
+                                    <span className="font-medium text-gray-900">4.</span>
+                                    Point your phone to this screen to capture the code
+                                </li>
+                            </ol>
                         )}
+                        <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">Need help to get started?</div>
                     </div>
-                    {qrValue && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer">
-                            <div className="flex flex-col items-center gap-2 text-gray-800">
-                                <RefreshCcw size={32} />
-                                <span className="font-medium">Click to reload QR</span>
+                    
+                    <div className="flex flex-col items-center">
+                        <div className="relative group">
+                            <div className="border-4 border-white shadow-lg rounded-xl overflow-hidden">
+                                {qrValue ? (
+                                    <QRCode value={qrValue} size={260} />
+                                ) : (
+                                    <div className="w-[260px] h-[260px] bg-gray-100 flex items-center justify-center animate-pulse">
+                                        <div className="text-gray-400">Generating QR...</div>
+                                    </div>
+                                )}
+                            </div>
+                            {qrValue && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer">
+                                    <div className="flex flex-col items-center gap-2 text-gray-800">
+                                        <RefreshCcw size={32} />
+                                        <span className="font-medium">Click to reload QR</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="mt-6 flex items-center gap-3">
+                            <div className="flex items-center gap-2 text-gray-500 text-sm">
+                                <input type="checkbox" className="rounded border-gray-300 text-[#00a884] focus:ring-[#00a884]" defaultChecked />
+                                <label>Keep me signed in</label>
                             </div>
                         </div>
-                    )}
-                </div>
-                
-                <div className="mt-6 flex items-center gap-3">
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                        <input type="checkbox" className="rounded border-gray-300 text-[#00a884] focus:ring-[#00a884]" defaultChecked />
-                        <label>Keep me signed in</label>
                     </div>
                 </div>
             </div>
+        );
+    }
+
+    // Connecting / Restoring Session Screen
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+             <div className="flex flex-col items-center">
+                 <div className="w-16 h-16 border-4 border-gray-200 border-t-[#00a884] rounded-full animate-spin mb-6"></div>
+                 <h2 className="text-xl font-medium text-gray-800 mb-2">Connecting to {serviceName}...</h2>
+                 <p className="text-gray-500">Restoring your session. This may take a few seconds.</p>
+             </div>
         </div>
-      </div>
     );
   }
 

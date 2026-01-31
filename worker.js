@@ -73,7 +73,7 @@ process.on('message', async (msg) => {
 
     if (command === 'request_state') {
         log('IPC: State requested');
-        if (sessionState.qr && sessionState.qr !== 'CONNECTED') io.to(SERVICE_ID).emit('qr', sessionState.qr);
+        if (sessionState.qr) io.to(SERVICE_ID).emit('qr', sessionState.qr);
         io.to(SERVICE_ID).emit('status', sessionState.status);
         if (sessionState.chats.length > 0) io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
     } else if (command === 'sendMessage') {
