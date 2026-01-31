@@ -250,8 +250,8 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
   
   // SPA Fallback: Serve index.html for any unknown routes
-  // Note: Express 5 requires /(.*)/ instead of '*' for wildcard matching
-  app.get('/(.*)', (req, res) => {
+  // Note: Express 5 requires a RegExp for catch-all if * is not supported by the parser
+  app.get(/.*/, (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
