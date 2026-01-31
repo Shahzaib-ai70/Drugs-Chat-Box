@@ -70,9 +70,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
           return saved ? JSON.parse(saved) : {};
       } catch (e) { return {}; }
   });
+  
+  const outgoingOriginalsRef = useRef(outgoingOriginals);
 
-  // Persist outgoing originals
+  // Persist outgoing originals and keep Ref in sync
   useEffect(() => {
+      outgoingOriginalsRef.current = outgoingOriginals;
       localStorage.setItem('outgoing_originals', JSON.stringify(outgoingOriginals));
   }, [outgoingOriginals]);
 
@@ -417,9 +420,18 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     socket.on('wa_chat_history', ({ chatId, messages }) => {
       console.log(`Received history for ${chatId}: ${messages.length} msgs`);
       setLoadingHistory(false);
+      
+      // Hydrate messages with original bodies from local storage
+      const hydratedMessages = messages.map((m: any) => {
+          if (outgoingOriginalsRef.current[m.id]) {
+              return { ...m, originalBody: outgoingOriginalsRef.current[m.id] };
+          }
+          return m;
+      });
+
       setMessagesByChat(prev => ({
         ...prev,
-        [normalizeId(chatId)]: messages.sort((a: any, b: any) => a.timestamp - b.timestamp)
+        [normalizeId(chatId)]: hydratedMessages.sort((a: any, b: any) => a.timestamp - b.timestamp)
       }));
     });
 
@@ -471,9 +483,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     
                     // CRITICAL: Update localStorage mapping from tempId to realId immediately
                     // This ensures persistence even if callback hasn't returned yet
-                    if (outgoingOriginals[tempId]) {
+                    const currentOutgoingOriginals = outgoingOriginalsRef.current;
+                    if (currentOutgoingOriginals[tempId]) {
                         setOutgoingOriginals(prev => {
-                            const newState = { ...prev, [msg.id]: outgoingOriginals[tempId] };
+                            const newState = { ...prev, [msg.id]: currentOutgoingOriginals[tempId] };
                             // Optional: Clean up old temp ID to save space, but keeping it is safer for race conditions
                             return newState;
                         });
