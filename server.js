@@ -4,6 +4,8 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import { spawn, fork } from 'child_process';
 import http from 'http';
 import { Server } from 'socket.io'; // For admin/global events if needed
