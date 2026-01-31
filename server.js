@@ -348,8 +348,8 @@ app.post('/api/translate', async (req, res) => {
         res.json({ translatedText: translated });
     } catch (e) {
         console.error('Translation Error:', e);
-        // Fallback to mock if API fails (e.g. rate limit)
-        res.json({ translatedText: `[Failed] ${text}` });
+        // Fallback to original text if API fails (instead of sending [Failed]...)
+        res.json({ translatedText: text, error: true });
     }
 });
 

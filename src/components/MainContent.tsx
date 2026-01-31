@@ -92,6 +92,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   };
 
   const translateText = async (text: string, targetLang: string) => {
+    if (!text || !text.trim()) return null;
     try {
       const res = await fetch('/api/translate', {
         method: 'POST',
@@ -99,6 +100,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         body: JSON.stringify({ text, targetLang })
       });
       const data = await res.json();
+      if (data.error || !data.translatedText) return null; // Fallback to original
       return data.translatedText;
     } catch (e) {
       console.error('Translation failed', e);
@@ -295,6 +297,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     socket.on('status', (status) => {
         console.log('Status update:', status);
         setConnectionStatus(status);
+        
+        // If status indicates we are already connected, update state immediately
+        if (status === 'CONNECTED' || status === 'AUTHENTICATED' || status === 'READY') {
+            setIsConnected(true);
+            setIsAuthenticating(false);
+            // Don't clear chats here, as we might already have them or be about to receive them
+        }
     });
 
     socket.on('qr', (qr) => {
@@ -349,6 +358,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setMyProfile(info);
     });
     
+    socket.on('wa_chat_update', (update) => {
+        setChats(prev => prev.map(c => {
+            if (c.id === update.id) {
+                return { ...c, ...update };
+            }
+            return c;
+        }));
+    });
+
     socket.on('wa_loading', ({ percent, message }) => {
         console.log(`Loading: ${percent}% - ${message}`);
         setLoadingStatus({ percent, message });

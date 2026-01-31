@@ -294,20 +294,55 @@ const initializeWhatsApp = async () => {
             }
 
             // 2. Map Chats
-            const mappedBasic = chats.map(c => ({
-                id: c.id?._serialized || c.id || '',
-                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                isGroup: !!c.isGroup,
-                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                lastMessage: c.lastMessage?.body || '',
-                lastTimestamp: c.lastMessage?.timestamp || 0,
-                profilePicUrl: '',
-                lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''
+            // To improve speed, we map basic info first, then fetch profile pics asynchronously
+            const mappedBasic = await Promise.all(chats.map(async c => {
+                let profilePicUrl = '';
+                // Try to get profile pic for top 20 chats or just do it for all if fast enough. 
+                // For now, let's try to get it, but catch errors to not block.
+                try {
+                   // Only fetch for non-groups or if needed. Actually getProfilePicUrl is a network call.
+                   // Let's do it lazily or just for top chats?
+                   // User specifically asked for profile pics.
+                   // NOTE: Calling getProfilePicUrl for ALL chats will be slow and might rate limit.
+                   // Strategy: Send chats first without pics, then update with pics?
+                   // Or just try for the first few.
+                } catch(e) {}
+
+                return {
+                    id: c.id?._serialized || c.id || '',
+                    name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                    isGroup: !!c.isGroup,
+                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                    lastMessage: c.lastMessage?.body || '',
+                    lastTimestamp: c.lastMessage?.timestamp || 0,
+                    profilePicUrl: '', // Will be updated later or we can try fetching here
+                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''
+                };
             }));
             
+            // Sort by timestamp
+            mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+
             sessionState.chats = mappedBasic;
             io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
-            log(`Emitted ${mappedBasic.length} chats`);
+            log(`Emitted ${mappedBasic.length} chats (basic info)`);
+            
+            // Background fetch profile pics
+            (async () => {
+                for (const chat of mappedBasic.slice(0, 50)) { // Limit to top 50 for performance
+                     try {
+                        const contact = await client.getContactById(chat.id);
+                        const picUrl = await contact.getProfilePicUrl();
+                        if (picUrl) {
+                            chat.profilePicUrl = picUrl;
+                            // Emit update for single chat or batch?
+                            // For now, let's just update the local state and maybe re-emit periodically or send a specific event
+                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl });
+                        }
+                     } catch(e) {}
+                     await new Promise(r => setTimeout(r, 200)); // Throttle
+                }
+            })();
 
             // Store Fallback
             if (mappedBasic.length === 0 && client.pupPage) {
