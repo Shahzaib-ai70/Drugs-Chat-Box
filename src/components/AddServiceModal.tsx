@@ -4,7 +4,8 @@ import {
   Minus, 
   Square,
   Search,
-  Plus
+  Plus,
+  MessageCircle
 } from 'lucide-react';
 import { AVAILABLE_SERVICES } from '../constants/services';
 import type { ServiceItem } from '../types';
@@ -34,17 +35,17 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
       <div className="w-[850px] h-[550px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="h-12 bg-white flex items-center justify-between px-4 border-b border-gray-100 select-none">
+        <div className="h-14 bg-white flex items-center justify-between px-6 border-b border-gray-100 select-none">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
-              Y
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-blue-200 shadow-lg ring-1 ring-black/5">
+              <MessageCircle size={18} fill="currentColor" className="text-white/90" />
             </div>
-            <span className="text-sm font-bold text-gray-800 tracking-tight">Add Service</span>
+            <span className="text-base font-bold text-gray-800 tracking-tight">Add Service</span>
           </div>
           <div className="flex items-center gap-3 text-gray-400">
-            <button className="hover:bg-gray-100 p-1.5 rounded-full transition-colors"><Minus size={16} /></button>
-            <button className="hover:bg-gray-100 p-1.5 rounded-full transition-colors"><Square size={14} /></button>
-            <button className="hover:bg-red-500 hover:text-white p-1.5 rounded-full transition-colors" onClick={onClose}><X size={16} /></button>
+            <button className="hover:bg-gray-100 p-2 rounded-full transition-colors"><Minus size={18} /></button>
+            <button className="hover:bg-gray-100 p-2 rounded-full transition-colors"><Square size={16} /></button>
+            <button className="hover:bg-red-500 hover:text-white p-2 rounded-full transition-colors" onClick={onClose}><X size={18} /></button>
           </div>
         </div>
 
@@ -100,37 +101,48 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
           </div>
 
           {/* Grid Section */}
-          <div className="flex-1 flex flex-col gap-3 min-h-0">
-             <div className="flex items-center justify-between px-1">
-                <h3 className="font-semibold text-gray-700 text-sm">Available Services</h3>
-                <div className="relative">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="text" placeholder="Search services..." className="h-8 pl-8 pr-3 rounded-full border border-gray-200 text-xs bg-white focus:border-blue-400 outline-none w-48" />
+          <div className="flex-1 flex flex-col gap-4 min-h-0">
+             <div className="flex items-center justify-between px-2">
+                <h3 className="font-bold text-gray-800 text-sm tracking-tight flex items-center gap-2">
+                    <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+                    Available Services
+                </h3>
+                <div className="relative group">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Search services..." 
+                        className="h-9 pl-9 pr-4 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none w-56 transition-all" 
+                    />
                 </div>
              </div>
              
-             <div className="flex-1 bg-white rounded-xl border border-gray-100 p-4 overflow-y-auto custom-scrollbar shadow-inner">
-                <div className="grid grid-cols-6 lg:grid-cols-8 gap-4">
+             <div className="flex-1 bg-gray-50/50 rounded-2xl border border-gray-100 p-5 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-5 gap-4">
                 {services.map((service) => (
                     <button 
                     key={service.id} 
-                    className={`flex flex-col items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative ${
+                    className={`flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-300 group relative border ${
                         selectedService?.id === service.id 
-                            ? 'bg-blue-50 ring-2 ring-blue-500 ring-offset-2' 
-                            : 'hover:bg-gray-50 hover:shadow-sm border border-transparent hover:border-gray-100'
+                            ? 'bg-white border-blue-500 ring-4 ring-blue-500/10 shadow-lg scale-[1.02] z-10' 
+                            : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-md hover:-translate-y-1'
                     }`}
                     onClick={() => handleServiceClick(service)}
                     >
                     <div 
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-200 ${
-                            selectedService?.id === service.id ? 'bg-white shadow-sm scale-110' : 'bg-gray-50 group-hover:bg-white group-hover:scale-110 group-hover:shadow-sm'
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                            selectedService?.id === service.id 
+                                ? 'bg-blue-50 shadow-inner' 
+                                : 'bg-gray-50 group-hover:bg-blue-50/50'
                         }`}
                         style={{ color: service.color }}
                     >
-                        {service.icon}
+                        <div className="transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                             {service.icon}
+                        </div>
                     </div>
-                    <span className={`text-[11px] font-medium text-center leading-tight whitespace-pre-line transition-colors ${
-                        selectedService?.id === service.id ? 'text-blue-700' : 'text-gray-500 group-hover:text-gray-800'
+                    <span className={`text-xs font-bold text-center leading-tight whitespace-pre-line transition-colors ${
+                        selectedService?.id === service.id ? 'text-blue-700' : 'text-gray-600 group-hover:text-gray-900'
                     }`}>
                         {service.name}
                     </span>
