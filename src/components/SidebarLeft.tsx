@@ -32,17 +32,13 @@ const SidebarLeft = ({
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const socketRef = useRef<any>(null);
 
-  // FIXME: Socket connection in Sidebar interferes with MainContent socket. 
-  // Temporarily disabled unread counts to restore messaging.
-  // Will need to lift socket state to App.tsx to support both.
-  /*
   useEffect(() => {
     // Connect to Master Gateway
-    const socket = io(); // Connects to current host/port, proxied to 3005 in dev or direct in prod
+    const socket = io(); // Connects to current host/port
     socketRef.current = socket;
     
     socket.on('connect', () => {
-        console.log('SidebarLeft: Socket connected', socket.id);
+        console.log('SidebarLeft: Socket connected (Passive Mode)', socket.id);
     });
 
     socket.on('unread_total', (data: { serviceId: string, count: number }) => {
@@ -52,7 +48,6 @@ const SidebarLeft = ({
                 ...prev,
                 [data.serviceId]: data.count
             };
-            console.log('SidebarLeft: Updated unreadCounts', newState);
             return newState;
         });
     });
@@ -62,12 +57,13 @@ const SidebarLeft = ({
     };
   }, []);
 
-  // Join service rooms to receive notifications
+  // Join service rooms PASSIVELY to receive notifications without resetting worker state
   useEffect(() => {
       const joinRooms = () => {
         if (socketRef.current && addedServices.length > 0) {
             addedServices.forEach(s => {
-                socketRef.current.emit('join_service', s.id);
+                // Use passive: true to avoid triggering 'request_state' which breaks MainContent
+                socketRef.current.emit('join_service', { serviceId: s.id, passive: true });
             });
         }
       };
@@ -83,7 +79,6 @@ const SidebarLeft = ({
           }
       };
   }, [addedServices]);
-  */
 
   // Close context menu on click outside
   useEffect(() => {
