@@ -64,6 +64,18 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     quotedMsg?: { id: string; body: string; author: string; fromMe: boolean };
   }>>>({});
   const [translations, setTranslations] = useState<Record<string, string>>({}); // msgId -> translated text
+  const [outgoingOriginals, setOutgoingOriginals] = useState<Record<string, string>>(() => {
+      try {
+          const saved = localStorage.getItem('outgoing_originals');
+          return saved ? JSON.parse(saved) : {};
+      } catch (e) { return {}; }
+  });
+
+  // Persist outgoing originals
+  useEffect(() => {
+      localStorage.setItem('outgoing_originals', JSON.stringify(outgoingOriginals));
+  }, [outgoingOriginals]);
+
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -156,6 +168,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         if (translated) {
             originalBody = body;
             body = translated;
+            setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalBody! }));
         }
     }
     
@@ -224,6 +237,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             alert('Failed to send: ' + response.error);
         } else if (response?.messageId) {
             // Update the temp ID with real ID
+            if (originalBody) {
+                setOutgoingOriginals(prev => ({ ...prev, [response.messageId]: originalBody! }));
+            }
             setMessagesByChat(prev => {
                 const normId = normalizeId(activeChatId);
                 const current = prev[normId] || [];
@@ -447,6 +463,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             if (tempMatchIndex !== -1) {
                 console.log('Replacing optimistic message with real message:', msg.id);
                 // Replace the temp message with the real one
+                if (currentMessages[tempMatchIndex].originalBody) {
+                    msg.originalBody = currentMessages[tempMatchIndex].originalBody;
+                }
                 currentMessages[tempMatchIndex] = msg;
                 // Re-sort to be safe, though usually timestamp shouldn't change much
                 currentMessages.sort((a, b) => a.timestamp - b.timestamp);
@@ -874,9 +893,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         Original: {m.body}
                                     </div>
                                 )}
-                                {m.originalBody && (
+                                {(m.originalBody || outgoingOriginals[m.id]) && (
                                     <div className="mt-1 pt-1 border-t border-green-200/50 text-xs text-gray-500 italic">
-                                        Original: {m.originalBody}
+                                        Original: {m.originalBody || outgoingOriginals[m.id]}
                                     </div>
                                 )}
 
