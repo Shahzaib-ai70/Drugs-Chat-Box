@@ -171,6 +171,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         if (translated) {
             originalBody = body;
             body = translated;
+            // FIX: Update ref immediately to avoid race condition with fast socket response
+            outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalBody! };
             setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalBody! }));
         }
     }
@@ -468,8 +470,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             const tempMatchIndex = currentMessages.findIndex(m => 
                 m.id.startsWith('temp_') && 
                 m.body === msg.body &&
-                // Allow 10s timestamp variance for network/processing delay
-                Math.abs(m.timestamp - msg.timestamp) <= 10
+                // Allow 60s timestamp variance for network/processing delay
+                Math.abs(m.timestamp - msg.timestamp) <= 60
             );
 
             if (tempMatchIndex !== -1) {
