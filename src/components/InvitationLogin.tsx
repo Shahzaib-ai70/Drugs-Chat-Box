@@ -14,11 +14,13 @@ export default function InvitationLogin({ onLogin }: InvitationLoginProps) {
         setError('');
         setLoading(true);
 
+        const cleanCode = code.trim(); // Ensure no trailing spaces
+
         try {
             const res = await fetch('/api/verify-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
+                body: JSON.stringify({ code: cleanCode })
             });
             
             const data = await res.json();

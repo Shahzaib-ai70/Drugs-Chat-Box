@@ -212,8 +212,12 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs border border-green-900/50">
-                                                    Active
+                                                <span className={`px-2 py-1 rounded text-xs border ${
+                                                    !user.status || user.status === 'active' 
+                                                        ? 'bg-green-900/30 text-green-400 border-green-900/50' 
+                                                        : 'bg-red-900/30 text-red-400 border-red-900/50'
+                                                }`}>
+                                                    {user.status || 'Active'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
