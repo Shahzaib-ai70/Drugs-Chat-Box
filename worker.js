@@ -143,11 +143,23 @@ const handleSendMessage = async (data) => {
     const body = data.message || data.body;
     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
         try {
-            await sessionState.client.sendMessage(data.chatId, body); 
+            if (data.media) {
+                const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
+                await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+            } else {
+                await sessionState.client.sendMessage(data.chatId, body); 
+            }
         } catch(e) { log(`Send Error: ${e}`); }
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
-            await sessionState.client.sendMessage(data.chatId, { message: body });
+            if (data.media) {
+                const buffer = Buffer.from(data.media.data, 'base64');
+                // GramJS expects 'file' parameter. Buffer works.
+                // We can also try to infer mimetype or name if needed, but Buffer is usually enough.
+                await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+            } else {
+                await sessionState.client.sendMessage(data.chatId, { message: body });
+            }
         } catch(e) { log(`Send Error: ${e}`); }
     }
 };
