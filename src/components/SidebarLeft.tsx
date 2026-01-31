@@ -32,6 +32,10 @@ const SidebarLeft = ({
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const socketRef = useRef<any>(null);
 
+  // FIXME: Socket connection in Sidebar interferes with MainContent socket. 
+  // Temporarily disabled unread counts to restore messaging.
+  // Will need to lift socket state to App.tsx to support both.
+  /*
   useEffect(() => {
     // Connect to Master Gateway
     const socket = io(); // Connects to current host/port, proxied to 3005 in dev or direct in prod
@@ -79,6 +83,7 @@ const SidebarLeft = ({
           }
       };
   }, [addedServices]);
+  */
 
   // Close context menu on click outside
   useEffect(() => {

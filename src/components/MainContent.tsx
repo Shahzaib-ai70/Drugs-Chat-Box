@@ -14,6 +14,13 @@ interface MainContentProps {
   onChatSelect?: (chatId: string | null) => void;
 }
 
+interface PendingOriginal {
+    tempId: string;
+    body: string;
+    original: string;
+    timestamp: number;
+}
+
 const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
@@ -71,6 +78,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       } catch (e) { return {}; }
   });
   
+  const [pendingOriginals, setPendingOriginals] = useState<PendingOriginal[]>(() => {
+      try {
+          const saved = localStorage.getItem('pending_outgoing_originals');
+          return saved ? JSON.parse(saved) : [];
+      } catch (e) { return []; }
+  });
+
   const outgoingOriginalsRef = useRef(outgoingOriginals);
 
   // Persist outgoing originals and keep Ref in sync
@@ -78,6 +92,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       outgoingOriginalsRef.current = outgoingOriginals;
       localStorage.setItem('outgoing_originals', JSON.stringify(outgoingOriginals));
   }, [outgoingOriginals]);
+
+  useEffect(() => {
+      localStorage.setItem('pending_outgoing_originals', JSON.stringify(pendingOriginals));
+  }, [pendingOriginals]);
 
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [messageInput, setMessageInput] = useState('');
@@ -104,6 +122,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const normalizeId = (id: string) => {
     if (!id) return '';
     return id.split('@')[0];
+  };
+
+  // Helper to sort chats: Unread first, then by timestamp
+  const sortChats = (chatsList: typeof chats) => {
+      return [...chatsList].sort((a, b) => {
+          const aUnread = (a.unreadCount || 0) > 0;
+          const bUnread = (b.unreadCount || 0) > 0;
+          if (aUnread && !bUnread) return -1;
+          if (!aUnread && bUnread) return 1;
+          return (b.lastTimestamp || 0) - (a.lastTimestamp || 0);
+      });
   };
 
   const translateText = async (text: string, targetLang: string) => {
@@ -154,8 +183,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   }, [activeChatId, translationSettings, messagesByChat]); // messagesByChat dependency ensures history load triggers this
 
   const handleSendMessage = async () => {
-    if ((!messageInput.trim() && !pastedImage) || !activeChatId || !activeService?.id || !socketRef.current) return;
+    if ((!messageInput.trim() && !pastedImage) || !activeChatId || !activeService?.id) return;
     
+    if (!socketRef.current) {
+        console.error('CRITICAL: Socket not connected when trying to send message');
+        alert('Connection lost. Please refresh the page.');
+        return;
+    }
+    
+    const tempId = 'temp_' + Date.now();
+    const timestamp = Math.floor(Date.now() / 1000);
+
     let body = messageInput;
     let originalBody: string | undefined = undefined;
 
@@ -174,11 +212,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             // FIX: Update ref immediately to avoid race condition with fast socket response
             outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalBody! };
             setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalBody! }));
+
+            // Add to pending queue for recovery after refresh
+            setPendingOriginals(prev => [...prev, {
+                tempId,
+                body: translated,
+                original: originalBody!,
+                timestamp
+            }]);
         }
     }
-    
-    const tempId = 'temp_' + Date.now();
-    const timestamp = Math.floor(Date.now() / 1000);
 
     // Optimistic Update: Immediately add message to UI
     setMessagesByChat(prev => {
@@ -210,7 +253,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     
     // Also update the chat list preview optimistically
     setChats(prevChats => {
-        return prevChats.map(chat => {
+        const updated = prevChats.map(chat => {
             if (normalizeId(chat.id) === normalizeId(activeChatId)) {
                 return {
                     ...chat,
@@ -219,7 +262,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 };
             }
             return chat;
-        }).sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+        });
+        return sortChats(updated);
     });
 
     console.log('Sending message via WebSocket:', {
@@ -269,12 +313,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         });
 
         // Optimistically clear unread count in UI
-        setChats(prev => prev.map(c => {
-            if (normalizeId(c.id) === normalizeId(activeChatId)) {
-                return { ...c, unreadCount: 0 };
-            }
-            return c;
-        }));
+        setChats(prev => {
+            const updated = prev.map(c => {
+                if (normalizeId(c.id) === normalizeId(activeChatId)) {
+                    return { ...c, unreadCount: 0 };
+                }
+                return c;
+            });
+            return sortChats(updated);
+        });
     }
   }, [activeChatId, activeService]);
 
@@ -359,7 +406,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       setIsLoadingChats(true);
     });
     socket.on('wa_chats', (list) => {
-      setChats(Array.isArray(list) ? list : []);
+      setChats(Array.isArray(list) ? sortChats(list) : []);
       setIsLoadingChats(false);
       setLoadingStatus(null);
       // If we receive chats, we are definitely connected
@@ -384,12 +431,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     });
     
     socket.on('wa_chat_update', (update) => {
-        setChats(prev => prev.map(c => {
-            if (c.id === update.id) {
-                return { ...c, ...update };
-            }
-            return c;
-        }));
+        setChats(prev => {
+            const updated = prev.map(c => {
+                if (c.id === update.id) {
+                    return { ...c, ...update };
+                }
+                return c;
+            });
+            return sortChats(updated);
+        });
     });
 
     socket.on('wa_loading', ({ percent, message }) => {
@@ -523,7 +573,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       setChats(prevChats => {
           const currentActiveChatId = activeChatIdRef.current;
           
-          return prevChats.map(chat => {
+          const updated = prevChats.map(chat => {
               // Robust ID Matching Logic using normalizeId
               const isMatch = normalizeId(chat.id) === normalizeId(msg.chatId);
 
@@ -539,7 +589,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                   };
               }
               return chat;
-          }).sort((a, b) => b.lastTimestamp - a.lastTimestamp); 
+          });
+          return sortChats(updated);
       });
 
       // Show notifications and play sound
