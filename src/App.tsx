@@ -203,7 +203,7 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-white text-gray-800 font-sans relative overflow-hidden">
-      <TopBar onLogout={handleLogout} />
+      <TopBar onLogout={handleLogout} invitationCode={invitationCode} />
       <div className="flex flex-1 overflow-hidden relative z-0">
         <SidebarLeft 
           onAddNewClick={() => setIsAddModalOpen(true)} 

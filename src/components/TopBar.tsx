@@ -17,9 +17,10 @@ import {
 
 interface TopBarProps {
   onLogout?: () => void;
+  invitationCode?: string | null;
 }
 
-const TopBar = ({ onLogout }: TopBarProps) => {
+const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
   return (
     <div className="h-14 bg-white flex items-center justify-between px-4 border-b border-gray-100 shadow-sm select-none z-40">
       {/* Logo Area */}
@@ -34,6 +35,14 @@ const TopBar = ({ onLogout }: TopBarProps) => {
       <div className="flex items-center gap-1 bg-gray-50/80 p-1.5 rounded-full border border-gray-100">
         <ActionButton icon={<Wifi size={14} />} label="Server" active />
         <div className="w-px h-4 bg-gray-200 mx-1"></div>
+        
+        {invitationCode && (
+           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
+              <User size={14} />
+              <span>Code: {invitationCode}</span>
+           </div>
+        )}
+
         {onLogout && (
             <button onClick={onLogout} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all text-gray-500 hover:text-red-600 hover:bg-red-50">
                 <LogOut size={14} />
@@ -41,6 +50,7 @@ const TopBar = ({ onLogout }: TopBarProps) => {
             </button>
         )}
         {!onLogout && <ActionButton icon={<Lock size={14} />} label="Lock" />}
+        <div className="w-px h-4 bg-gray-200 mx-1"></div>
         <ActionButton icon={<Bot size={14} />} label="AI" />
         <ActionButton icon={<Sun size={14} />} label="Light" />
         <div className="w-px h-4 bg-gray-200 mx-1"></div>
