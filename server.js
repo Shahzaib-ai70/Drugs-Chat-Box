@@ -302,17 +302,18 @@ app.post('/api/verify-code', (req, res) => {
     try {
         console.log(`Verifying code: '${code}'`); // Debug log
         
-        // First try with status check
-        const found = db.prepare('SELECT * FROM invitation_codes WHERE code = ? AND status = "active"').get(code);
+        // First try with status check (Use single quotes for SQL string literal)
+        const found = db.prepare("SELECT * FROM invitation_codes WHERE code = ? AND status = 'active'").get(code);
         if (found) return res.json({ valid: true, owner: found.owner_name });
         
         // If not found, check if it exists but status is missing (fallback)
         const anyFound = db.prepare('SELECT * FROM invitation_codes WHERE code = ?').get(code);
         if (anyFound) {
              console.log(`Found code '${code}' but status check failed. Status: ${anyFound.status}`);
-             if (!anyFound.status) {
-                 // If status column is null or undefined (shouldn't happen with active migration, but safety net)
-                 // Treat as valid if it exists
+             // If status is present but didn't match 'active', it might be case sensitivity or whitespace
+             // For now, if it's 'active' (case insensitive) or null, allow it
+             const status = anyFound.status;
+             if (!status || status.toLowerCase() === 'active') {
                  return res.json({ valid: true, owner: anyFound.owner_name });
              }
         }
