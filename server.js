@@ -207,22 +207,57 @@ app.post('/api/delete_service', (req, res) => {
 });
 
 // Admin APIs (Simplified)
-app.post('/admin/login', (req, res) => {
+app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
     if (username === 'admin' && password === 'admin123') res.json({ token: 'admin-token' });
     else res.status(401).json({ error: 'Invalid credentials' });
 });
 
-app.get('/admin/users', (req, res) => {
+app.get('/api/admin/users', (req, res) => {
     const codes = db.prepare('SELECT * FROM invitation_codes').all();
-    res.json(codes);
+    // Add service count for each code
+    const usersWithCounts = codes.map(c => {
+        const count = db.prepare('SELECT COUNT(*) as count FROM user_services WHERE owner_code = ?').get(c.code).count;
+        return { ...c, serviceCount: count };
+    });
+    res.json(usersWithCounts);
 });
 
-app.post('/admin/generate-code', (req, res) => {
+app.post('/api/admin/generate-code', (req, res) => {
+    const { ownerName, customCode } = req.body;
+    let code = customCode ? customCode.trim() : null;
+
+    if (code) {
+        // Check for duplicate
+        const existing = db.prepare('SELECT code FROM invitation_codes WHERE code = ?').get(code);
+        if (existing) {
+            return res.status(400).json({ success: false, error: 'Code already exists' });
+        }
+    } else {
+        // Generate random if no custom code
+        code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
+
+    try {
+        db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
+        res.json({ success: true, code });
+    } catch (e) {
+        console.error('Error generating code:', e);
+        res.status(500).json({ success: false, error: 'Database error' });
+    }
+});
+
+app.delete('/api/admin/code/:code', (req, res) => {
+    const { code } = req.params;
+    db.prepare('DELETE FROM invitation_codes WHERE code = ?').run(code);
+    res.json({ success: true });
+});
+
+app.put('/api/admin/code/:code', (req, res) => {
+    const { code } = req.params;
     const { ownerName } = req.body;
-    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
-    res.json({ code });
+    db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
+    res.json({ success: true });
 });
 
 app.post('/api/verify-code', (req, res) => {
