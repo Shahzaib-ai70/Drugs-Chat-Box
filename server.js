@@ -394,6 +394,12 @@ io.on('connection', (socket) => {
         if (worker) worker.process.send({ type: 'command', command: 'mark_read', data });
     });
 
+    socket.on('get_chat_history', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'get_chat_history', data });
+    });
+
     socket.on('force_sync_chats', (serviceId) => {
         const worker = workers.get(serviceId);
         if (worker) worker.process.send({ type: 'command', command: 'force_sync_chats' });

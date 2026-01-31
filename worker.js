@@ -80,6 +80,8 @@ process.on('message', async (msg) => {
         handleSendMessage(data);
     } else if (command === 'mark_read') {
         // Implement mark_read if needed
+    } else if (command === 'get_chat_history') {
+        handleGetChatHistory(data);
     } else if (command === 'force_sync_chats') {
         handleForceSync();
     } else if (command === 'tg_password') {
@@ -100,6 +102,56 @@ const handleSendMessage = async (data) => {
         try {
             await sessionState.client.sendMessage(data.chatId, { message: body });
         } catch(e) { log(`Send Error: ${e}`); }
+    }
+};
+
+const handleGetChatHistory = async (data) => {
+    const { chatId, limit } = data;
+    log(`Fetching history for ${chatId}`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            const messages = await chat.fetchMessages({ limit: limit || 50 });
+            
+            const mapped = messages.map((msg) => ({
+                id: msg.id._serialized,
+                chatId: chatId,
+                author: msg.author || msg.from,
+                fromMe: msg.fromMe,
+                body: msg.body,
+                timestamp: msg.timestamp,
+                type: msg.type,
+                hasMedia: msg.hasMedia,
+                media: null, // Media is lazy loaded or fetched on demand
+                ack: msg.ack
+            }));
+
+            io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
+        } catch (e) {
+            log(`History Error: ${e}`);
+            io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: [] });
+        }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+             const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
+             const mapped = messages.map(msg => ({
+                id: msg.id.toString(),
+                chatId: chatId,
+                author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
+                fromMe: msg.out,
+                body: msg.text || '',
+                timestamp: msg.date,
+                type: 'chat',
+                hasMedia: !!msg.media,
+                media: null,
+                ack: 1
+             }));
+             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
+        } catch (e) {
+             log(`TG History Error: ${e}`);
+             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: [] });
+        }
     }
 };
 
