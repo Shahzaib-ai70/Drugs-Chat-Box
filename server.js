@@ -209,8 +209,8 @@ app.post('/api/delete_service', (req, res) => {
 // Admin APIs (Simplified)
 app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
-    if (username === 'admin' && password === 'admin123') res.json({ token: 'admin-token' });
-    else res.status(401).json({ error: 'Invalid credentials' });
+    if (username === 'admin' && password === 'admin123') res.json({ success: true, token: 'admin-token' });
+    else res.status(401).json({ success: false, error: 'Invalid credentials' });
 });
 
 app.get('/api/admin/users', (req, res) => {
