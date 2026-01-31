@@ -99,13 +99,15 @@ echo " -> Installing dependencies..."
 npm install
 
 echo " -> Building frontend..."
-npm run build || { echo "Build failed! Exiting."; exit 1; }
+# We use a non-blocking build approach. If it fails, we still start the server.
+npm run build || echo "WARNING: Frontend build failed! Server will run in API-only mode."
 
 echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering
 killall -9 node 2>/dev/null
-# Removed --spa flag as it's not needed for custom server.js and caused errors
-PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=16384"
+# Start the server (Gateway Architecture)
+# We allocate generous RAM for the Master Process
+PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=8192"
 
 # 4. Final check for conflicts (Redundant but safe)
 echo ""
