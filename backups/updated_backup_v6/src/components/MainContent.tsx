@@ -1,7 +1,7 @@
 import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
-import { FaWhatsapp, FaFacebookF } from 'react-icons/fa';
+import { FaWhatsapp } from 'react-icons/fa';
 import type { AddedService } from '../types';
 import type { TranslationSettings } from './TranslationPanel';
 import { useEffect, useRef, useState } from 'react';
@@ -23,14 +23,11 @@ interface PendingOriginal {
 }
 
 const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
-  const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram') || !!activeService?.service.name.toLowerCase().includes('facebook');
+  const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
   const [qrValue, setQrValue] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isLoginRequired, setIsLoginRequired] = useState(false); // For Facebook Login
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<{ percent: number; message: string } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
@@ -506,22 +503,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         alert('WhatsApp Error: ' + err);
     });
     
-    socket.on('fb_login_required', () => {
-        console.log('Facebook Login Required');
-        setIsLoginRequired(true);
-        setIsConnected(false);
-        setIsAuthenticating(false);
-        setLoadingStatus(null);
-    });
-
-    socket.on('fb_2fa_required', () => {
-        console.log('Facebook 2FA Required');
-        setIs2FARequired(true);
-        setIsAuthenticating(false);
-        setIsConnected(false);
-        setLoadingStatus(null);
-    });
-    
     socket.on('tg_2fa_required', ({ hint }) => {
         console.log('2FA Required, hint:', hint);
         setPasswordHint(hint || 'No hint provided');
@@ -698,19 +679,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setMessagesByChat(prev => {
             const normId = normalizeId(chatId);
             const current = prev[normId] || [];
-            
-            // Check if we have the message with this ID
-            const exists = current.some(m => m.id === id);
-            
-            // If not found, it might be a race condition where we still have the temp ID
-            // But we can't easily match real ID to temp ID here without more info.
-            // However, usually the callback updates the ID first.
-            
-            if (!exists) {
-                console.warn(`Received ack for unknown message ${id} in chat ${chatId}`);
-                return prev;
-            }
-
             const updated = current.map(m => {
                 if (m.id === id) {
                     return { ...m, ack };

@@ -87,10 +87,7 @@ process.on('message', async (msg) => {
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
     } else if (command === 'sendMessage') {
-        const result = await handleSendMessage(data);
-        if (msg.requestId && process.send) {
-             process.send({ type: 'response', requestId: msg.requestId, data: result });
-        }
+        handleSendMessage(data);
     } else if (command === 'mark_read') {
         const { chatId } = data;
         try {
@@ -182,44 +179,27 @@ const handleDownloadMedia = async (data) => {
 
 const handleSendMessage = async (data) => {
     const body = data.message || data.body;
-    let response = { status: 'error', error: 'Unknown error' };
-
     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
         try {
-            let sentMsg;
             if (data.media) {
                 const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
-                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+                await sessionState.client.sendMessage(data.chatId, media, { caption: body });
             } else {
-                sentMsg = await sessionState.client.sendMessage(data.chatId, body); 
+                await sessionState.client.sendMessage(data.chatId, body); 
             }
-            if (sentMsg) {
-                 response = { status: 'success', messageId: sentMsg.id._serialized };
-            }
-        } catch(e) { 
-            log(`Send Error: ${e}`);
-            response = { status: 'error', error: e.toString() };
-        }
+        } catch(e) { log(`Send Error: ${e}`); }
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
-            let result;
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+                // We can also try to infer mimetype or name if needed, but Buffer is usually enough.
+                await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
             } else {
-                result = await sessionState.client.sendMessage(data.chatId, { message: body });
+                await sessionState.client.sendMessage(data.chatId, { message: body });
             }
-             if (result) {
-                 // GramJS message object has id property
-                 response = { status: 'success', messageId: result.id.toString() };
-            }
-        } catch(e) { 
-            log(`Send Error: ${e}`);
-            response = { status: 'error', error: e.toString() };
-        }
+        } catch(e) { log(`Send Error: ${e}`); }
     }
-    return response;
 };
 
 const handleGetChatHistory = async (data) => {

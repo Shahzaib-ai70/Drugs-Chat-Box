@@ -118,13 +118,12 @@ const spawnWorker = (service) => {
         log(`Assigned new port ${port} to service ${service.id}`);
     }
 
-    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : service.service_id.startsWith('fb') ? 'facebook' : 'whatsapp';
+    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : 'whatsapp';
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
     // Use fork for IPC communication
-    const workerFile = serviceType === 'facebook' ? 'worker_facebook.js' : 'worker.js';
-    const child = fork(workerFile, [], {
+    const child = fork('worker.js', [], {
         env: { ...process.env, PORT: port, SERVICE_ID: service.id, SERVICE_TYPE: serviceType },
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
@@ -136,13 +135,6 @@ const spawnWorker = (service) => {
         if (msg.type === 'event') {
             // log(`Relay event ${msg.event} from ${service.id}`);
             io.to(service.id).emit(msg.event, msg.data);
-        } else if (msg.type === 'response') {
-            const { requestId, data } = msg;
-            if (pendingCallbacks.has(requestId)) {
-                const callback = pendingCallbacks.get(requestId);
-                callback(data);
-                pendingCallbacks.delete(requestId);
-            }
         }
     });
 
@@ -387,8 +379,6 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-const pendingCallbacks = new Map();
-
 // Socket.IO Gateway Logic
 io.on('connection', (socket) => {
     log(`Client connected to Master Gateway: ${socket.id}`);
@@ -418,25 +408,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('sendMessage', (data, callback) => {
+    socket.on('sendMessage', (data) => {
         const { serviceId } = data;
         const worker = workers.get(serviceId);
         if (worker && worker.process) {
-            const requestId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            if (typeof callback === 'function') {
-                pendingCallbacks.set(requestId, callback);
-                // Set timeout to clear callback if no response
-                setTimeout(() => {
-                    if (pendingCallbacks.has(requestId)) {
-                        pendingCallbacks.delete(requestId);
-                        callback({ status: 'error', error: 'Timeout' });
-                    }
-                }, 30000);
-            }
-            worker.process.send({ type: 'command', command: 'sendMessage', data, requestId });
+            worker.process.send({ type: 'command', command: 'sendMessage', data });
         } else {
-            if (typeof callback === 'function') callback({ status: 'error', error: 'Service not running' });
-            else socket.emit('error', 'Service not running');
+            socket.emit('error', 'Service not running');
         }
     });
 
