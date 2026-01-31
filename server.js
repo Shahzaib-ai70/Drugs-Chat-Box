@@ -70,6 +70,18 @@ try {
   } catch (e) {
     log(`Migration Error: ${e.message}`);
   }
+
+  // Migration: Add status column to invitation_codes if missing
+  try {
+    const columns = db.prepare('PRAGMA table_info(invitation_codes)').all();
+    const hasStatus = columns.some(c => c.name === 'status');
+    if (!hasStatus) {
+      log('Migrating DB: Adding status column to invitation_codes');
+      db.prepare("ALTER TABLE invitation_codes ADD COLUMN status TEXT DEFAULT 'active'").run();
+    }
+  } catch (e) {
+    log(`Migration Error invitation_codes: ${e.message}`);
+  }
 } catch (dbError) {
   console.error('FATAL DATABASE ERROR:', dbError);
   // If DB fails, we can't do much, but we can start a fallback server to report error

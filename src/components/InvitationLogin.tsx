@@ -22,7 +22,8 @@ export default function InvitationLogin({ onLogin, onAdminClick }: InvitationLog
                 body: JSON.stringify({ code })
             });
             
-            if (res.ok) {
+            const data = await res.json();
+            if (res.ok && data.valid) {
                 onLogin(code);
             } else {
                 setError('Invalid Invitation Code');
@@ -65,12 +66,6 @@ export default function InvitationLogin({ onLogin, onAdminClick }: InvitationLog
                         {loading ? 'Verifying...' : 'Enter'}
                     </button>
                 </form>
-
-                <div className="mt-8 text-center">
-                    <button onClick={onAdminClick} className="text-xs text-gray-600 hover:text-gray-400">
-                        Admin Login
-                    </button>
-                </div>
             </div>
         </div>
     );
