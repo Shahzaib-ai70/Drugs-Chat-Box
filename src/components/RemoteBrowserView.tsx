@@ -58,6 +58,12 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
 
     if (!socket) return;
     
+    // Check for Ctrl+V (Paste)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        // Allow default behavior to trigger onPaste
+        return;
+    }
+
     if (e.key.length > 1) {
         socket.emit('fb_input_event', {
             serviceId,
@@ -70,6 +76,24 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
         });
     }
   };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // If pasting into the input field, let it handle it normally
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+    if (!socket) return;
+    e.preventDefault();
+
+    const pastedText = e.clipboardData.getData('text');
+    if (pastedText) {
+        console.log('Pasting text to remote:', pastedText);
+        socket.emit('fb_input_event', {
+            serviceId,
+            event: { type: 'type', text: pastedText }
+        });
+    }
+  };
+
 
   const handleSend = async () => {
       if (!inputValue.trim() || !socket) return;
@@ -132,6 +156,7 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
     <div 
       className="flex-1 h-full bg-gray-900 flex flex-col overflow-hidden"
       onKeyDown={handleContainerKeyDown}
+      onPaste={handlePaste}
       tabIndex={0} // Make div focusable to capture keyboard events
       style={{ outline: 'none' }}
     >

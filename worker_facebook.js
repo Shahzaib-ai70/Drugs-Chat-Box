@@ -2,6 +2,7 @@ import express from 'express';
 import { Server } from 'socket.io';
 import http from 'http';
 import fs from 'fs';
+import path from 'path';
 import puppeteer from 'puppeteer';
 
 // Environment Variables
@@ -67,13 +68,22 @@ const sessionState = {
 const initFacebook = async () => {
     try {
         log('Launching Puppeteer for Facebook...');
+        
+        // Create session directory for persistence
+        const sessionDir = path.join(process.cwd(), 'fb_auth', `session-${SERVICE_ID}`);
+        if (!fs.existsSync(sessionDir)) {
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
+
         sessionState.browser = await puppeteer.launch({
             headless: true,
+            userDataDir: sessionDir, // Persist session
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
                 '--disable-dev-shm-usage',
-                '--window-size=1000,800' // Fixed viewport
+                '--window-size=1000,800', // Fixed viewport
+                '--disable-notifications'
             ]
         });
         

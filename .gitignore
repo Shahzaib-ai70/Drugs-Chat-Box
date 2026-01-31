@@ -18,6 +18,7 @@ database.db
 # Auth Sessions
 .wwebjs_auth
 session_telegram*
+fb_auth
 
 # Editor directories and files
 .vscode/*
