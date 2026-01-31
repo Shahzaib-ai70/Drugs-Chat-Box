@@ -80,12 +80,6 @@ process.on('message', async (msg) => {
              const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
-    } else if (command === 'request_unread') {
-        // Lightweight request for just unread counts (for Sidebar)
-        if (sessionState.chats.length > 0) {
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-        }
     } else if (command === 'sendMessage') {
         handleSendMessage(data);
     } else if (command === 'mark_read') {

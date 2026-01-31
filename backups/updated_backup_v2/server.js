@@ -383,28 +383,14 @@ if (fs.existsSync(distPath)) {
 io.on('connection', (socket) => {
     log(`Client connected to Master Gateway: ${socket.id}`);
 
-    socket.on('join_service', (data) => {
-        // Support both simple ID (string) and object with options
-        const serviceId = typeof data === 'object' ? data.serviceId : data;
-        const isPassive = typeof data === 'object' ? data.passive : false;
-
-        log(`Socket ${socket.id} joining service ${serviceId} (passive: ${isPassive})`);
+    socket.on('join_service', (serviceId) => {
+        log(`Socket ${socket.id} joining service ${serviceId}`);
         socket.join(serviceId);
         
-        // Request latest state from worker ONLY if not passive
-        // Passive listeners (like Sidebar unread counts) don't need to trigger a full state dump
-        // BUT they do need the unread count immediately
-        if (!isPassive) {
-            const worker = workers.get(serviceId);
-            if (worker && worker.process) {
-                worker.process.send({ type: 'command', command: 'request_state' });
-            }
-        } else {
-            // Passive mode: Request ONLY unread count
-            const worker = workers.get(serviceId);
-            if (worker && worker.process) {
-                worker.process.send({ type: 'command', command: 'request_unread' });
-            }
+        // Request latest state from worker
+        const worker = workers.get(serviceId);
+        if (worker && worker.process) {
+            worker.process.send({ type: 'command', command: 'request_state' });
         }
     });
 
