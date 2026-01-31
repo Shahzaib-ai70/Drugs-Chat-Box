@@ -383,7 +383,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     setLoadingStatus(null);
     setConnectionStatus('CONNECTING');
 
-    if (!isWhatsApp || !activeService?.id) return;
+    // Allow socket connection for WhatsApp, Telegram, AND Facebook
+    // The previous check (!isWhatsApp) excluded Facebook, preventing socket connection
+    if (!activeService?.id) return;
 
     // Connect to Gateway (Master Server)
     const socketUrl = undefined; // Connects to window.location.origin

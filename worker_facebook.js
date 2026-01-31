@@ -82,8 +82,8 @@ const initFacebook = async () => {
         await sessionState.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         
         log('Navigating to Facebook...');
-        await sessionState.page.goto('https://www.facebook.com/messages/t', { waitUntil: 'networkidle2' });
-        
+        await sessionState.page.goto('https://www.facebook.com', { waitUntil: 'networkidle2' });
+
         // Start Screencast immediately
         startScreencast();
         
