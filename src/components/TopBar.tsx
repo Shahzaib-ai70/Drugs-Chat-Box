@@ -12,7 +12,8 @@ import {
   Settings, 
   Bell,
   Globe,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -24,11 +25,11 @@ const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
   return (
     <div className="h-14 bg-white flex items-center justify-between px-4 border-b border-gray-100 shadow-sm select-none z-40">
       {/* Logo Area */}
-      <div className="flex items-center gap-3 w-48">
+      <div className="flex items-center gap-3 w-auto min-w-[180px]">
         <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-200">
-          Y
+          <MessageSquare size={18} className="text-white" />
         </div>
-        <span className="font-bold text-gray-800 text-lg tracking-tight">YiTranslate</span>
+        <span className="font-bold text-gray-800 text-lg tracking-tight">Drugs Chat Box</span>
       </div>
 
       {/* Center Actions */}
