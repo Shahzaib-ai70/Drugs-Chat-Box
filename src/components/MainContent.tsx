@@ -24,7 +24,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [loadingStatus, setLoadingStatus] = useState<{ percent: number; message: string } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
   const socketRef = useRef<Socket | null>(null);
-  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string }>>([]);
+  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean }>>([]);
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
@@ -434,8 +434,34 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         const normChatId = normalizeId(msg.chatId);
         const currentMessages = prev[normChatId] ? [...prev[normChatId]] : [];
         
-        // Avoid duplicates
-        if (currentMessages.some(m => m.id === msg.id || (m.timestamp === msg.timestamp && m.body === msg.body))) {
+        // Robust Deduplication & Optimistic Replacement
+        if (msg.fromMe) {
+            // Find if there is a pending temporary message that matches this real one
+            const tempMatchIndex = currentMessages.findIndex(m => 
+                m.id.startsWith('temp_') && 
+                m.body === msg.body &&
+                // Allow 10s timestamp variance for network/processing delay
+                Math.abs(m.timestamp - msg.timestamp) <= 10
+            );
+
+            if (tempMatchIndex !== -1) {
+                console.log('Replacing optimistic message with real message:', msg.id);
+                // Replace the temp message with the real one
+                currentMessages[tempMatchIndex] = msg;
+                // Re-sort to be safe, though usually timestamp shouldn't change much
+                currentMessages.sort((a, b) => a.timestamp - b.timestamp);
+                return { ...prev, [normChatId]: currentMessages };
+            }
+        }
+        
+        // Standard Deduplication for incoming or already-synced messages
+        // Check by ID first
+        if (currentMessages.some(m => m.id === msg.id)) {
+            return prev;
+        }
+        
+        // Check by content + timestamp (fallback)
+        if (currentMessages.some(m => m.timestamp === msg.timestamp && m.body === msg.body)) {
             return prev;
         }
 
@@ -601,7 +627,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                           No chats found. <br/> Click refresh if this seems wrong.
                       </div>
                   )}
-                  {chats.map(c => (
+                  {chats.filter(c => !c.archived).map(c => (
                     <button
                       key={c.id}
                       className={`w-full px-4 py-3.5 flex items-center gap-4 transition-all duration-200 border-l-[3px] ${activeChatId === c.id ? 'bg-blue-50/50 border-blue-500' : 'bg-white border-transparent hover:bg-gray-50'}`}
@@ -1094,7 +1120,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 <div className="bg-white p-10 rounded-2xl shadow-xl max-w-4xl w-full flex gap-12 items-center">
                     <div className="flex-1">
                         <h1 className="text-3xl font-light text-gray-800 mb-8">Use {serviceName} on your computer</h1>
-                        {serviceName.toLowerCase().includes('telegram') ? (
+                        {serviceName.toLowerCase().includes('telegram') || activeService?.service?.id?.startsWith('tg') ? (
                             <ol className="space-y-6 text-gray-600 text-lg">
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">1.</span>

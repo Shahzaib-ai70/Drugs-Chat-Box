@@ -316,7 +316,8 @@ const initializeWhatsApp = async () => {
                     lastMessage: c.lastMessage?.body || '',
                     lastTimestamp: c.lastMessage?.timestamp || 0,
                     profilePicUrl: '', // Will be updated later or we can try fetching here
-                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''
+                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
+                    archived: c.archived || false
                 };
             }));
             
@@ -518,7 +519,8 @@ const initializeTelegram = async () => {
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
             profilePicUrl: '',
-            lastSeen: ''
+            lastSeen: '',
+            archived: d.archived || d.folderId === 1 || false
         }));
         sessionState.chats = mappedChats;
         io.to(SERVICE_ID).emit('wa_chats', mappedChats);
