@@ -36,6 +36,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [loadingStatus, setLoadingStatus] = useState<{ percent: number; message: string } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
   const socketRef = useRef<Socket | null>(null);
+  const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
   const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean }>>([]);
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
