@@ -68,7 +68,7 @@ const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
   }, []);
 
   return (
-    <div className="h-14 bg-[#0f0c29]/90 backdrop-blur-md flex items-center justify-between px-4 border-b border-white/10 shadow-lg select-none z-40 transition-colors relative overflow-hidden">
+    <div className="h-14 bg-[#0f0c29]/90 backdrop-blur-md flex items-center justify-between px-4 border-b border-white/10 shadow-lg select-none z-40 transition-colors relative">
       {/* Decorative Glow */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-blue to-transparent opacity-50"></div>
       
@@ -99,11 +99,6 @@ const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
            </div>
         )}
 
-        <div className="w-px h-4 bg-white/10 mx-1"></div>
-        <ActionButton icon={<Bot size={14} />} label={t.ai} />
-        <div className="w-px h-4 bg-white/10 mx-1"></div>
-        <ActionButton icon={<ImageIcon size={14} />} label={t.image} />
-        <ActionButton icon={<User size={14} />} label={t.profile} />
         <div className="w-px h-4 bg-white/10 mx-1"></div>
         
         {/* Settings Dropdown */}
