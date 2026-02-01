@@ -6,7 +6,7 @@ import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 const { Client, LocalAuth, MessageMedia } = pkg;
-import { TelegramClient } from 'telegram';
+import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
 
@@ -714,27 +714,46 @@ const initializeWhatsApp = async () => {
     fetchAndEmitChats();
     setTimeout(fetchAndEmitChats, 5000);
 
-    // Typing Indicator Injection
+    // Unread Count Real-time Injection
     if (client.pupPage) {
         (async () => {
             try {
+                // Typing
                 await client.pupPage.exposeFunction('onTyping', (chatId, isTyping) => {
                     io.to(SERVICE_ID).emit('chat_typing', { chatId, isTyping, serviceId: SERVICE_ID });
+                });
+
+                // Unread Count
+                let fetchTimeout = null;
+                await client.pupPage.exposeFunction('onUnreadChange', (chatId, count) => {
+                    // Debounce to prevent flooding
+                    if (fetchTimeout) clearTimeout(fetchTimeout);
+                    fetchTimeout = setTimeout(() => {
+                        fetchAndEmitChats();
+                        fetchTimeout = null;
+                    }, 500); 
                 });
                 
                 await client.pupPage.evaluate(() => {
                     const checkStore = setInterval(() => {
-                        if (window.Store && window.Store.Presence) {
+                        if (window.Store && window.Store.Presence && window.Store.Chats) {
                             clearInterval(checkStore);
+                            
+                            // Typing Listener
                             window.Store.Presence.on('change', (presence) => {
                                  const id = presence.id._serialized || presence.id;
                                  const isTyping = presence.isTyping;
                                  window.onTyping(id, !!isTyping);
                             });
+
+                            // Unread Count Listener
+                            window.Store.Chats.on('change:unreadCount', (chat) => {
+                                window.onUnreadChange(chat.id._serialized, chat.unreadCount);
+                            });
                         }
                     }, 2000);
                 });
-            } catch (e) { log(`Typing injection warning: ${e}`); }
+            } catch (e) { log(`Injection warning: ${e}`); }
         })();
     }
   });
@@ -997,6 +1016,19 @@ const initializeTelegram = async () => {
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
     fetchChats();
   }, new NewMessage({}));
+
+  // Listen for Read History Updates (Real-time Unread Sync)
+  client.addEventHandler((update) => {
+      // Check if it's a read history update
+      if (update instanceof Api.UpdateReadHistoryInbox || update instanceof Api.UpdateReadHistoryOutbox) {
+          log('TG Read History Update detected - Syncing...');
+          fetchChats();
+      }
+      // Also catch generic Short Updates which sometimes carry read state
+      if (update instanceof Api.UpdateShort) {
+           fetchChats();
+      }
+  });
 
   // Typing Status Handler
   client.addEventHandler((update) => {

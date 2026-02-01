@@ -141,7 +141,16 @@ const spawnWorker = (service) => {
     // Use fork for IPC communication
     const workerFile = serviceType === 'facebook' ? 'worker_facebook.js' : 'worker.js';
     const child = fork(workerFile, [], {
-        env: { ...process.env, PORT: port, SERVICE_ID: service.id, SERVICE_TYPE: serviceType },
+        env: { 
+            ...process.env, 
+            PORT: port, 
+            SERVICE_ID: service.id, 
+            SERVICE_TYPE: serviceType,
+            // Pass Auto Reply Settings
+            AUTO_REPLY_ENABLED: service.auto_reply_enabled || 0,
+            AUTO_REPLY_KEYWORD: service.auto_reply_keyword || 'ping',
+            AUTO_REPLY_RESPONSE: service.auto_reply_response || 'pong'
+        },
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
 
@@ -176,7 +185,7 @@ const spawnWorker = (service) => {
         log(`Worker ${service.id} exited with code ${code}`);
         workers.delete(service.id);
         // Auto-restart? Yes, for resilience
-        setTimeout(() => spawnWorker(service), 5000);
+        setTimeout(() => spawnWorker({ id: service.id }), 5000); // Pass ID to refetch
     });
 };
 
