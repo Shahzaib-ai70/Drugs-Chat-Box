@@ -4,7 +4,7 @@
 
 :root {
   --glass-border: rgba(255, 255, 255, 0.15);
-  --glass-bg: rgba(20, 20, 35, 0.4);
+  --glass-bg: rgba(10, 10, 15, 0.8);
 }
 
 html, body, #root {

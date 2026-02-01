@@ -1124,10 +1124,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 onDoubleClick={() => setReplyingTo(m)}
                                 onContextMenu={(e) => handleMsgContextMenu(e, m)}
                                 className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-lg relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none backdrop-blur-md border hover:shadow-2xl hover:-translate-y-0.5
-                                    ${m.fromMe 
-                                        ? 'bg-gradient-to-br from-neon-blue/20 to-neon-blue/5 text-white border-neon-blue/30 rounded-tr-none shadow-[0_0_15px_rgba(0,243,255,0.1)]' 
-                                        : 'bg-gradient-to-br from-white/10 to-white/5 text-gray-200 border-white/10 rounded-tl-none hover:bg-white/15'
-                                    }`}
+                                ${m.fromMe 
+                                    ? 'bg-gradient-to-br from-blue-600/90 to-blue-800/90 text-white border-blue-400/30 rounded-tr-none shadow-[0_0_15px_rgba(0,100,255,0.3)]' 
+                                    : 'bg-[#2a2a35]/95 text-white border-white/20 rounded-tl-none hover:bg-[#323242]'
+                                }`}
                             >
                                 {/* Quoted Message */}
                                 {m.quotedMsg && (
@@ -1645,16 +1645,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                      </div>
                  </div>
                  <h2 className="text-3xl font-light text-white mb-3 tracking-[0.2em] uppercase drop-shadow-lg">{t.connectingTo} <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">{serviceName}</span></h2>
-                 <p className="text-neon-blue/70 text-sm tracking-widest uppercase animate-pulse">{t.restoringSession}</p>
-             </div>
-        </div>
-    );
-  }
+                <p className="text-neon-blue text-sm tracking-widest uppercase animate-pulse font-medium">{t.restoringSession}</p>
+            </div>
+       </div>
+   );
+ }
 
-  // Placeholder for other services
-  return (
-    <div className="flex-1 flex items-center justify-center bg-transparent text-gray-500 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+ // Placeholder for other services
+ return (
+   <div className="flex-1 flex items-center justify-center bg-[#0a0a0f] text-gray-300 relative overflow-hidden">
+     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
       <div className="text-center relative z-10">
         <div className="group relative w-32 h-32 mx-auto mb-8">
             <div className="absolute inset-0 bg-neon-blue/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500 opacity-50"></div>
