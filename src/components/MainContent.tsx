@@ -43,6 +43,25 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
+
+  const handleArchiveChat = (chatId: string, archive: boolean) => {
+      if (socketRef.current && activeService?.id) {
+          socketRef.current.emit('archive_chat', { 
+              serviceId: activeService.id, 
+              chatId, 
+              archive 
+          });
+          setChats(prev => prev.map(c => c.id === chatId ? { ...c, archived: archive } : c));
+          setContextMenu(null);
+      }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, chatId: string, archived: boolean) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, chatId, archived });
+  };
 
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
@@ -893,20 +912,44 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
               </div>
             </div>
 
+            {/* Tabs */}
+            <div className="flex items-center gap-2 px-4 pb-2">
+                <button 
+                    onClick={() => setActiveTab('chats')}
+                    className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                        activeTab === 'chats' 
+                        ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
+                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-300'
+                    }`}
+                >
+                    {t.chats || 'Chats'}
+                </button>
+                <button 
+                    onClick={() => setActiveTab('archived')}
+                    className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                        activeTab === 'archived' 
+                        ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
+                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-300'
+                    }`}
+                >
+                    {t.archived || 'Archived'}
+                </button>
+            </div>
+
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto relative custom-scrollbar">
               {isLoadingChats ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm z-10">
-                     <div className="relative">
-                         <div className="w-12 h-12 border-4 border-white/10 border-t-neon-blue rounded-full animate-spin shadow-[0_0_20px_rgba(0,243,255,0.5)]"></div>
-                         <div className="absolute inset-0 flex items-center justify-center">
-                             <div className="w-2 h-2 bg-neon-blue rounded-full shadow-[0_0_10px_rgba(0,243,255,0.8)]"></div>
-                         </div>
-                     </div>
-                     <div className="mt-4 text-neon-blue text-sm font-bold tracking-widest uppercase drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-md z-10">
+                    <div className="relative">
+                        <div className="w-12 h-12 border-4 border-white/10 border-t-neon-blue rounded-full animate-spin shadow-[0_0_20px_rgba(0,243,255,0.5)]"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-neon-blue rounded-full shadow-[0_0_10px_rgba(0,243,255,0.8)]"></div>
+                        </div>
+                    </div>
+                    <div className="mt-4 text-neon-blue text-sm font-bold tracking-widest uppercase drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
                         {loadingStatus ? `${t.syncing}: ${loadingStatus.percent}%` : t.loadingChats}
-                     </div>
-                  </div>
+                    </div>
+                </div>
               ) : (
                 <>
                   {chats.length === 0 && (
@@ -918,13 +961,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                           <p className="text-xs mt-1 opacity-50">{t.refresh}</p>
                       </div>
                   )}
-                  {chats.filter(c => !c.archived).map(c => (
+                  {chats.filter(c => activeTab === 'archived' ? c.archived : !c.archived).map(c => (
                     <button
                       key={c.id}
+                      onContextMenu={(e) => handleContextMenu(e, c.id, !!c.archived)}
                       className={`w-full px-4 py-3.5 flex items-center gap-4 transition-all duration-300 border-l-[3px] group relative overflow-hidden ${
                         activeChatId === c.id 
                           ? 'bg-gradient-to-r from-neon-blue/10 to-transparent border-neon-blue shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] translate-x-1' 
-                          : 'bg-[#1a1a2e]/40 border-white/5 hover:bg-[#1a1a2e]/60 hover:border-neon-blue/30 hover:translate-x-1'
+                          : 'bg-[#1a1a2e]/80 border-white/10 hover:bg-[#1a1a2e] hover:border-neon-blue/30 hover:translate-x-1'
                       }`}
                       onClick={() => {
                         setActiveChatId(c.id);
@@ -1438,6 +1482,25 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> Delete
                     </button>
                 </div>
+            )}
+
+            {/* Chat List Context Menu */}
+            {contextMenu && (
+                <>
+                    <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)}></div>
+                    <div 
+                        className="fixed z-50 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl py-1 w-40 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                        style={{ top: contextMenu.y, left: contextMenu.x }}
+                    >
+                        <button 
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 hover:text-neon-blue transition-colors flex items-center gap-2"
+                            onClick={() => handleArchiveChat(contextMenu.chatId, !contextMenu.archived)}
+                        >
+                            <Download size={14} className={contextMenu.archived ? "rotate-180" : ""} />
+                            {contextMenu.archived ? (t.unarchive || 'Unarchive') : (t.archive || 'Archive')}
+                        </button>
+                    </div>
+                </>
             )}
 
             {/* Lightbox / Image Popup */}

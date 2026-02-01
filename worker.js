@@ -77,13 +77,13 @@ process.on('message', async (msg) => {
         io.to(SERVICE_ID).emit('status', sessionState.status);
         if (sessionState.chats.length > 0) {
              io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
     } else if (command === 'request_unread') {
         // Lightweight request for just unread counts (for Sidebar)
         if (sessionState.chats.length > 0) {
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
     } else if (command === 'sendMessage') {
@@ -132,6 +132,8 @@ process.on('message', async (msg) => {
         }
     } else if (command === 'download_media') {
         handleDownloadMedia(data);
+    } else if (command === 'archive_chat') {
+        handleArchiveChat(data);
     }
 });
 
@@ -472,10 +474,10 @@ const initializeWhatsApp = async () => {
             try {
                 const storeMapped = await client.pupPage.evaluate(async () => {
                     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-                    // Wait up to 3s for Store to populate (check more frequently initially)
-                    for (let i = 0; i < 20; i++) { // 20 * 150ms = 3s
+                    // Wait up to 10s for Store to populate (check more frequently initially)
+                    for (let i = 0; i < 50; i++) { // 50 * 200ms = 10s
                          if (window.Store && window.Store.Chats && window.Store.Chats.models.length > 0) break;
-                         await sleep(150);
+                         await sleep(200);
                     }
                     
                     if (!window.Store || !window.Store.Chats) return [];
@@ -543,7 +545,16 @@ const initializeWhatsApp = async () => {
             if (retryCount < 5) { // Try 5 times
                 const delay = (retryCount === 0) ? 500 : (retryCount + 1) * 2000;
                 log(`Retrying in ${delay}ms...`);
-                setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
+                
+                // If we failed 3 times, try reloading the page to fix internal desync
+                if (retryCount === 2 && client.pupPage) {
+                    log('Repeated failures. Reloading page to fix state...');
+                    await client.pupPage.reload();
+                    // Wait for reload to settle before next retry
+                    setTimeout(() => fetchAndEmitChats(retryCount + 1), 5000);
+                } else {
+                    setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
+                }
             }
         }
 
@@ -772,6 +783,8 @@ const initializeTelegram = async () => {
         io.to(SERVICE_ID).emit('wa_chats', []);
       }
   };
+  
+  sessionState.fetchFunction = fetchChats;
 
   client.addEventHandler(async (event) => {
     const message = event.message;
