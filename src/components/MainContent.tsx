@@ -92,6 +92,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         if (msgMenuRef.current && !msgMenuRef.current.contains(e.target as Node)) {
             setMsgContextMenu(null);
         }
+        if (inputMenuRef.current && !inputMenuRef.current.contains(e.target as Node)) {
+            setInputContextMenu(null);
+        }
     };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
@@ -100,6 +103,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const handleMsgContextMenu = (e: React.MouseEvent, msg: any) => {
     e.preventDefault();
     setMsgContextMenu({ x: e.clientX, y: e.clientY, msg });
+  };
+
+  const handleInputContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setInputContextMenu({ x: e.clientX, y: e.clientY });
   };
   
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Array<{ 
@@ -193,6 +201,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<Array<{ mimetype: string; data: string; filename: string }>>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [inputContextMenu, setInputContextMenu] = useState<{ x: number, y: number } | null>(null);
+  const inputMenuRef = useRef<HTMLDivElement>(null);
 
   const [lastEventLog, setLastEventLog] = useState<string>('');
   
@@ -1428,6 +1438,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <textarea
                                 value={messageInput}
                                 onChange={(e) => setMessageInput(e.target.value)}
+                                onContextMenu={handleInputContextMenu}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -1474,6 +1485,57 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             )}
           </div>
             {/* Context Menu */}
+            {inputContextMenu && (
+                <div 
+                    ref={inputMenuRef}
+                    className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
+                    style={{ 
+                        top: Math.min(inputContextMenu.y, window.innerHeight - 250), 
+                        left: Math.min(inputContextMenu.x, window.innerWidth - 200) 
+                    }}
+                >
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.readText().then(text => setMessageInput(prev => prev + text));
+                            setInputContextMenu(null);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                    >
+                        <Copy size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.paste || 'Paste'}
+                    </button>
+                    <button 
+                        onClick={() => {
+                            if (messageInput) {
+                                navigator.clipboard.writeText(messageInput);
+                            }
+                            setInputContextMenu(null);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                    >
+                        <Copy size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.copy || 'Copy'}
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setShowEmojiPicker(true);
+                            setInputContextMenu(null);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                    >
+                        <Smile size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.emoji || 'Emoji'}
+                    </button>
+                    <div className="h-px bg-white/10 my-1 mx-2" />
+                    <button 
+                        onClick={() => {
+                            setMessageInput('');
+                            setInputContextMenu(null);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
+                    >
+                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.clear || 'Clear'}
+                    </button>
+                </div>
+            )}
+
             {msgContextMenu && (
                 <div 
                     ref={msgMenuRef}
