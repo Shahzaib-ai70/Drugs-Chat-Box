@@ -406,7 +406,8 @@ const initializeWhatsApp = async () => {
                 io.to(SERVICE_ID).emit('wa_user_info', {
                     name: client.info.pushname,
                     id: client.info.wid._serialized,
-                    profilePicUrl: myProfilePic
+                    profilePicUrl: myProfilePic,
+                    serviceId: SERVICE_ID
                 });
             }
 
@@ -459,7 +460,7 @@ const initializeWhatsApp = async () => {
                             chat.profilePicUrl = picUrl;
                             // Emit update for single chat or batch?
                             // For now, let's just update the local state and maybe re-emit periodically or send a specific event
-                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl });
+                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                         }
                      } catch(e) {}
                      await new Promise(r => setTimeout(r, 200)); // Throttle
@@ -637,7 +638,15 @@ const initializeTelegram = async () => {
       try {
         if (!client.connected) await client.connect();
         const me = await client.getMe();
-        if (me) io.to(SERVICE_ID).emit('wa_user_info', { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: '' });
+        let myProfilePic = '';
+        try {
+             const buffer = await client.downloadProfilePhoto('me');
+             if (buffer) {
+                 myProfilePic = 'data:image/jpeg;base64,' + buffer.toString('base64');
+             }
+        } catch(e) { log(`TG Profile Pic Error: ${e}`); }
+
+        if (me) io.to(SERVICE_ID).emit('wa_user_info', { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: myProfilePic, serviceId: SERVICE_ID });
         
         const dialogs = await client.getDialogs({});
         const mappedChats = dialogs.map(d => ({
@@ -657,6 +666,21 @@ const initializeTelegram = async () => {
 
         sessionState.chats = mappedChats;
         io.to(SERVICE_ID).emit('wa_chats', mappedChats);
+
+        // Background fetch profile pics for Telegram
+        (async () => {
+            for (const chat of mappedChats.slice(0, 50)) {
+                 try {
+                    const buffer = await client.downloadProfilePhoto(chat.id);
+                    if (buffer && buffer.length > 0) {
+                        const picUrl = buffer.toString('base64');
+                        chat.profilePicUrl = picUrl;
+                        io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+                    }
+                 } catch(e) {}
+                 await new Promise(r => setTimeout(r, 500)); // Throttle more for TG
+            }
+        })();
       } catch (e) { log(`TG Fetch Error: ${e}`); }
   };
 

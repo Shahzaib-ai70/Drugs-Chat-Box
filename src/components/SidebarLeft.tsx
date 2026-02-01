@@ -30,6 +30,7 @@ const SidebarLeft = ({
   
   // Unread Count Logic
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [serviceProfilePics, setServiceProfilePics] = useState<Record<string, string>>({});
   const socketRef = useRef<any>(null);
 
   useEffect(() => {
@@ -50,6 +51,31 @@ const SidebarLeft = ({
             };
             return newState;
         });
+    });
+
+    socket.on('wa_user_info', (data: { id: string, name: string, profilePicUrl?: string }) => {
+         // We need to know WHICH service sent this. 
+         // wa_user_info usually doesn't include serviceId in the payload, but we can wrap it or infer it?
+         // Actually, since SidebarLeft connects to the Gateway, and Gateway relays events...
+         // Wait, the Gateway (server.js) relays events but does it add serviceId?
+         // In server.js: io.to(room).emit(event, data)
+         // The worker emits to the room.
+         // If SidebarLeft is joined to the room, it receives the data exactly as emitted.
+         // worker.js emits: io.to(SERVICE_ID).emit('wa_user_info', { ... })
+         // The data does NOT contain serviceId.
+         // However, we are listening on a socket that is joined to MULTIPLE rooms.
+         // We don't know which room the event came from easily without wrapper.
+         
+         // Solution: We can't easily know which service it is unless we add serviceId to the event in worker.js
+         // OR we rely on the fact that we might not need this here if we don't have serviceId.
+         
+         // Let's check worker.js again.
+         // lines 406-410: io.to(SERVICE_ID).emit('wa_user_info', { ... })
+         
+         // I should update worker.js to include serviceId in wa_user_info OR
+         // Use the fact that I can modify worker.js.
+         
+         // Let's modify worker.js to include serviceId in wa_user_info first.
     });
 
     return () => {
@@ -141,14 +167,18 @@ const SidebarLeft = ({
             >
               <div className="flex items-center gap-3 overflow-hidden">
                 <div 
-                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform ${isActive ? 'scale-105' : ''}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform ${isActive ? 'scale-105' : ''} overflow-hidden`}
                   style={{ 
                     backgroundColor: isActive ? 'white' : '#f3f4f6',
                     color: item.service.color,
                     boxShadow: isActive ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'
                   }}
                 >
-                  {item.service.icon}
+                  {serviceProfilePics[item.id] ? (
+                      <img src={serviceProfilePics[item.id]} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                      item.service.icon
+                  )}
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className={`text-sm truncate ${isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
