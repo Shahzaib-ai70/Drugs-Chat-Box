@@ -53,29 +53,13 @@ const SidebarLeft = ({
         });
     });
 
-    socket.on('wa_user_info', (data: { id: string, name: string, profilePicUrl?: string }) => {
-         // We need to know WHICH service sent this. 
-         // wa_user_info usually doesn't include serviceId in the payload, but we can wrap it or infer it?
-         // Actually, since SidebarLeft connects to the Gateway, and Gateway relays events...
-         // Wait, the Gateway (server.js) relays events but does it add serviceId?
-         // In server.js: io.to(room).emit(event, data)
-         // The worker emits to the room.
-         // If SidebarLeft is joined to the room, it receives the data exactly as emitted.
-         // worker.js emits: io.to(SERVICE_ID).emit('wa_user_info', { ... })
-         // The data does NOT contain serviceId.
-         // However, we are listening on a socket that is joined to MULTIPLE rooms.
-         // We don't know which room the event came from easily without wrapper.
-         
-         // Solution: We can't easily know which service it is unless we add serviceId to the event in worker.js
-         // OR we rely on the fact that we might not need this here if we don't have serviceId.
-         
-         // Let's check worker.js again.
-         // lines 406-410: io.to(SERVICE_ID).emit('wa_user_info', { ... })
-         
-         // I should update worker.js to include serviceId in wa_user_info OR
-         // Use the fact that I can modify worker.js.
-         
-         // Let's modify worker.js to include serviceId in wa_user_info first.
+    socket.on('wa_user_info', (data: { id: string, name: string, profilePicUrl?: string, serviceId?: string }) => {
+        if (data.serviceId && data.profilePicUrl) {
+            setServiceProfilePics(prev => ({
+                ...prev,
+                [data.serviceId!]: data.profilePicUrl!
+            }));
+        }
     });
 
     return () => {

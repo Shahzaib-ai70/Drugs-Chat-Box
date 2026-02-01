@@ -415,6 +415,14 @@ const initializeWhatsApp = async () => {
             // To improve speed, we map basic info first, then fetch profile pics asynchronously
             const mappedBasic = await Promise.all(chats.map(async c => {
                 let profilePicUrl = '';
+                const chatId = c.id?._serialized || c.id || '';
+                
+                // PRESERVE existing profile pic if available to prevent flickering/blanking
+                const existing = sessionState.chats.find(ec => ec.id === chatId);
+                if (existing && existing.profilePicUrl) {
+                    profilePicUrl = existing.profilePicUrl;
+                }
+
                 // Try to get profile pic for top 20 chats or just do it for all if fast enough. 
                 // For now, let's try to get it, but catch errors to not block.
                 try {
@@ -529,6 +537,22 @@ const initializeWhatsApp = async () => {
     let chatId = msg.from; 
     try { chatId = (await msg.getChat()).id._serialized; } catch (e) { chatId = msg.id.remote || msg.from; }
     
+    // Real-time Profile Pic Update for Sender
+    (async () => {
+        try {
+            const senderId = msg.author || msg.from;
+            const contact = await client.getContactById(senderId);
+            const picUrl = await contact.getProfilePicUrl();
+            if (picUrl) {
+                // Update local cache
+                const chat = sessionState.chats.find(c => c.id === chatId);
+                if (chat) chat.profilePicUrl = picUrl;
+                
+                io.to(SERVICE_ID).emit('wa_chat_update', { id: chatId, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+            }
+        } catch (e) {}
+    })();
+
     let media = null;
     if (msg.hasMedia) {
         try {
