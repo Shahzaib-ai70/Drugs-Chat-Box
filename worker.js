@@ -237,17 +237,35 @@ const handleGetChatHistory = async (data) => {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: limit || 50 });
             
-            const mapped = messages.map((msg) => ({
-                id: msg.id._serialized,
-                chatId: chatId,
-                author: msg.author || msg.from,
-                fromMe: msg.fromMe,
-                body: msg.body,
-                timestamp: msg.timestamp,
-                type: msg.type,
-                hasMedia: msg.hasMedia,
-                media: null, // Media is lazy loaded or fetched on demand
-                ack: msg.ack
+            const mapped = await Promise.all(messages.map(async (msg) => {
+                let quotedMsg = undefined;
+                if (msg.hasQuotedMsg) {
+                    try {
+                        const q = await msg.getQuotedMessage();
+                        if (q) {
+                             quotedMsg = {
+                                id: q.id._serialized,
+                                body: q.body,
+                                author: q.author || q.from,
+                                fromMe: q.fromMe
+                            };
+                        }
+                    } catch(e) {}
+                }
+
+                return {
+                    id: msg.id._serialized,
+                    chatId: chatId,
+                    author: msg.author || msg.from,
+                    fromMe: msg.fromMe,
+                    body: msg.body,
+                    timestamp: msg.timestamp,
+                    type: msg.type,
+                    hasMedia: msg.hasMedia,
+                    media: null, // Media is lazy loaded or fetched on demand
+                    quotedMsg: quotedMsg,
+                    ack: msg.ack
+                };
             }));
 
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
@@ -757,7 +775,10 @@ const initializeTelegram = async () => {
                  await new Promise(r => setTimeout(r, 500)); // Throttle more for TG
             }
         })();
-      } catch (e) { log(`TG Fetch Error: ${e}`); }
+      } catch (e) { 
+        log(`TG Fetch Error: ${e}`); 
+        io.to(SERVICE_ID).emit('wa_chats', []);
+      }
   };
 
   client.addEventHandler(async (event) => {
