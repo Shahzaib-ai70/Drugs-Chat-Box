@@ -463,10 +463,10 @@ const initializeWhatsApp = async () => {
             try {
                 const storeMapped = await client.pupPage.evaluate(async () => {
                     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-                    // Wait up to 3s for Store to populate
-                    for (let i = 0; i < 6; i++) {
+                    // Wait up to 3s for Store to populate (check more frequently initially)
+                    for (let i = 0; i < 20; i++) { // 20 * 150ms = 3s
                          if (window.Store && window.Store.Chats && window.Store.Chats.models.length > 0) break;
-                         await sleep(500);
+                         await sleep(150);
                     }
                     
                     if (!window.Store || !window.Store.Chats) return [];
@@ -506,7 +506,9 @@ const initializeWhatsApp = async () => {
             
             // Background fetch profile pics (only if we have real Client objects or can fetch by ID)
             (async () => {
+                let i = 0;
                 for (const chat of mappedBasic) { 
+                    i++;
                     if (chat.profilePicUrl) continue;
                     try {
                         const contact = await client.getContactById(chat.id);
@@ -518,7 +520,10 @@ const initializeWhatsApp = async () => {
                             io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                         }
                     } catch(e) {}
-                    await new Promise(r => setTimeout(r, 50)); 
+                    
+                    // Faster for first 12 chats (visible viewport), slower for rest
+                    const delay = i <= 12 ? 10 : 100; 
+                    await new Promise(r => setTimeout(r, delay)); 
                 }
             })();
         } else {
@@ -527,7 +532,7 @@ const initializeWhatsApp = async () => {
             
             // Retry Mechanism
             if (retryCount < 5) { // Try 5 times
-                const delay = (retryCount + 1) * 2000;
+                const delay = (retryCount === 0) ? 500 : (retryCount + 1) * 2000;
                 log(`Retrying in ${delay}ms...`);
                 setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
             }
