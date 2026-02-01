@@ -1490,8 +1490,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     ref={inputMenuRef}
                     className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
                     style={{ 
-                        top: Math.min(inputContextMenu.y, window.innerHeight - 250), 
-                        left: Math.min(inputContextMenu.x, window.innerWidth - 200) 
+                        top: inputContextMenu.y > window.innerHeight / 2 ? 'auto' : inputContextMenu.y,
+                        bottom: inputContextMenu.y > window.innerHeight / 2 ? window.innerHeight - inputContextMenu.y : 'auto',
+                        left: inputContextMenu.x > window.innerWidth / 2 ? 'auto' : inputContextMenu.x,
+                        right: inputContextMenu.x > window.innerWidth / 2 ? window.innerWidth - inputContextMenu.x : 'auto'
                     }}
                 >
                     <button 
@@ -1541,8 +1543,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     ref={msgMenuRef}
                     className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
                     style={{ 
-                        top: Math.min(msgContextMenu.y, window.innerHeight - 250), 
-                        left: Math.min(msgContextMenu.x, window.innerWidth - 200) 
+                        top: msgContextMenu.y > window.innerHeight / 2 ? 'auto' : msgContextMenu.y,
+                        bottom: msgContextMenu.y > window.innerHeight / 2 ? window.innerHeight - msgContextMenu.y : 'auto',
+                        left: msgContextMenu.x > window.innerWidth / 2 ? 'auto' : msgContextMenu.x,
+                        right: msgContextMenu.x > window.innerWidth / 2 ? window.innerWidth - msgContextMenu.x : 'auto'
                     }}
                 >
                     {/* Quick Reactions */}
@@ -1680,9 +1684,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     <div 
                         className="fixed z-50 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl py-1 w-48 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
                         style={{ 
-                            top: Math.min(contextMenu.y, window.innerHeight - 100), 
-                            left: Math.min(contextMenu.x, window.innerWidth - 200) 
-                        }}
+                        top: contextMenu.y > window.innerHeight / 2 ? 'auto' : contextMenu.y,
+                        bottom: contextMenu.y > window.innerHeight / 2 ? window.innerHeight - contextMenu.y : 'auto',
+                        left: contextMenu.x > window.innerWidth / 2 ? 'auto' : contextMenu.x,
+                        right: contextMenu.x > window.innerWidth / 2 ? window.innerWidth - contextMenu.x : 'auto'
+                    }}
                     >
                         <button 
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 hover:text-neon-blue transition-colors flex items-center gap-2"
