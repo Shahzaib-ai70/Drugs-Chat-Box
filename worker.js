@@ -237,7 +237,8 @@ const handleGetChatHistory = async (data) => {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: limit || 50 });
             
-            const mapped = await Promise.all(messages.map(async (msg) => {
+            const mapped = [];
+            for (const msg of messages) {
                 let quotedMsg = undefined;
                 if (msg.hasQuotedMsg) {
                     try {
@@ -253,7 +254,7 @@ const handleGetChatHistory = async (data) => {
                     } catch(e) {}
                 }
 
-                return {
+                mapped.push({
                     id: msg.id._serialized,
                     chatId: chatId,
                     author: msg.author || msg.from,
@@ -265,8 +266,8 @@ const handleGetChatHistory = async (data) => {
                     media: null, // Media is lazy loaded or fetched on demand
                     quotedMsg: quotedMsg,
                     ack: msg.ack
-                };
-            }));
+                });
+            }
 
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -499,35 +500,41 @@ const initializeWhatsApp = async () => {
             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
 
             sessionState.chats = mappedBasic;
-            io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
-            log(`Emitted ${mappedBasic.length} chats (basic info)`);
             
-            // Background fetch profile pics
-            (async () => {
-                log(`Fetching profile pics for ${mappedBasic.length} chats...`);
-                // Use a concurrency queue or just simple loop with minimal delay
-                for (const chat of mappedBasic) { 
-                     // Skip if we already have a profile pic (preserved)
-                     if (chat.profilePicUrl) continue;
+            // Only emit immediately if we have chats, otherwise try fallback first to avoid flashing empty
+            if (mappedBasic.length > 0) {
+                io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
+                log(`Emitted ${mappedBasic.length} chats (basic info)`);
+                
+                // Background fetch profile pics
+                (async () => {
+                    log(`Fetching profile pics for ${mappedBasic.length} chats...`);
+                    // Use a concurrency queue or just simple loop with minimal delay
+                    for (const chat of mappedBasic) { 
+                        // Skip if we already have a profile pic (preserved)
+                        if (chat.profilePicUrl) continue;
 
-                     try {
-                        const contact = await client.getContactById(chat.id);
-                        const picUrl = await contact.getProfilePicUrl();
-                        if (picUrl) {
-                            chat.profilePicUrl = picUrl;
-                            // Update local state
-                            const stateChat = sessionState.chats.find(c => c.id === chat.id);
-                            if (stateChat) stateChat.profilePicUrl = picUrl;
-                            
-                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
-                        }
-                     } catch(e) {}
-                     // Small delay to prevent CPU hogging, but fast enough
-                     await new Promise(r => setTimeout(r, 50)); 
-                }
-            })();
+                        try {
+                            const contact = await client.getContactById(chat.id);
+                            const picUrl = await contact.getProfilePicUrl();
+                            if (picUrl) {
+                                chat.profilePicUrl = picUrl;
+                                // Update local state
+                                const stateChat = sessionState.chats.find(c => c.id === chat.id);
+                                if (stateChat) stateChat.profilePicUrl = picUrl;
+                                
+                                io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+                            }
+                        } catch(e) {}
+                        // Small delay to prevent CPU hogging, but fast enough
+                        await new Promise(r => setTimeout(r, 50)); 
+                    }
+                })();
+            } else {
+                log('getChats returned empty, trying Store fallback...');
+            }
 
-            // Store Fallback
+            // Store Fallback (Runs if mappedBasic is empty OR if we want to augment)
             if (mappedBasic.length === 0 && client.pupPage) {
                 try {
                     const storeMapped = await client.pupPage.evaluate(async () => {
@@ -548,12 +555,34 @@ const initializeWhatsApp = async () => {
                             lastSeen: ''
                         }));
                     });
+                    
                     if (storeMapped.length > 0) {
                         sessionState.chats = storeMapped;
                         io.to(SERVICE_ID).emit('wa_chats', storeMapped);
                         log(`Store fallback found ${storeMapped.length} chats`);
+                    } else {
+                        // Double check: If both getChats and Store failed, try one last fetch after delay
+                        log('Store fallback also empty. Waiting 2s for final attempt...');
+                        setTimeout(async () => {
+                             try {
+                                 const c = await client.getChats();
+                                 if (c && c.length > 0) {
+                                     // If we got chats now, trigger full flow again
+                                     fetchAndEmitChats(); 
+                                 } else {
+                                     // Really empty
+                                     log('Final attempt empty. Emitting empty list.');
+                                     io.to(SERVICE_ID).emit('wa_chats', []);
+                                 }
+                             } catch(e) { 
+                                 io.to(SERVICE_ID).emit('wa_chats', []); 
+                             }
+                        }, 2000);
                     }
-                } catch(e) { log(`Store fallback error: ${e}`); }
+                } catch(e) { 
+                    log(`Store fallback error: ${e}`);
+                    io.to(SERVICE_ID).emit('wa_chats', []); 
+                }
             }
 
             // Retry Logic (Simplified for Worker)
