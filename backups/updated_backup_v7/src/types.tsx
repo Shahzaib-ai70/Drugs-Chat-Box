@@ -13,5 +13,4 @@ export interface AddedService {
   service: ServiceItem;
   customName: string;
   port?: number;
-  accountIdentifier?: string;
 }

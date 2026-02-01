@@ -417,15 +417,6 @@ const initializeWhatsApp = async () => {
                 profilePicUrl: myProfilePic,
                 serviceId: SERVICE_ID
             });
-            
-            // Send identifier to Master for persistence
-            if (client.info.wid && process.send) {
-                process.send({ 
-                    type: 'command', 
-                    command: 'update_account_info', 
-                    data: { identifier: client.info.wid.user } 
-                });
-            }
         }
 
         // 2. Map Chats (Standard Method)
@@ -719,18 +710,7 @@ const initializeTelegram = async () => {
              }
         } catch(e) { log(`TG Profile Pic Error: ${e}`); }
 
-        if (me) {
-            io.to(SERVICE_ID).emit('wa_user_info', { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: myProfilePic, serviceId: SERVICE_ID });
-            
-            // Send identifier to Master for persistence
-            if (process.send) {
-                process.send({
-                    type: 'command',
-                    command: 'update_account_info',
-                    data: { identifier: me.username ? `@${me.username}` : me.phone || me.id.toString() }
-                });
-            }
-        }
+        if (me) io.to(SERVICE_ID).emit('wa_user_info', { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: myProfilePic, serviceId: SERVICE_ID });
         
         const dialogs = await client.getDialogs({});
         const mappedChats = dialogs.map(d => ({

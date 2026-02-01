@@ -1,0 +1,43 @@
+
+===================================================
+   MANUAL NANO FIX (IF SCRIPT FAILS)
+===================================================
+
+If the script is not working for you, you can do it manually using nano.
+Follow these steps carefully on your VPS.
+
+1.  REMOVE THE OLD CONFLICTING FILE
+    Run this command:
+    sudo rm /etc/nginx/sites-enabled/whatsapp-dashboard
+
+2.  CREATE THE NEW CONFIG FILE WITH NANO
+    Run this command:
+    sudo nano /etc/nginx/sites-available/dlchats-app
+
+    (Paste the following content into the file)
+    -------------------------------------------------------
+    server {
+        listen 80;
+        server_name app.dlchats.site drugs.dlchats.site;
+
+        location / {
+            proxy_pass http://127.0.0.1:3005;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+    }
+    -------------------------------------------------------
+    (Press CTRL+O to Save, then Enter, then CTRL+X to Exit)
+
+3.  ACTIVATE THE SITE
+    Run this command:
+    sudo ln -sf /etc/nginx/sites-available/dlchats-app /etc/nginx/sites-enabled/
+
+4.  RESTART NGINX (This is important!)
+    Run this command:
+    sudo systemctl restart nginx
+
+===================================================
