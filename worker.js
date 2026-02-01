@@ -397,12 +397,13 @@ const initializeWhatsApp = async () => {
     io.to(SERVICE_ID).emit('status', 'QR_READY');
   });
 
-  const fetchAndEmitChats = async () => {
+  const fetchAndEmitChats = async (retryCount = 0) => {
     if (!client || (client.pupPage && client.pupPage.isClosed())) return;
 
     try {
-        log('Fetching chats...');
-        const chats = await client.getChats();
+        log(`Fetching chats (Attempt ${retryCount + 1})...`);
+        let chats = await client.getChats();
+        let mappedBasic = [];
         
         // 1. User Info
         if (client.info) {
@@ -418,43 +419,81 @@ const initializeWhatsApp = async () => {
             });
         }
 
-        // 2. Map Chats
-        const mappedBasic = await Promise.all(chats.map(async c => {
-            let profilePicUrl = '';
-            const chatId = c.id?._serialized || c.id || '';
-            
-            const existing = sessionState.chats.find(ec => ec.id === chatId);
-            if (existing && existing.profilePicUrl) {
-                profilePicUrl = existing.profilePicUrl;
+        // 2. Map Chats (Standard Method)
+        if (chats.length > 0) {
+            mappedBasic = await Promise.all(chats.map(async c => {
+                let profilePicUrl = '';
+                const chatId = c.id?._serialized || c.id || '';
+                
+                const existing = sessionState.chats.find(ec => ec.id === chatId);
+                if (existing && existing.profilePicUrl) {
+                    profilePicUrl = existing.profilePicUrl;
+                }
+
+                return {
+                    id: c.id?._serialized || c.id || '',
+                    name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                    isGroup: !!c.isGroup,
+                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                    lastMessage: c.lastMessage?.body || '',
+                    lastTimestamp: c.lastMessage?.timestamp || 0,
+                    lastMessageFromMe: c.lastMessage?.fromMe || false,
+                    lastMessageAck: c.lastMessage?.ack || 0,
+                    profilePicUrl: profilePicUrl,
+                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
+                    archived: c.archived || false
+                };
+            }));
+        }
+
+        // 3. Store Fallback (If Standard Method failed/empty)
+        if (mappedBasic.length === 0 && client.pupPage) {
+            log('Standard fetch empty. Attempting robust Store Fallback...');
+            try {
+                const storeMapped = await client.pupPage.evaluate(async () => {
+                    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+                    // Wait up to 3s for Store to populate
+                    for (let i = 0; i < 6; i++) {
+                         if (window.Store && window.Store.Chats && window.Store.Chats.models.length > 0) break;
+                         await sleep(500);
+                    }
+                    
+                    if (!window.Store || !window.Store.Chats) return [];
+                    const models = window.Store.Chats.models || [];
+                    
+                    return models.map((c) => ({
+                        id: c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '',
+                        name: c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown',
+                        isGroup: !!c.isGroup || !!c.__x_isGroup,
+                        unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
+                        lastMessage: (c.lastMessage || c.__x_lastMessage || {}).body || '',
+                        lastTimestamp: (c.lastMessage || c.__x_lastMessage || {}).timestamp || 0,
+                        profilePicUrl: '',
+                        lastSeen: ''
+                    }));
+                });
+                
+                if (storeMapped.length > 0) {
+                    mappedBasic = storeMapped;
+                    log(`Store Fallback found ${storeMapped.length} chats`);
+                }
+            } catch(e) { 
+                log(`Store Fallback error: ${e}`);
             }
-
-            return {
-                id: c.id?._serialized || c.id || '',
-                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                isGroup: !!c.isGroup,
-                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                lastMessage: c.lastMessage?.body || '',
-                lastTimestamp: c.lastMessage?.timestamp || 0,
-                lastMessageFromMe: c.lastMessage?.fromMe || false,
-                lastMessageAck: c.lastMessage?.ack || 0,
-                profilePicUrl: profilePicUrl,
-                lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
-                archived: c.archived || false
-            };
-        }));
+        }
         
-        mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-
-        const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-        io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-
-        sessionState.chats = mappedBasic;
-        
+        // 4. Sort and Update State
         if (mappedBasic.length > 0) {
-            io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
-            log(`Emitted ${mappedBasic.length} chats (basic info)`);
+            mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
             
-            // Background fetch profile pics
+            const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+            io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+
+            sessionState.chats = mappedBasic;
+            io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
+            log(`Emitted ${mappedBasic.length} chats`);
+            
+            // Background fetch profile pics (only if we have real Client objects or can fetch by ID)
             (async () => {
                 for (const chat of mappedBasic) { 
                     if (chat.profilePicUrl) continue;
@@ -472,43 +511,23 @@ const initializeWhatsApp = async () => {
                 }
             })();
         } else {
-            log('getChats returned empty, trying Store fallback...');
-        }
-
-        // Store Fallback
-        if (mappedBasic.length === 0 && client.pupPage) {
-            try {
-                const storeMapped = await client.pupPage.evaluate(async () => {
-                    if (!window.Store || !window.Store.Chats) return [];
-                    const models = window.Store.Chats.models || [];
-                    return models.map((c) => ({
-                        id: c.id?._serialized || c.id || '',
-                        name: c.formattedTitle || c.name || 'Unknown',
-                        isGroup: !!c.isGroup,
-                        unreadCount: c.unreadCount || 0,
-                        lastMessage: (c.lastMessage || {}).body || '',
-                        lastTimestamp: (c.lastMessage || {}).timestamp || 0,
-                        profilePicUrl: '',
-                        lastSeen: ''
-                    }));
-                });
-                
-                if (storeMapped.length > 0) {
-                    sessionState.chats = storeMapped;
-                    io.to(SERVICE_ID).emit('wa_chats', storeMapped);
-                    log(`Store fallback found ${storeMapped.length} chats`);
-                } else {
-                     io.to(SERVICE_ID).emit('wa_chats', []); 
-                }
-            } catch(e) { 
-                log(`Store fallback error: ${e}`);
-                io.to(SERVICE_ID).emit('wa_chats', []); 
+            log('Chats still empty.');
+            io.to(SERVICE_ID).emit('wa_chats', []);
+            
+            // Retry Mechanism
+            if (retryCount < 5) { // Try 5 times
+                const delay = (retryCount + 1) * 2000;
+                log(`Retrying in ${delay}ms...`);
+                setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
             }
         }
 
     } catch (err) {
         log(`Error fetching chats: ${err}`);
         io.to(SERVICE_ID).emit('wa_chats', []);
+        if (retryCount < 5) {
+            setTimeout(() => fetchAndEmitChats(retryCount + 1), 2000);
+        }
     }
   };
 
