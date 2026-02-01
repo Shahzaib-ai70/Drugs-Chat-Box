@@ -460,18 +460,26 @@ const initializeWhatsApp = async () => {
             
             // Background fetch profile pics
             (async () => {
-                for (const chat of mappedBasic.slice(0, 50)) { // Limit to top 50 for performance
+                log(`Fetching profile pics for ${mappedBasic.length} chats...`);
+                // Use a concurrency queue or just simple loop with minimal delay
+                for (const chat of mappedBasic) { 
+                     // Skip if we already have a profile pic (preserved)
+                     if (chat.profilePicUrl) continue;
+
                      try {
                         const contact = await client.getContactById(chat.id);
                         const picUrl = await contact.getProfilePicUrl();
                         if (picUrl) {
                             chat.profilePicUrl = picUrl;
-                            // Emit update for single chat or batch?
-                            // For now, let's just update the local state and maybe re-emit periodically or send a specific event
+                            // Update local state
+                            const stateChat = sessionState.chats.find(c => c.id === chat.id);
+                            if (stateChat) stateChat.profilePicUrl = picUrl;
+                            
                             io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                         }
                      } catch(e) {}
-                     await new Promise(r => setTimeout(r, 200)); // Throttle
+                     // Small delay to prevent CPU hogging, but fast enough
+                     await new Promise(r => setTimeout(r, 50)); 
                 }
             })();
 
