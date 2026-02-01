@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronsLeft, Plus, RotateCw, ExternalLink, Trash2, RefreshCcw } from 'lucide-react';
 import type { ServiceItem } from '../types';
 import { io } from 'socket.io-client';
+import { useLanguage } from '../translations';
 
 interface AddedService {
   id: string;
@@ -24,6 +25,7 @@ const SidebarLeft = ({
   onDeleteService?: (id: string) => void,
   onRefreshService?: (id: string) => void
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Normal');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -119,7 +121,7 @@ const SidebarLeft = ({
             }`}
             onClick={() => setActiveTab('Normal')}
           >
-            All Chats
+            {t.allChats}
           </button>
           <button
             className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
@@ -129,7 +131,7 @@ const SidebarLeft = ({
             }`}
             onClick={() => setActiveTab('Pinned')}
           >
-            Pinned
+            {t.pinned}
           </button>
         </div>
       </div>
@@ -186,7 +188,7 @@ const SidebarLeft = ({
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" 
-                      title="Refresh"
+                      title={t.refresh}
                       onClick={(e) => {
                           e.stopPropagation();
                           onRefreshService?.(item.id);
@@ -194,7 +196,7 @@ const SidebarLeft = ({
                     >
                       <RotateCw size={14} />
                     </button>
-                    <button className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" title="Open External">
+                    <button className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-gray-600 transition-colors" title={t.openExternal}>
                       <ExternalLink size={14} />
                     </button>
                   </div>

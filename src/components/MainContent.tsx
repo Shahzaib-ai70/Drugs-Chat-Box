@@ -8,6 +8,7 @@ import type { TranslationSettings } from './TranslationPanel';
 import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
+import { useLanguage } from '../translations';
 
 interface MainContentProps {
   activeService?: AddedService;
@@ -24,6 +25,7 @@ interface PendingOriginal {
 }
 
 const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
+  const { t } = useLanguage();
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
   const [qrValue, setQrValue] = useState<string>('');
@@ -234,7 +236,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     
     if (!socketRef.current) {
         console.error('CRITICAL: Socket not connected when trying to send message');
-        alert('Connection lost. Please refresh the page.');
+        alert(t.connectionLost);
         return;
     }
 
@@ -463,7 +465,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setIsAuthenticating(true);
         setQrValue(''); // Clear QR code on authentication
         // Start showing loading state
-        setLoadingStatus({ percent: 0, message: 'Authenticating...' });
+        setLoadingStatus({ percent: 0, message: t.authenticating });
         setIsLoadingChats(true);
     });
 
@@ -526,7 +528,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
              // Handled by tg_2fa_required
              return;
         }
-        alert('WhatsApp Error: ' + err);
+        alert(t.whatsappError + ': ' + err);
     });
     
     socket.on('fb_login_required', () => {
@@ -539,7 +541,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     socket.on('fb_login_error', ({ message }) => {
         console.error('Facebook Login Error:', message);
-        alert('Login Failed: ' + message);
+        alert(t.loginFailed + ': ' + message);
         setIsAuthenticating(false);
         setLoadingStatus(null);
         setIsLoginRequired(true); // Ensure form is visible
@@ -824,7 +826,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
   const handleFacebookLogin = () => {
     if (!loginEmail || !loginPassword || !activeService?.id) return;
-    setLoadingStatus({ percent: 10, message: 'Logging in...' });
+    setLoadingStatus({ percent: 10, message: t.loggingIn });
     socketRef.current?.emit('fb_login_submit', { serviceId: activeService.id, email: loginEmail, password: loginPassword });
   };
 
@@ -860,7 +862,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                  </div>
                  <div className="flex flex-col">
                     <span className="font-semibold text-gray-700 text-sm">{myProfile?.name || "My Chats"}</span>
-                    <span className="text-xs text-green-500 font-medium">online</span>
+                    <span className="text-xs text-green-500 font-medium">{t.online}</span>
                  </div>
                </div>
                <div className="flex gap-2 text-gray-500">
@@ -871,7 +873,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             socketRef.current.emit('force_sync_chats', activeService.id);
                         }
                     }}
-                    title="Refresh Chats"
+                    title={t.refresh}
                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                  >
                     <IoMdRefresh size={20} className={isLoadingChats ? "animate-spin" : ""} />
@@ -885,7 +887,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
               <div className="relative">
                 <input 
                   className="w-full h-10 rounded-xl bg-gray-50 px-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all text-gray-700 placeholder-gray-400" 
-                  placeholder="Search chats..." 
+                  placeholder={t.search} 
                 />
                 <Search size={16} className="absolute left-3.5 top-3 text-gray-400" />
               </div>
@@ -897,14 +899,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
                      <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
                      <div className="text-gray-400 text-sm font-medium">
-                        {loadingStatus ? `Syncing: ${loadingStatus.percent}%` : 'Loading chats...'}
+                        {loadingStatus ? `${t.syncing}: ${loadingStatus.percent}%` : t.loadingChats}
                      </div>
                   </div>
               ) : (
                 <>
                   {chats.length === 0 && (
                       <div className="p-8 text-center text-gray-400 text-sm">
-                          No chats found. <br/> Click refresh if this seems wrong.
+                          {t.noChats} <br/> {t.refresh}
                       </div>
                   )}
                   {chats.filter(c => !c.archived).map(c => (
@@ -935,7 +937,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{c.name || 'Unknown'}</span>
+                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{c.name || t.unknown}</span>
                           <span className={`text-[11px] ${c.unreadCount > 0 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                             {c.lastTimestamp ? new Date(c.lastTimestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
@@ -988,13 +990,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 <Lock size={32} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900">Two-Step Verification</h3>
+                                <h3 className="text-xl font-bold text-gray-900">{t.twoStepVerification}</h3>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    Your account is protected with an additional password.
+                                    {t.twoStepDescription}
                                 </p>
                                 {passwordHint && (
                                     <p className="text-sm text-blue-600 mt-2 bg-blue-50 px-3 py-1 rounded-full inline-block">
-                                        Hint: {passwordHint}
+                                        {t.hint}: {passwordHint}
                                     </p>
                                 )}
                             </div>
@@ -1004,7 +1006,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     type="password"
                                     value={password2FA}
                                     onChange={(e) => setPassword2FA(e.target.value)}
-                                    placeholder="Enter your password"
+                                    placeholder={t.enterPassword}
                                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-center text-lg tracking-widest"
                                     autoFocus
                                     onKeyDown={(e) => {
@@ -1015,7 +1017,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                                 socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
                                             }
                                             setIs2FARequired(false);
-                                            setLoadingStatus({ percent: 50, message: 'Verifying password...' });
+                                            setLoadingStatus({ percent: 50, message: t.verifyingPassword });
                                         }
                                     }}
                                 />
@@ -1030,7 +1032,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                             socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
                                         }
                                         setIs2FARequired(false);
-                                        setLoadingStatus({ percent: 50, message: 'Verifying password...' });
+                                        setLoadingStatus({ percent: 50, message: t.verifyingPassword });
                                     }
                                 }}
                                 disabled={!password2FA}
@@ -1039,7 +1041,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]' 
                                         : 'bg-gray-300 cursor-not-allowed'}`}
                             >
-                                Verify Password
+                                {t.verifyPassword}
                             </button>
                         </div>
                     </div>
@@ -1086,7 +1088,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {loadingHistory && <div className="text-center text-gray-400 text-xs py-4">Loading conversation...</div>}
+                    {loadingHistory && <div className="text-center text-gray-400 text-xs py-4">{t.loadingConversation}</div>}
                     
                     {(messagesByChat[normalizeId(activeChatId || '')] || []).map(m => {
                         const isTranslated = !m.fromMe && translations[m.id];
@@ -1106,7 +1108,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 {m.quotedMsg && (
                                     <div className="mb-2 bg-black/5 p-2 rounded-lg border-l-[4px] border-blue-500 text-xs">
                                         <div className="font-bold text-blue-600 mb-0.5">
-                                            {m.quotedMsg.fromMe ? 'You' : (m.quotedMsg.author || 'Contact')}
+                                            {m.quotedMsg.fromMe ? t.you : (m.quotedMsg.author || t.contact)}
                                         </div>
                                         <div className="truncate text-gray-500 line-clamp-2">
                                             {m.quotedMsg.body}
@@ -1142,7 +1144,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         {!m.media.mimetype.startsWith('image/') && !m.media.mimetype.startsWith('video/') && (
                                             <div className="flex items-center gap-2 p-3 bg-black/5 rounded-lg">
                                                 <Download size={20} className="text-gray-500" />
-                                                <span className="text-sm truncate max-w-[200px]">{m.media.filename || 'Attachment'}</span>
+                                                <span className="text-sm truncate max-w-[200px]">{m.media.filename || t.attachment}</span>
                                             </div>
                                         )}
                                     </div>
@@ -1165,8 +1167,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                              <Download size={20} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-gray-700">Media omitted</span>
-                                            <span className="text-xs text-gray-500">Click to download</span>
+                                            <span className="text-sm font-medium text-gray-700">{t.mediaOmitted}</span>
+                                            <span className="text-xs text-gray-500">{t.clickToDownload}</span>
                                         </div>
                                     </div>
                                 )}
@@ -1181,12 +1183,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 {/* Translation Original Text */}
                                 {isTranslated && (
                                     <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-400 italic">
-                                        Original: {m.body}
+                                        {t.original}: {m.body}
                                     </div>
                                 )}
                                 {(m.originalBody || outgoingOriginals[m.id]) && (
                                     <div className="mt-1 pt-1 border-t border-green-200/50 text-xs text-gray-500 italic">
-                                        Original: {m.originalBody || outgoingOriginals[m.id]}
+                                        {t.original}: {m.originalBody || outgoingOriginals[m.id]}
                                     </div>
                                 )}
 
@@ -1217,13 +1219,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="flex items-center justify-between bg-white border-l-[4px] border-blue-500 rounded-lg p-2 mb-2 shadow-sm animate-in slide-in-from-bottom-2 mx-1">
                             <div className="flex-1 min-w-0 px-2 py-1 bg-gray-50/50 rounded">
                                 <div className="text-blue-500 text-xs font-bold mb-0.5">
-                                    {replyingTo.fromMe ? 'You' : (replyingTo.author || 'Contact')}
+                                    {replyingTo.fromMe ? t.you : (replyingTo.author || t.contact)}
                                 </div>
                                 <div className="text-gray-500 text-sm truncate flex items-center gap-1">
                                     {replyingTo.media ? (
                                         <>
                                             <Camera size={14} /> 
-                                            {replyingTo.media.mimetype.startsWith('image/') ? 'Photo' : 'Media'}
+                                            {replyingTo.media.mimetype.startsWith('image/') ? t.photo : t.media}
                                         </>
                                     ) : (
                                         replyingTo.body
@@ -1269,7 +1271,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 animate-in slide-in-from-bottom-2">
                                         <div className="flex items-start justify-between mb-2">
                                             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                                {pendingAttachments.length} Attachment{pendingAttachments.length > 1 ? 's' : ''}
+                                                {pendingAttachments.length} {t.attachment}
                                             </span>
                                             <button 
                                                 onClick={() => setPendingAttachments([])}
@@ -1290,7 +1292,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                                     ) : (
                                                         <div className="h-20 w-20 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-100 text-gray-500 text-xs p-1 text-center break-all">
                                                             <Download size={20} className="mb-1" />
-                                                            <span className="line-clamp-2">{att.filename || 'File'}</span>
+                                                            <span className="line-clamp-2">{att.filename || t.file}</span>
                                                         </div>
                                                     )}
                                                     <button 
@@ -1314,7 +1316,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         handleSendMessage();
                                     }
                                 }}
-                                placeholder="Type a message"
+                                placeholder={t.typeMessage}
                                 className="w-full max-h-[100px] py-2.5 px-2 text-gray-800 placeholder-gray-400 bg-transparent resize-none focus:outline-none custom-scrollbar"
                                 rows={1}
                             />
@@ -1336,7 +1338,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         </div>
                     </div>
                     {isTranslating && (
-                        <div className="text-[10px] text-gray-400 text-center mt-1">Translating...</div>
+                        <div className="text-[10px] text-gray-400 text-center mt-1">{t.translated}...</div>
                     )}
                 </div>
                 </>
@@ -1370,7 +1372,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                     >
-                        <CornerUpLeft size={16} /> Reply
+                        <CornerUpLeft size={16} /> {t.reply}
                     </button>
                     <button 
                         onClick={() => {
@@ -1379,7 +1381,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                     >
-                        <Copy size={16} /> Copy
+                        <Copy size={16} /> {t.copy}
                     </button>
                     <div className="h-px bg-gray-100 my-1" />
                     <button 
@@ -1463,13 +1465,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white mb-4">
                             <FaFacebookF size={32} />
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900">Login to Facebook</h2>
-                        <p className="text-gray-500 text-center mt-2">Enter your credentials to sync messages</p>
+                        <h2 className="text-2xl font-bold text-gray-900">{t.loginToFacebook}</h2>
+                        <p className="text-gray-500 text-center mt-2">{t.enterCredentials}</p>
                     </div>
 
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email or Phone</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t.emailOrPhone}</label>
                             <input 
                                 type="text" 
                                 value={loginEmail}
@@ -1479,7 +1481,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t.password}</label>
                             <input 
                                 type="password" 
                                 value={loginPassword}
@@ -1495,7 +1497,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             className={`w-full h-12 rounded-xl font-bold text-white transition-all shadow-lg shadow-blue-200 mt-2
                                 ${loginEmail && loginPassword ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-gray-300 cursor-not-allowed'}`}
                         >
-                            Login
+                            {t.login}
                         </button>
                     </div>
                 </div>
@@ -1509,47 +1511,47 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
                 <div className="bg-white p-10 rounded-2xl shadow-xl max-w-4xl w-full flex gap-12 items-center">
                     <div className="flex-1">
-                        <h1 className="text-3xl font-light text-gray-800 mb-8">Use {serviceName} on your computer</h1>
+                        <h1 className="text-3xl font-light text-gray-800 mb-8">{t.useServiceOnComputer}</h1>
                         {serviceName.toLowerCase().includes('telegram') || activeService?.service?.id?.startsWith('tg') ? (
                             <ol className="space-y-6 text-gray-600 text-lg">
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">1.</span>
-                                    Open Telegram on your phone
+                                    {t.openAppOnPhone}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">2.</span>
-                                    Go to <strong>Settings</strong> {'>'} <strong>Devices</strong>
+                                    {t.goToSettings}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">3.</span>
-                                    Tap <strong>Link Desktop Device</strong>
+                                    {t.tapLinkDevice}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">4.</span>
-                                    Point your phone to this screen
+                                    {t.pointPhone}
                                 </li>
                             </ol>
                         ) : (
                             <ol className="space-y-6 text-gray-600 text-lg">
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">1.</span>
-                                    Open WhatsApp on your phone
+                                    {t.openAppOnPhone}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">2.</span>
-                                    Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>
+                                    {t.goToSettings}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">3.</span>
-                                    Tap on <strong>Link a Device</strong>
+                                    {t.tapLinkDevice}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">4.</span>
-                                    Point your phone to this screen to capture the code
+                                    {t.pointPhone}
                                 </li>
                             </ol>
                         )}
-                        <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">Need help to get started?</div>
+                        <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">{t.needHelp}</div>
                     </div>
                     
                     <div className="flex flex-col items-center">
@@ -1559,7 +1561,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     <QRCode value={qrValue} size={260} />
                                 ) : (
                                     <div className="w-[260px] h-[260px] bg-gray-100 flex items-center justify-center animate-pulse">
-                                        <div className="text-gray-400">Generating QR...</div>
+                                        <div className="text-gray-400">{t.generatingQR}</div>
                                     </div>
                                 )}
                             </div>
@@ -1567,7 +1569,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer">
                                     <div className="flex flex-col items-center gap-2 text-gray-800">
                                         <RefreshCcw size={32} />
-                                        <span className="font-medium">Click to reload QR</span>
+                                        <span className="font-medium">{t.clickToReloadQR}</span>
                                     </div>
                                 </div>
                             )}
@@ -1576,7 +1578,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="mt-6 flex items-center gap-3">
                             <div className="flex items-center gap-2 text-gray-500 text-sm">
                                 <input type="checkbox" className="rounded border-gray-300 text-[#00a884] focus:ring-[#00a884]" defaultChecked />
-                                <label>Keep me signed in</label>
+                                <label>{t.keepMeSignedIn}</label>
                             </div>
                         </div>
                     </div>
@@ -1590,8 +1592,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
              <div className="flex flex-col items-center">
                  <div className="w-16 h-16 border-4 border-gray-200 border-t-[#00a884] rounded-full animate-spin mb-6"></div>
-                 <h2 className="text-xl font-medium text-gray-800 mb-2">Connecting to {serviceName}...</h2>
-                 <p className="text-gray-500">Restoring your session. This may take a few seconds.</p>
+                 <h2 className="text-xl font-medium text-gray-800 mb-2">{t.connectingTo} {serviceName}...</h2>
+                 <p className="text-gray-500">{t.restoringSession}</p>
              </div>
         </div>
     );
@@ -1602,7 +1604,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     <div className="flex-1 flex items-center justify-center bg-gray-50 text-gray-400">
       <div className="text-center">
         <MessageCircle size={48} className="mx-auto mb-4 opacity-20" />
-        <p>Select a service to start messaging</p>
+        <p>{t.selectService}</p>
       </div>
     </div>
   );

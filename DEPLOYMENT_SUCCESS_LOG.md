@@ -6,13 +6,14 @@
 ## Summary of Solution
 After encountering "502 Bad Gateway" and "Connection Timed Out" errors, the following steps successfully deployed the application:
 
-### 1. The "Nuclear Clean" Nginx Strategy
-We identified that old configuration files (specifically `whatsapp-dashboard`) were conflicting with the new app.
-The solution was to **delete all enabled sites** before linking the new one.
+### 1. Nginx Configuration Strategy
+We ensured that the Nginx configuration for `dlchats-app` is clean and correctly linked.
+The solution involves removing the default config and the specific app config before linking the new one, preserving other sites.
 
 **Command used in `fix_and_deploy.sh`:**
 ```bash
-rm -f /etc/nginx/sites-enabled/*
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/dlchats-app
 ```
 
 ### 2. Explicit Localhost Binding
