@@ -37,7 +37,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [secondsLeft, setSecondsLeft] = useState(20);
   const socketRef = useRef<Socket | null>(null);
   const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
-  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean }>>([]);
+  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean; lastMessageFromMe?: boolean; lastMessageAck?: number }>>([]);
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
@@ -941,7 +941,22 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{c.lastMessage}</div>
+                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'} flex items-center gap-1`}>
+                               {c.lastMessageFromMe && (
+                                   <span className="shrink-0">
+                                       {c.lastMessageAck === 3 ? (
+                                           <CheckCheck size={14} className="text-blue-500" />
+                                       ) : c.lastMessageAck === 2 ? (
+                                           <CheckCheck size={14} className="text-gray-400" />
+                                       ) : c.lastMessageAck === 1 ? (
+                                           <Check size={14} className="text-gray-400" />
+                                       ) : (
+                                           <Clock size={14} className="text-gray-300" />
+                                       )}
+                                   </span>
+                               )}
+                               <span className="truncate">{c.lastMessage}</span>
+                           </div>
                            {c.unreadCount > 0 && (
                              <div className="min-w-[18px] h-[18px] px-1.5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm shadow-blue-200">
                                {c.unreadCount}

@@ -441,6 +441,8 @@ const initializeWhatsApp = async () => {
                     unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
                     lastMessage: c.lastMessage?.body || '',
                     lastTimestamp: c.lastMessage?.timestamp || 0,
+                    lastMessageFromMe: c.lastMessage?.fromMe || false,
+                    lastMessageAck: c.lastMessage?.ack || 0,
                     profilePicUrl: '', // Will be updated later or we can try fetching here
                     lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
                     archived: c.archived || false
@@ -688,6 +690,8 @@ const initializeTelegram = async () => {
             unreadCount: d.unreadCount,
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
+            lastMessageFromMe: d.message?.out || false,
+            lastMessageAck: 1,
             profilePicUrl: '',
             lastSeen: '',
             archived: d.archived || d.folderId === 1 || false
