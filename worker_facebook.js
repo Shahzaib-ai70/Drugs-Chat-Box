@@ -97,72 +97,81 @@ const initFacebook = async () => {
         await sessionState.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         
         log('Navigating to Facebook...');
-        await sessionState.page.goto('https://www.facebook.com', { waitUntil: 'networkidle2' });
+        try {
+            await sessionState.page.goto('https://www.facebook.com', { waitUntil: 'networkidle2', timeout: 60000 });
+        } catch (navErr) {
+            log('Navigation warning: ' + navErr);
+        }
 
-        // Expose Translation Service to Page
-        await sessionState.page.exposeFunction('translateService', async (text) => {
-            if (!sessionState.translationSettings.autoTranslateIncoming) return null;
-            try {
-                const res = await translate(text, { to: sessionState.translationSettings.targetLang });
-                return res;
-            } catch (e) {
-                // log('Translation error: ' + e);
-                return null;
-            }
-        });
+        // Start Screencast immediately so user sees something
+        startScreencast();
+        io.to(SERVICE_ID).emit('ready');
+
+        // Expose Translation Service to Page (Safe Mode)
+        try {
+            await sessionState.page.exposeFunction('translateService', async (text) => {
+                if (!sessionState.translationSettings.autoTranslateIncoming) return null;
+                try {
+                    const res = await translate(text, { to: sessionState.translationSettings.targetLang });
+                    return res;
+                } catch (e) {
+                    return null;
+                }
+            });
+        } catch (exposeErr) {
+            log('Translation service already exposed or failed: ' + exposeErr);
+        }
 
         // Inject Mutation Observer for Translation
-        await sessionState.page.evaluate(() => {
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.type === 'childList') {
-                        mutation.addedNodes.forEach((node) => {
-                            if (node.nodeType === Node.ELEMENT_NODE) {
-                                const el = node;
-                                // Basic Heuristic for Message Bubbles:
-                                // 1. Look for text content
-                                // 2. Check if it's likely a message (div with dir="auto" is common in FB)
-                                // 3. Avoid inputs and small UI elements
-                                const textNodes = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-                                let currentNode;
-                                while(currentNode = textNodes.nextNode()) {
-                                    if(currentNode.parentElement.tagName === 'SCRIPT' || 
-                                       currentNode.parentElement.tagName === 'STYLE' ||
-                                       currentNode.parentElement.isContentEditable) continue;
+        try {
+            await sessionState.page.evaluate(() => {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'childList') {
+                            mutation.addedNodes.forEach((node) => {
+                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                    const el = node;
+                                    // Basic Heuristic for Message Bubbles:
+                                    // 1. Look for text content
+                                    // 2. Check if it's likely a message (div with dir="auto" is common in FB)
+                                    // 3. Avoid inputs and small UI elements
+                                    const textNodes = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+                                    let currentNode;
+                                    while(currentNode = textNodes.nextNode()) {
+                                        if(currentNode.parentElement.tagName === 'SCRIPT' || 
+                                           currentNode.parentElement.tagName === 'STYLE' ||
+                                           currentNode.parentElement.isContentEditable) continue;
 
-                                    const text = currentNode.nodeValue.trim();
-                                    // Translate if long enough and not already translated
-                                    if (text.length > 3 && !currentNode.parentElement.getAttribute('data-translated')) {
-                                        const parent = currentNode.parentElement;
-                                        parent.setAttribute('data-translated', 'pending');
-                                        
-                                        window.translateService(text).then(translated => {
-                                            if (translated) {
-                                                currentNode.nodeValue = translated;
-                                                parent.setAttribute('data-translated', 'true');
-                                                parent.setAttribute('title', 'Original: ' + text); // Tooltip
-                                                parent.style.borderBottom = '1px dashed #888'; // Indicator
-                                            } else {
-                                                parent.removeAttribute('data-translated');
-                                            }
-                                        });
+                                        const text = currentNode.nodeValue.trim();
+                                        // Translate if long enough and not already translated
+                                        if (text.length > 3 && !currentNode.parentElement.getAttribute('data-translated')) {
+                                            const parent = currentNode.parentElement;
+                                            parent.setAttribute('data-translated', 'pending');
+                                            
+                                            window.translateService(text).then(translated => {
+                                                if (translated) {
+                                                    currentNode.nodeValue = translated;
+                                                    parent.setAttribute('data-translated', 'true');
+                                                    parent.setAttribute('title', 'Original: ' + text); // Tooltip
+                                                    parent.style.borderBottom = '1px dashed #888'; // Indicator
+                                                } else {
+                                                    parent.removeAttribute('data-translated');
+                                                }
+                                            });
+                                        }
                                     }
                                 }
-                            }
-                        });
-                    }
+                            });
+                        }
+                    });
                 });
+                
+                // Start observing broadly (body) but be careful with performance
+                observer.observe(document.body, { childList: true, subtree: true });
             });
-            
-            // Start observing broadly (body) but be careful with performance
-            observer.observe(document.body, { childList: true, subtree: true });
-        });
-
-        // Start Screencast immediately
-        startScreencast();
-        
-        // Notify frontend we are ready to stream
-        io.to(SERVICE_ID).emit('ready');
+        } catch (evalErr) {
+            log('Translation observer injection failed: ' + evalErr);
+        }
 
     } catch (e) {
         log('Init Error: ' + e);
