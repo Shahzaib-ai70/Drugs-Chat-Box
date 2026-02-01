@@ -765,6 +765,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     return () => clearInterval(timer);
   }, [qrValue]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -792,6 +794,28 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         reader.readAsDataURL(file);
       }
     });
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(file => {
+             if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64 = event.target?.result as string;
+                    const base64Data = base64.split(',')[1];
+                    setPendingAttachments(prev => [...prev, {
+                        mimetype: file.type,
+                        data: base64Data,
+                        filename: file.name
+                    }]);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        // Reset input value to allow selecting same file again
+        e.target.value = '';
+    }
   };
 
   const handleFacebookLogin = () => {
@@ -1197,9 +1221,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <button className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full">
                                 <Smile size={22} onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
                             </button>
-                            <button className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full">
+                            <button 
+                                className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
                                 <IoMdAdd size={22} />
                             </button>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                multiple 
+                                accept="image/*"
+                                onChange={handleFileInputChange}
+                            />
                         </div>
                         
                         <div className="flex-1 relative">
@@ -1254,8 +1289,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 onChange={(e) => setMessageInput(e.target.value)}
                                 onPaste={(e) => {
                                     const items = e.clipboardData.items;
+                                    let hasImage = false;
                                     Array.from(items).forEach(item => {
                                         if (item.type.indexOf('image') !== -1) {
+                                            hasImage = true;
                                             const blob = item.getAsFile();
                                             if (blob) {
                                                 const reader = new FileReader();
@@ -1272,6 +1309,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                             }
                                         }
                                     });
+                                    if (hasImage) {
+                                        e.preventDefault();
+                                    }
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
