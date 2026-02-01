@@ -40,12 +40,13 @@ else
     echo " -> UFW not found. Skipping firewall config."
 fi
 
-# 1. DELETE ONLY CONFLICTING CONFIGS (Safe Mode)
+# 1. DELETE ALL EXISTING CONFIGS (Nuclear Option to fix conflicts)
 echo ""
-echo "[1] Removing old 'default' config if exists..."
-rm -f /etc/nginx/sites-enabled/default
-# Remove our own previous config to update it, but leave others alone
-rm -f /etc/nginx/sites-enabled/dlchats-app
+echo "[1] NUKING all old Nginx configs to prevent 'Bitsafe' or other conflicts..."
+# This is necessary because Nginx loads configs alphabetically. 
+# If 'bitsafe' exists, it loads before 'dlchats-app' and steals the domain.
+rm -f /etc/nginx/sites-enabled/*
+echo " -> All old Nginx sites removed."
 
 # 2. Setup New Project Nginx Config (FORCE OVERWRITE)
 echo ""
