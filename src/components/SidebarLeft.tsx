@@ -305,13 +305,6 @@ const SidebarLeft = ({
             </button>
         </div>
       )}
-
-      {/* Auto Reply Modal */}
-      <AutoReplyModal 
-        isOpen={showAutoReplyModal} 
-        onClose={() => setShowAutoReplyModal(false)} 
-        serviceId={autoReplyServiceId || ''} 
-      />
     </div>
   );
 };
