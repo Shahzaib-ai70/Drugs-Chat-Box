@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronsLeft, Plus, RotateCw, ExternalLink, Trash2, RefreshCcw } from 'lucide-react';
+import { ChevronsLeft, Plus, RotateCw, ExternalLink, Trash2, RefreshCcw, Edit2, Check, X } from 'lucide-react';
 import type { ServiceItem } from '../types';
 import { io } from 'socket.io-client';
 import { useLanguage } from '../translations';
@@ -16,19 +16,44 @@ const SidebarLeft = ({
   activeServiceId, 
   onServiceClick,
   onDeleteService,
-  onRefreshService
+  onRefreshService,
+  onUpdateName
 }: { 
   onAddNewClick: () => void, 
   addedServices?: AddedService[],
   activeServiceId?: string | null,
   onServiceClick?: (id: string) => void,
   onDeleteService?: (id: string) => void,
-  onRefreshService?: (id: string) => void
+  onRefreshService?: (id: string) => void,
+  onUpdateName?: (id: string, name: string) => void
 }) => {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Normal');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tempName, setTempName] = useState('');
+
+  const startEditing = (e: React.MouseEvent, id: string, currentName: string) => {
+    e.stopPropagation();
+    setEditingId(id);
+    setTempName(currentName);
+  };
+
+  const saveName = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (tempName.trim()) {
+        onUpdateName?.(id, tempName.trim());
+    }
+    setEditingId(null);
+  };
+
+  const cancelEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+  };
   
   // Unread Count Logic
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -167,13 +192,43 @@ const SidebarLeft = ({
                       item.service.icon
                   )}
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className={`text-sm truncate ${isActive ? 'font-bold text-white tracking-wide' : 'font-medium text-gray-400 group-hover:text-gray-200'}`}>
-                    {item.customName}
-                  </span>
-                  <span className="text-[10px] text-gray-500 truncate group-hover:text-gray-400">
-                    {item.service.name}
-                  </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  {editingId === item.id ? (
+                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <input 
+                              type="text" 
+                              value={tempName} 
+                              onChange={e => setTempName(e.target.value)}
+                              className="w-full bg-black/50 text-white text-xs px-1 py-0.5 rounded border border-neon-blue/50 focus:outline-none"
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveName(e as any, item.id);
+                                if (e.key === 'Escape') cancelEditing(e as any);
+                              }}
+                          />
+                          <button onClick={(e) => saveName(e, item.id)} className="text-green-400 hover:text-green-300 p-0.5"><Check size={12} /></button>
+                          <button onClick={cancelEditing} className="text-red-400 hover:text-red-300 p-0.5"><X size={12} /></button>
+                      </div>
+                  ) : (
+                      <>
+                          <div className="flex items-center justify-between group/name pr-1">
+                              <span className={`text-sm truncate ${isActive ? 'font-bold text-white tracking-wide' : 'font-medium text-gray-400 group-hover:text-gray-200'}`}>
+                                {item.customName}
+                              </span>
+                              <button 
+                                  className={`opacity-0 group-hover/name:opacity-100 text-gray-500 hover:text-neon-blue transition-opacity p-0.5 ml-1`}
+                                  onClick={(e) => startEditing(e, item.id, item.customName)}
+                                  title="Edit Name"
+                              >
+                                  <Edit2 size={10} />
+                              </button>
+                          </div>
+                          <span className="text-[10px] text-gray-500 truncate group-hover:text-gray-400 font-mono tracking-tight opacity-80">
+                            {item.accountIdentifier || item.service.name}
+                          </span>
+                      </>
+                  )}
                 </div>
               </div>
               

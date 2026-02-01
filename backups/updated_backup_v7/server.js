@@ -54,7 +54,8 @@ try {
     custom_name TEXT NOT NULL,
     created_at INTEGER,
     owner_code TEXT,
-    port INTEGER
+    port INTEGER,
+    account_identifier TEXT
   );
   CREATE TABLE IF NOT EXISTS invitation_codes (
     code TEXT PRIMARY KEY,
@@ -74,6 +75,18 @@ try {
     }
   } catch (e) {
     log(`Migration Error: ${e.message}`);
+  }
+
+  // Migration: Add account_identifier column to user_services if missing
+  try {
+    const columns = db.prepare('PRAGMA table_info(user_services)').all();
+    const hasIdentifier = columns.some(c => c.name === 'account_identifier');
+    if (!hasIdentifier) {
+      log('Migrating DB: Adding account_identifier column to user_services');
+      db.prepare('ALTER TABLE user_services ADD COLUMN account_identifier TEXT').run();
+    }
+  } catch (e) {
+    log(`Migration Error account_identifier: ${e.message}`);
   }
 
   // Migration: Add status column to invitation_codes if missing
@@ -145,6 +158,16 @@ const spawnWorker = (service) => {
                 const callback = pendingCallbacks.get(requestId);
                 callback(data);
                 pendingCallbacks.delete(requestId);
+            }
+        } else if (msg.type === 'command' && msg.command === 'update_account_info') {
+            const { identifier } = msg.data;
+            if (identifier) {
+                // log(`Updating account identifier for ${service.id}: ${identifier}`);
+                try {
+                    db.prepare('UPDATE user_services SET account_identifier = ? WHERE id = ?').run(identifier, service.id);
+                } catch (e) {
+                    log(`Error updating account identifier: ${e.message}`);
+                }
             }
         }
     });
@@ -234,6 +257,23 @@ app.post('/api/delete_service', (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+// Update Service Name
+app.put('/api/service/:id/name', (req, res) => {
+    const { id } = req.params;
+    const { customName } = req.body;
+    
+    if (!customName || !customName.trim()) {
+        return res.status(400).json({ success: false, error: 'Name is required' });
+    }
+
+    try {
+        db.prepare('UPDATE user_services SET custom_name = ? WHERE id = ?').run(customName.trim(), id);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

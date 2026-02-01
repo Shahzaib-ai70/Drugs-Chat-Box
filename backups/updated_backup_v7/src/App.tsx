@@ -132,7 +132,8 @@ function App() {
             id: item.id,
             service: def,
             customName: item.custom_name,
-            port: item.port
+            port: item.port,
+            accountIdentifier: item.account_identifier
           };
         }).filter(Boolean) as AddedService[];
         setAddedServices(mappedServices);
@@ -201,6 +202,22 @@ function App() {
     // In a real implementation with webviews, this would reload the webview
   };
 
+  const handleUpdateServiceName = async (id: string, newName: string) => {
+      try {
+          const res = await fetch(`/api/service/${id}/name`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ customName: newName })
+          });
+          const data = await res.json();
+          if (data.success) {
+              setAddedServices(prev => prev.map(s => s.id === id ? { ...s, customName: newName } : s));
+          }
+      } catch (e) {
+          console.error('Failed to update name:', e);
+      }
+  };
+
   // Auth Handlers
   const handleInvitationLogin = (code: string) => {
     sessionStorage.setItem('invitation_code', code);
@@ -254,6 +271,7 @@ function App() {
           onServiceClick={setActiveServiceId}
           onDeleteService={handleDeleteService}
           onRefreshService={handleRefreshService}
+          onUpdateName={handleUpdateServiceName}
         />
         <MainContent 
           activeService={activeService} 
