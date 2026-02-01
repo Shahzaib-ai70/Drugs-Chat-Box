@@ -152,7 +152,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; author?: string; fromMe: boolean; media?: any } | null>(null);
   const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [pastedImage, setPastedImage] = useState<{ mimetype: string; data: string } | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Array<{ mimetype: string; data: string; filename: string }>>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const msgMenuRef = useRef<HTMLDivElement>(null);
 
@@ -230,125 +230,142 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   }, [activeChatId, translationSettings, messagesByChat]); // messagesByChat dependency ensures history load triggers this
 
   const handleSendMessage = async () => {
-    if ((!messageInput.trim() && !pastedImage) || !activeChatId || !activeService?.id) return;
+    if ((!messageInput.trim() && pendingAttachments.length === 0) || !activeChatId || !activeService?.id) return;
     
     if (!socketRef.current) {
         console.error('CRITICAL: Socket not connected when trying to send message');
         alert('Connection lost. Please refresh the page.');
         return;
     }
-    
-    const tempId = 'temp_' + Date.now();
-    const timestamp = Math.floor(Date.now() / 1000);
 
-    let body = messageInput;
-    let originalBody: string | undefined = undefined;
+    const baseTimestamp = Math.floor(Date.now() / 1000);
+    let textToSend = messageInput;
+    let originalText: string | undefined = undefined;
 
     // Outgoing Translation
-    if (body.trim() && translationSettings?.autoTranslateOutgoing && 
+    if (textToSend.trim() && translationSettings?.autoTranslateOutgoing && 
         translationSettings.translateBeforeSendingLang && 
         translationSettings.translateBeforeSendingLang !== 'auto') {
         
         setIsTranslating(true);
-        const translated = await translateText(body, translationSettings.translateBeforeSendingLang);
+        const translated = await translateText(textToSend, translationSettings.translateBeforeSendingLang);
         setIsTranslating(false);
         
         if (translated) {
-            originalBody = body;
-            body = translated;
-            // FIX: Update ref immediately to avoid race condition with fast socket response
-            outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalBody! };
-            setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalBody! }));
+            originalText = textToSend;
+            textToSend = translated;
+        }
+    }
 
-            // Add to pending queue for recovery after refresh
-            setPendingOriginals(prev => [...prev, {
+    // Helper to send a single message
+    const sendSingleMessage = (content: string, media?: { mimetype: string; data: string; filename: string }) => {
+        const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const timestamp = baseTimestamp;
+
+        // Optimistic UI Update
+        const optimisticMsg = {
+            id: tempId,
+            chatId: activeChatId,
+            author: myProfile?.name || 'Me',
+            fromMe: true,
+            body: content,
+            timestamp: timestamp,
+            type: media ? (media.mimetype.startsWith('image/') ? 'image' : 'document') : 'chat',
+            ack: 0,
+            hasMedia: !!media,
+            media: media,
+            originalBody: (!media && originalText) ? originalText : undefined,
+            quotedMsg: replyingTo ? {
+                id: replyingTo.id,
+                body: replyingTo.body,
+                author: replyingTo.author || '',
+                fromMe: replyingTo.fromMe
+            } : undefined
+        };
+
+        if (originalText && !media) {
+             outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalText };
+             setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalText! }));
+             
+             // Add to pending queue for recovery
+             setPendingOriginals(prev => [...prev, {
                 tempId,
-                body: translated,
-                original: originalBody!,
+                body: content,
+                original: originalText!,
                 timestamp,
                 chatId: activeChatId
             }]);
         }
+
+        setMessagesByChat(prev => {
+            const normId = normalizeId(activeChatId);
+            const current = prev[normId] || [];
+            return { ...prev, [normId]: [...current, optimisticMsg].sort((a, b) => a.timestamp - b.timestamp) };
+        });
+
+        // Update Chat List Preview
+        setChats(prevChats => {
+            const updated = prevChats.map(chat => {
+                if (normalizeId(chat.id) === normalizeId(activeChatId)) {
+                    return {
+                        ...chat,
+                        lastMessage: media ? (media.mimetype.startsWith('image/') ? '📷 Photo' : '📁 File') : content,
+                        lastTimestamp: timestamp
+                    };
+                }
+                return chat;
+            });
+            return sortChats(updated);
+        });
+
+        // Emit Socket Event
+        socketRef.current?.emit('sendMessage', {
+            type: 'sendMessage',
+            serviceId: activeService.id,
+            chatId: activeChatId,
+            body: content,
+            quotedMessageId: replyingTo?.id,
+            media: media
+        }, (response: any) => {
+            if (response?.status === 'error') {
+                console.error('Failed to send:', response.error);
+            } else if (response?.messageId) {
+                // Update temp ID to real ID
+                if (originalText && !media) {
+                     setOutgoingOriginals(prev => ({ ...prev, [response.messageId]: originalText! }));
+                }
+                
+                setMessagesByChat(prev => {
+                    const normId = normalizeId(activeChatId);
+                    const current = prev[normId] || [];
+                    const updated = current.map(m => m.id === tempId ? { ...m, id: response.messageId } : m);
+                    return { ...prev, [normId]: updated };
+                });
+            }
+        });
+    };
+
+    // 1. Send Text Message (if any)
+    if (textToSend.trim()) {
+        sendSingleMessage(textToSend.trim());
     }
 
-    // Optimistic Update: Immediately add message to UI
-    setMessagesByChat(prev => {
-        const normId = normalizeId(activeChatId);
-        const current = prev[normId] || [];
-        return { 
-            ...prev, 
-            [normId]: [...current, {
-                id: tempId,
-                chatId: activeChatId,
-                author: 'Me',
-                fromMe: true,
-                body: body,
-                timestamp: timestamp,
-                originalBody: originalBody,
-                ack: 0, // Pending
-                type: pastedImage ? 'image' : 'chat',
-                hasMedia: !!pastedImage,
-                media: pastedImage ? { mimetype: pastedImage.mimetype, data: pastedImage.data, filename: 'image.png' } : undefined,
-                quotedMsg: replyingTo ? {
-                    id: replyingTo.id,
-                    body: replyingTo.body,
-                    author: replyingTo.author || '',
-                    fromMe: replyingTo.fromMe
-                } : undefined
-            }]
-        };
-    });
-    
-    // Also update the chat list preview optimistically
-    setChats(prevChats => {
-        const updated = prevChats.map(chat => {
-            if (normalizeId(chat.id) === normalizeId(activeChatId)) {
-                return {
-                    ...chat,
-                    lastMessage: pastedImage ? '📷 Photo' : body,
-                    lastTimestamp: timestamp
-                };
-            }
-            return chat;
-        });
-        return sortChats(updated);
-    });
-
-    console.log('Sending message via WebSocket:', {
-        serviceId: activeService.id,
-        chatId: activeChatId,
-        body: body,
-        hasMedia: !!pastedImage
-    });
-
-    socketRef.current.emit('sendMessage', {
-        type: 'sendMessage', 
-        serviceId: activeService.id,
-        chatId: activeChatId,
-        body: body,
-        quotedMessageId: replyingTo?.id,
-        media: pastedImage ? { mimetype: pastedImage.mimetype, data: pastedImage.data, filename: 'image.png' } : undefined
-    }, (response: any) => {
-        console.log('Server Ack:', response);
-        if (response?.status === 'error') {
-            alert('Failed to send: ' + response.error);
-        } else if (response?.messageId) {
-            // Update the temp ID with real ID
-            if (originalBody) {
-                setOutgoingOriginals(prev => ({ ...prev, [response.messageId]: originalBody! }));
-            }
-            setMessagesByChat(prev => {
-                const normId = normalizeId(activeChatId);
-                const current = prev[normId] || [];
-                const updated = current.map(m => m.id === tempId ? { ...m, id: response.messageId } : m);
-                return { ...prev, [normId]: updated };
-            });
+    // 2. Send Attachments
+    const sendAttachments = async () => {
+        for (let i = 0; i < pendingAttachments.length; i++) {
+            const att = pendingAttachments[i];
+            await new Promise(r => setTimeout(r, 200 + (i * 50))); 
+            sendSingleMessage(att.filename || 'Media', att);
         }
-    });
-    
+    };
+
+    if (pendingAttachments.length > 0) {
+        sendAttachments();
+    }
+
     setMessageInput('');
+    setPendingAttachments([]);
     setReplyingTo(null);
-    setPastedImage(null);
   };
 
   useEffect(() => {
@@ -748,6 +765,35 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     return () => clearInterval(timer);
   }, [qrValue]);
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          setPendingAttachments(prev => [...prev, {
+            mimetype: file.type,
+            data: base64Data,
+            filename: file.name
+          }]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
   const handleFacebookLogin = () => {
     if (!loginEmail || !loginPassword || !activeService?.id) return;
     setLoadingStatus({ percent: 10, message: 'Logging in...' });
@@ -883,7 +929,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
           </div>
 
           {/* Right Area - Chat Window */}
-          <div className="flex-1 bg-[#F0F2F5] flex flex-col h-full overflow-hidden relative">
+          <div 
+            className="flex-1 bg-[#F0F2F5] flex flex-col h-full overflow-hidden relative"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
             
             {/* 2FA Modal */}
             {is2FARequired && (
@@ -1158,24 +1208,43 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     <EmojiPicker onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
                                 </div>
                             )}
-                            {pastedImage && (
+                            {pendingAttachments.length > 0 && (
                                 <div className="absolute bottom-16 left-0 right-0 z-40 px-4">
                                     <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 animate-in slide-in-from-bottom-2">
                                         <div className="flex items-start justify-between mb-2">
-                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Image Preview</span>
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                                {pendingAttachments.length} Attachment{pendingAttachments.length > 1 ? 's' : ''}
+                                            </span>
                                             <button 
-                                                onClick={() => setPastedImage(null)}
+                                                onClick={() => setPendingAttachments([])}
                                                 className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600"
                                             >
                                                 <X size={16} />
                                             </button>
                                         </div>
-                                        <div className="flex justify-center bg-gray-50 rounded-lg p-2 border border-gray-100 border-dashed">
-                                            <img 
-                                                src={`data:${pastedImage.mimetype};base64,${pastedImage.data}`} 
-                                                className="max-h-[200px] rounded-lg shadow-sm"
-                                                alt="Pasted content"
-                                            />
+                                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                            {pendingAttachments.map((att, idx) => (
+                                                <div key={idx} className="relative shrink-0 group">
+                                                    {att.mimetype.startsWith('image/') ? (
+                                                        <img 
+                                                            src={`data:${att.mimetype};base64,${att.data}`} 
+                                                            className="h-20 w-20 object-cover rounded-lg border border-gray-100"
+                                                            alt="Preview"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-20 w-20 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-100 text-gray-500 text-xs p-1 text-center break-all">
+                                                            <Download size={20} className="mb-1" />
+                                                            <span className="line-clamp-2">{att.filename || 'File'}</span>
+                                                        </div>
+                                                    )}
+                                                    <button 
+                                                        onClick={() => setPendingAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -1185,24 +1254,24 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 onChange={(e) => setMessageInput(e.target.value)}
                                 onPaste={(e) => {
                                     const items = e.clipboardData.items;
-                                    for (let i = 0; i < items.length; i++) {
-                                        if (items[i].type.indexOf('image') !== -1) {
-                                            const blob = items[i].getAsFile();
+                                    Array.from(items).forEach(item => {
+                                        if (item.type.indexOf('image') !== -1) {
+                                            const blob = item.getAsFile();
                                             if (blob) {
                                                 const reader = new FileReader();
                                                 reader.onload = (event) => {
                                                     const base64 = event.target?.result as string;
-                                                    // Remove prefix (data:image/png;base64,)
                                                     const base64Data = base64.split(',')[1];
-                                                    setPastedImage({
+                                                    setPendingAttachments(prev => [...prev, {
                                                         mimetype: blob.type,
-                                                        data: base64Data
-                                                    });
+                                                        data: base64Data,
+                                                        filename: 'image.png'
+                                                    }]);
                                                 };
                                                 reader.readAsDataURL(blob);
                                             }
                                         }
-                                    }
+                                    });
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1217,7 +1286,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         </div>
 
                         <div className="pb-1 pr-1">
-                            {messageInput.trim() || pastedImage ? (
+                            {messageInput.trim() || pendingAttachments.length > 0 ? (
                                 <button 
                                     onClick={handleSendMessage}
                                     className="p-2.5 bg-[#005c4b] hover:bg-[#004a3c] text-white rounded-xl transition-all shadow-sm active:scale-95"
