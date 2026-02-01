@@ -924,7 +924,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                       className={`w-full px-4 py-3.5 flex items-center gap-4 transition-all duration-300 border-l-[3px] group relative overflow-hidden ${
                         activeChatId === c.id 
                           ? 'bg-gradient-to-r from-neon-blue/10 to-transparent border-neon-blue shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] translate-x-1' 
-                          : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/20 hover:translate-x-1'
+                          : 'bg-[#1a1a2e]/40 border-white/5 hover:bg-[#1a1a2e]/60 hover:border-neon-blue/30 hover:translate-x-1'
                       }`}
                       onClick={() => {
                         setActiveChatId(c.id);

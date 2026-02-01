@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-bg: rgba(20, 20, 35, 0.4);
 }
 
 html, body, #root {
