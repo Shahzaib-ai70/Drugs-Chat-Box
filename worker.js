@@ -420,30 +420,41 @@ const initializeWhatsApp = async () => {
         }
 
         // 2. Map Chats (Standard Method)
-        if (chats.length > 0) {
-            mappedBasic = await Promise.all(chats.map(async c => {
-                let profilePicUrl = '';
-                const chatId = c.id?._serialized || c.id || '';
-                
-                const existing = sessionState.chats.find(ec => ec.id === chatId);
-                if (existing && existing.profilePicUrl) {
-                    profilePicUrl = existing.profilePicUrl;
-                }
+        if (chats && chats.length > 0) {
+            // Reverted to simple synchronous map similar to Telegram implementation
+            mappedBasic = chats.map(c => {
+                try {
+                    const chatId = c.id?._serialized || c.id || '';
+                    
+                    // Preserve profile pics from state
+                    const existing = sessionState.chats.find(ec => ec.id === chatId);
+                    const profilePicUrl = (existing && existing.profilePicUrl) ? existing.profilePicUrl : '';
 
-                return {
-                    id: c.id?._serialized || c.id || '',
-                    name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                    isGroup: !!c.isGroup,
-                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                    lastMessage: c.lastMessage?.body || '',
-                    lastTimestamp: c.lastMessage?.timestamp || 0,
-                    lastMessageFromMe: c.lastMessage?.fromMe || false,
-                    lastMessageAck: c.lastMessage?.ack || 0,
-                    profilePicUrl: profilePicUrl,
-                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
-                    archived: c.archived || false
-                };
-            }));
+                    // Robust Safe Access for Last Message
+                    const lastMsgObj = c.lastMessage || {}; 
+                    const lastBody = lastMsgObj.body || '';
+                    const lastTs = lastMsgObj.timestamp || 0;
+                    const lastFromMe = lastMsgObj.fromMe || false;
+                    const lastAck = lastMsgObj.ack || 0;
+
+                    return {
+                        id: chatId,
+                        name: c.name || c.formattedTitle || c.pushname || (c.contact && (c.contact.name || c.contact.pushname)) || chatId || 'Unknown',
+                        isGroup: !!c.isGroup,
+                        unreadCount: (typeof c.unreadCount === 'number') ? c.unreadCount : 0,
+                        lastMessage: lastBody,
+                        lastTimestamp: lastTs,
+                        lastMessageFromMe: lastFromMe,
+                        lastMessageAck: lastAck,
+                        profilePicUrl: profilePicUrl,
+                        lastSeen: '', // Disabled complex date logic to match Telegram stability
+                        archived: c.archived || false
+                    };
+                } catch (err) {
+                    log(`Error mapping chat: ${err}`);
+                    return null;
+                }
+            }).filter(c => c !== null);
         }
 
         // 3. Store Fallback (If Standard Method failed/empty)
