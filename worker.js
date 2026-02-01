@@ -182,9 +182,9 @@ const handleDownloadMedia = async (data) => {
 
 const handleSendMessage = async (data) => {
     const body = data.message || data.body;
-    const { quotedMessageId } = data;
+    // const { quotedMessageId } = data; // Tagging disabled as per user request
     
-    if (quotedMessageId) log(`Sending message with reply to: ${quotedMessageId}`);
+    // if (quotedMessageId) log(`Sending message with reply to: ${quotedMessageId}`);
 
     let response = { status: 'error', error: 'Unknown error' };
 
@@ -193,9 +193,9 @@ const handleSendMessage = async (data) => {
             let sentMsg;
             if (data.media) {
                 const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
-                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body, quotedMessageId });
+                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
             } else {
-                sentMsg = await sessionState.client.sendMessage(data.chatId, body, { quotedMessageId }); 
+                sentMsg = await sessionState.client.sendMessage(data.chatId, body, {}); 
             }
             if (sentMsg) {
                  response = { status: 'success', messageId: sentMsg.id._serialized };
@@ -207,14 +207,14 @@ const handleSendMessage = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
             let result;
-            const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
+            // const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer, replyTo });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
             } else {
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, replyTo });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
              if (result) {
                  // GramJS message object has id property
@@ -237,37 +237,20 @@ const handleGetChatHistory = async (data) => {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: limit || 50 });
             
-            const mapped = [];
-            for (const msg of messages) {
-                let quotedMsg = undefined;
-                if (msg.hasQuotedMsg) {
-                    try {
-                        const q = await msg.getQuotedMessage();
-                        if (q) {
-                             quotedMsg = {
-                                id: q.id._serialized,
-                                body: q.body,
-                                author: q.author || q.from,
-                                fromMe: q.fromMe
-                            };
-                        }
-                    } catch(e) {}
-                }
-
-                mapped.push({
-                    id: msg.id._serialized,
-                    chatId: chatId,
-                    author: msg.author || msg.from,
-                    fromMe: msg.fromMe,
-                    body: msg.body,
-                    timestamp: msg.timestamp,
-                    type: msg.type,
-                    hasMedia: msg.hasMedia,
-                    media: null, // Media is lazy loaded or fetched on demand
-                    quotedMsg: quotedMsg,
-                    ack: msg.ack
-                });
-            }
+            // Reverted to simple map without quotedMsg fetching
+            const mapped = messages.map(msg => ({
+                id: msg.id._serialized,
+                chatId: chatId,
+                author: msg.author || msg.from,
+                fromMe: msg.fromMe,
+                body: msg.body,
+                timestamp: msg.timestamp,
+                type: msg.type,
+                hasMedia: msg.hasMedia,
+                media: null, 
+                quotedMsg: null, // Disabled
+                ack: msg.ack
+            }));
 
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -277,35 +260,19 @@ const handleGetChatHistory = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
-             const mapped = await Promise.all(messages.map(async (msg) => {
-                let quotedMsg = undefined;
-                if (msg.replyTo) {
-                    try {
-                        const q = await msg.getReplyMessage();
-                        if (q) {
-                            quotedMsg = {
-                                id: q.id.toString(),
-                                body: q.text || '',
-                                author: (await q.getSender())?.username || 'Unknown',
-                                fromMe: q.out
-                            };
-                        }
-                    } catch(e) {}
-                }
-
-                return {
-                    id: msg.id.toString(),
-                    chatId: chatId,
-                    author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
-                    fromMe: msg.out,
-                    body: msg.text || '',
-                    timestamp: msg.date,
-                    type: 'chat',
-                    hasMedia: !!msg.media,
-                    media: null,
-                    quotedMsg: quotedMsg,
-                    ack: 1
-                };
+             // Reverted to simple map without quotedMsg fetching
+             const mapped = messages.map(msg => ({
+                id: msg.id.toString(),
+                chatId: chatId,
+                author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
+                fromMe: msg.out,
+                body: msg.text || '',
+                timestamp: msg.date,
+                type: 'chat',
+                hasMedia: !!msg.media,
+                media: null,
+                quotedMsg: null, // Disabled
+                ack: 1
              }));
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -433,175 +400,116 @@ const initializeWhatsApp = async () => {
   const fetchAndEmitChats = async () => {
     if (!client || (client.pupPage && client.pupPage.isClosed())) return;
 
-    syncQueue.add(async () => {
-        try {
-            log('Fetching chats...');
-            const getChatsPromise = client.getChats();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000));
-            const chats = await Promise.race([getChatsPromise, timeoutPromise]);
-            
-            // 1. User Info
-            if (client.info) {
-                let myProfilePic = null;
-                try {
-                    if (client.info.wid) myProfilePic = await client.getProfilePicUrl(client.info.wid._serialized);
-                } catch (e) {}
-                io.to(SERVICE_ID).emit('wa_user_info', {
-                    name: client.info.pushname,
-                    id: client.info.wid._serialized,
-                    profilePicUrl: myProfilePic,
-                    serviceId: SERVICE_ID
-                });
-            }
-
-            // 2. Map Chats
-            // To improve speed, we map basic info first, then fetch profile pics asynchronously
-            const mappedBasic = await Promise.all(chats.map(async c => {
-                let profilePicUrl = '';
-                const chatId = c.id?._serialized || c.id || '';
-                
-                // PRESERVE existing profile pic if available to prevent flickering/blanking
-                const existing = sessionState.chats.find(ec => ec.id === chatId);
-                if (existing && existing.profilePicUrl) {
-                    profilePicUrl = existing.profilePicUrl;
-                }
-
-                // Try to get profile pic for top 20 chats or just do it for all if fast enough. 
-                // For now, let's try to get it, but catch errors to not block.
-                try {
-                   // Only fetch for non-groups or if needed. Actually getProfilePicUrl is a network call.
-                   // Let's do it lazily or just for top chats?
-                   // User specifically asked for profile pics.
-                   // NOTE: Calling getProfilePicUrl for ALL chats will be slow and might rate limit.
-                   // Strategy: Send chats first without pics, then update with pics?
-                   // Or just try for the first few.
-                } catch(e) {}
-
-                return {
-                    id: c.id?._serialized || c.id || '',
-                    name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
-                    isGroup: !!c.isGroup,
-                    unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
-                    lastMessage: c.lastMessage?.body || '',
-                    lastTimestamp: c.lastMessage?.timestamp || 0,
-                    lastMessageFromMe: c.lastMessage?.fromMe || false,
-                    lastMessageAck: c.lastMessage?.ack || 0,
-                    profilePicUrl: '', // Will be updated later or we can try fetching here
-                    lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
-                    archived: c.archived || false
-                };
-            }));
-            
-            // Sort by timestamp
-            mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-
-            // Calculate total unread
-            const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-            io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-
-            sessionState.chats = mappedBasic;
-            
-            // Only emit immediately if we have chats, otherwise try fallback first to avoid flashing empty
-            if (mappedBasic.length > 0) {
-                io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
-                log(`Emitted ${mappedBasic.length} chats (basic info)`);
-                
-                // Background fetch profile pics
-                (async () => {
-                    log(`Fetching profile pics for ${mappedBasic.length} chats...`);
-                    // Use a concurrency queue or just simple loop with minimal delay
-                    for (const chat of mappedBasic) { 
-                        // Skip if we already have a profile pic (preserved)
-                        if (chat.profilePicUrl) continue;
-
-                        try {
-                            const contact = await client.getContactById(chat.id);
-                            const picUrl = await contact.getProfilePicUrl();
-                            if (picUrl) {
-                                chat.profilePicUrl = picUrl;
-                                // Update local state
-                                const stateChat = sessionState.chats.find(c => c.id === chat.id);
-                                if (stateChat) stateChat.profilePicUrl = picUrl;
-                                
-                                io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
-                            }
-                        } catch(e) {}
-                        // Small delay to prevent CPU hogging, but fast enough
-                        await new Promise(r => setTimeout(r, 50)); 
-                    }
-                })();
-            } else {
-                log('getChats returned empty, trying Store fallback...');
-            }
-
-            // Store Fallback (Runs if mappedBasic is empty OR if we want to augment)
-            if (mappedBasic.length === 0 && client.pupPage) {
-                try {
-                    const storeMapped = await client.pupPage.evaluate(async () => {
-                        const start = Date.now();
-                        while (Date.now() - start < 5000) {
-                            if (window.Store && window.Store.Chats && window.Store.Chats.models && window.Store.Chats.models.length > 0) break;
-                            await new Promise(r => setTimeout(r, 500));
-                        }
-                        const models = window.Store?.Chats?.models || [];
-                        return models.map((c) => ({
-                            id: c.id?._serialized || c.id || (c.__x_id && c.__x_id._serialized) || '',
-                            name: c.formattedTitle || c.name || c.__x_name || (c.contact && (c.contact.name || c.contact.pushname)) || 'Unknown',
-                            isGroup: !!c.isGroup || !!c.__x_isGroup,
-                            unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : (c.__x_unreadCount || 0),
-                            lastMessage: (c.lastMessage || c.__x_lastMessage || {}).body || '',
-                            lastTimestamp: (c.lastMessage || c.__x_lastMessage || {}).timestamp || 0,
-                            profilePicUrl: '',
-                            lastSeen: ''
-                        }));
-                    });
-                    
-                    if (storeMapped.length > 0) {
-                        sessionState.chats = storeMapped;
-                        io.to(SERVICE_ID).emit('wa_chats', storeMapped);
-                        log(`Store fallback found ${storeMapped.length} chats`);
-                    } else {
-                        // Double check: If both getChats and Store failed, try one last fetch after delay
-                        log('Store fallback also empty. Waiting 2s for final attempt...');
-                        setTimeout(async () => {
-                             try {
-                                 const c = await client.getChats();
-                                 if (c && c.length > 0) {
-                                     // If we got chats now, trigger full flow again
-                                     fetchAndEmitChats(); 
-                                 } else {
-                                     // Really empty
-                                     log('Final attempt empty. Emitting empty list.');
-                                     io.to(SERVICE_ID).emit('wa_chats', []);
-                                 }
-                             } catch(e) { 
-                                 io.to(SERVICE_ID).emit('wa_chats', []); 
-                             }
-                        }, 2000);
-                    }
-                } catch(e) { 
-                    log(`Store fallback error: ${e}`);
-                    io.to(SERVICE_ID).emit('wa_chats', []); 
-                }
-            }
-
-            // Retry Logic (Simplified for Worker)
-            if (mappedBasic.length === 0) {
-                setTimeout(() => {
-                   if (sessionState.chats.length === 0) {
-                       log('Retry 1...');
-                       client.getChats().then(c => {
-                           if(c.length > 0) fetchAndEmitChats();
-                           else if (client.pupPage) client.pupPage.reload().catch(e=>log('Reload fail:'+e));
-                       }).catch(e=>{});
-                   }
-                }, 10000);
-            }
-
-        } catch (err) {
-            log(`Error fetching chats: ${err}`);
+    try {
+        log('Fetching chats...');
+        const chats = await client.getChats();
+        
+        // 1. User Info
+        if (client.info) {
+            let myProfilePic = null;
+            try {
+                if (client.info.wid) myProfilePic = await client.getProfilePicUrl(client.info.wid._serialized);
+            } catch (e) {}
+            io.to(SERVICE_ID).emit('wa_user_info', {
+                name: client.info.pushname,
+                id: client.info.wid._serialized,
+                profilePicUrl: myProfilePic,
+                serviceId: SERVICE_ID
+            });
         }
-    });
+
+        // 2. Map Chats
+        const mappedBasic = await Promise.all(chats.map(async c => {
+            let profilePicUrl = '';
+            const chatId = c.id?._serialized || c.id || '';
+            
+            const existing = sessionState.chats.find(ec => ec.id === chatId);
+            if (existing && existing.profilePicUrl) {
+                profilePicUrl = existing.profilePicUrl;
+            }
+
+            return {
+                id: c.id?._serialized || c.id || '',
+                name: c.name || c.formattedTitle || c.pushname || (c.contact?.name) || (c.contact?.pushname) || (c.id?.user) || 'Unknown',
+                isGroup: !!c.isGroup,
+                unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+                lastMessage: c.lastMessage?.body || '',
+                lastTimestamp: c.lastMessage?.timestamp || 0,
+                lastMessageFromMe: c.lastMessage?.fromMe || false,
+                lastMessageAck: c.lastMessage?.ack || 0,
+                profilePicUrl: profilePicUrl,
+                lastSeen: c.lastMessage?.timestamp ? `Last active ${new Date(c.lastMessage.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '',
+                archived: c.archived || false
+            };
+        }));
+        
+        mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+
+        const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+
+        sessionState.chats = mappedBasic;
+        
+        if (mappedBasic.length > 0) {
+            io.to(SERVICE_ID).emit('wa_chats', mappedBasic);
+            log(`Emitted ${mappedBasic.length} chats (basic info)`);
+            
+            // Background fetch profile pics
+            (async () => {
+                for (const chat of mappedBasic) { 
+                    if (chat.profilePicUrl) continue;
+                    try {
+                        const contact = await client.getContactById(chat.id);
+                        const picUrl = await contact.getProfilePicUrl();
+                        if (picUrl) {
+                            chat.profilePicUrl = picUrl;
+                            const stateChat = sessionState.chats.find(c => c.id === chat.id);
+                            if (stateChat) stateChat.profilePicUrl = picUrl;
+                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+                        }
+                    } catch(e) {}
+                    await new Promise(r => setTimeout(r, 50)); 
+                }
+            })();
+        } else {
+            log('getChats returned empty, trying Store fallback...');
+        }
+
+        // Store Fallback
+        if (mappedBasic.length === 0 && client.pupPage) {
+            try {
+                const storeMapped = await client.pupPage.evaluate(async () => {
+                    if (!window.Store || !window.Store.Chats) return [];
+                    const models = window.Store.Chats.models || [];
+                    return models.map((c) => ({
+                        id: c.id?._serialized || c.id || '',
+                        name: c.formattedTitle || c.name || 'Unknown',
+                        isGroup: !!c.isGroup,
+                        unreadCount: c.unreadCount || 0,
+                        lastMessage: (c.lastMessage || {}).body || '',
+                        lastTimestamp: (c.lastMessage || {}).timestamp || 0,
+                        profilePicUrl: '',
+                        lastSeen: ''
+                    }));
+                });
+                
+                if (storeMapped.length > 0) {
+                    sessionState.chats = storeMapped;
+                    io.to(SERVICE_ID).emit('wa_chats', storeMapped);
+                    log(`Store fallback found ${storeMapped.length} chats`);
+                } else {
+                     io.to(SERVICE_ID).emit('wa_chats', []); 
+                }
+            } catch(e) { 
+                log(`Store fallback error: ${e}`);
+                io.to(SERVICE_ID).emit('wa_chats', []); 
+            }
+        }
+
+    } catch (err) {
+        log(`Error fetching chats: ${err}`);
+        io.to(SERVICE_ID).emit('wa_chats', []);
+    }
   };
 
   client.on('ready', () => {
@@ -643,19 +551,19 @@ const initializeWhatsApp = async () => {
     }
 
     let quotedMsg = undefined;
-    if (msg.hasQuotedMsg) {
-        try {
-            const q = await msg.getQuotedMessage();
-            if (q) {
-                quotedMsg = {
-                    id: q.id._serialized,
-                    body: q.body,
-                    author: q.author || q.from,
-                    fromMe: q.fromMe
-                };
-            }
-        } catch(e) {}
-    }
+    // if (msg.hasQuotedMsg) {
+    //     try {
+    //         const q = await msg.getQuotedMessage();
+    //         if (q) {
+    //             quotedMsg = {
+    //                 id: q.id._serialized,
+    //                 body: q.body,
+    //                 author: q.author || q.from,
+    //                 fromMe: q.fromMe
+    //             };
+    //         }
+    //     } catch(e) {}
+    // }
 
     const mappedMsg = {
       id: msg.id._serialized,
