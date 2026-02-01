@@ -19,7 +19,10 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } }); // Main socket for global events (optional)
+const io = new Server(server, { 
+  cors: { origin: "*" },
+  maxHttpBufferSize: 50 * 1024 * 1024 // 50MB to handle large image/media uploads
+}); // Main socket for global events (optional)
 
 const PORT = process.env.PORT || 3005;
 const BASE_WORKER_PORT = 3006;
