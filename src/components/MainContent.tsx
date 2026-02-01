@@ -1125,7 +1125,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 onContextMenu={(e) => handleMsgContextMenu(e, m)}
                                 className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-lg relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none backdrop-blur-md border hover:shadow-2xl hover:-translate-y-0.5
                                 ${m.fromMe 
-                                    ? 'bg-gradient-to-br from-blue-700/90 to-blue-900/90 text-white border-blue-500/30 rounded-tr-none shadow-[0_0_15px_rgba(0,100,255,0.2)]' 
+                                    ? 'bg-gradient-to-br from-[#4a0072]/90 to-[#240046]/95 text-white border-purple-500/30 rounded-tr-none shadow-[0_0_15px_rgba(188,19,254,0.2)]' 
                                     : 'bg-[#2a2a35]/95 text-white border-white/20 rounded-tl-none hover:bg-[#323242]'
                                 }`}
                             >
