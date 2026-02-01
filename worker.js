@@ -182,6 +182,10 @@ const handleDownloadMedia = async (data) => {
 
 const handleSendMessage = async (data) => {
     const body = data.message || data.body;
+    const { quotedMessageId } = data;
+    
+    if (quotedMessageId) log(`Sending message with reply to: ${quotedMessageId}`);
+
     let response = { status: 'error', error: 'Unknown error' };
 
     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
@@ -189,9 +193,9 @@ const handleSendMessage = async (data) => {
             let sentMsg;
             if (data.media) {
                 const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
-                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body, quotedMessageId });
             } else {
-                sentMsg = await sessionState.client.sendMessage(data.chatId, body); 
+                sentMsg = await sessionState.client.sendMessage(data.chatId, body, { quotedMessageId }); 
             }
             if (sentMsg) {
                  response = { status: 'success', messageId: sentMsg.id._serialized };
@@ -203,12 +207,14 @@ const handleSendMessage = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
             let result;
+            const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
+
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer, replyTo });
             } else {
-                result = await sessionState.client.sendMessage(data.chatId, { message: body });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, replyTo });
             }
              if (result) {
                  // GramJS message object has id property

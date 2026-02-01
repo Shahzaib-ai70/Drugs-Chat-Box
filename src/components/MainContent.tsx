@@ -1261,6 +1261,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         </div>
                         
                         <div className="flex-1 relative">
+
                              {showEmojiPicker && (
                                 <div className="absolute bottom-14 left-0 z-50 shadow-xl rounded-xl border border-gray-100">
                                     <EmojiPicker onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
