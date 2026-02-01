@@ -772,6 +772,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     e.stopPropagation();
   };
 
+  const processFile = (file: File) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          setPendingAttachments(prev => [...prev, {
+              mimetype: file.type || 'application/octet-stream',
+              data: base64Data,
+              filename: file.name
+          }]);
+      };
+      reader.readAsDataURL(file);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -779,40 +793,29 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    files.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64 = event.target?.result as string;
-          const base64Data = base64.split(',')[1];
-          setPendingAttachments(prev => [...prev, {
-            mimetype: file.type,
-            data: base64Data,
-            filename: file.name
-          }]);
-        };
-        reader.readAsDataURL(file);
+    files.forEach(processFile);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+      const items = e.clipboardData.items;
+      let hasFile = false;
+      
+      Array.from(items).forEach(item => {
+          const blob = item.getAsFile();
+          if (blob) {
+              hasFile = true;
+              processFile(blob);
+          }
+      });
+
+      if (hasFile) {
+          e.preventDefault();
       }
-    });
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-        Array.from(e.target.files).forEach(file => {
-             if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64 = event.target?.result as string;
-                    const base64Data = base64.split(',')[1];
-                    setPendingAttachments(prev => [...prev, {
-                        mimetype: file.type,
-                        data: base64Data,
-                        filename: file.name
-                    }]);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+        Array.from(e.target.files).forEach(processFile);
         // Reset input value to allow selecting same file again
         e.target.value = '';
     }
@@ -957,6 +960,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             className="flex-1 bg-[#F0F2F5] flex flex-col h-full overflow-hidden relative"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
+            onPaste={handlePaste}
           >
             
             {/* 2FA Modal */}
@@ -1232,7 +1236,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 ref={fileInputRef} 
                                 className="hidden" 
                                 multiple 
-                                accept="image/*"
                                 onChange={handleFileInputChange}
                             />
                         </div>
@@ -1287,32 +1290,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <textarea
                                 value={messageInput}
                                 onChange={(e) => setMessageInput(e.target.value)}
-                                onPaste={(e) => {
-                                    const items = e.clipboardData.items;
-                                    let hasImage = false;
-                                    Array.from(items).forEach(item => {
-                                        if (item.type.indexOf('image') !== -1) {
-                                            hasImage = true;
-                                            const blob = item.getAsFile();
-                                            if (blob) {
-                                                const reader = new FileReader();
-                                                reader.onload = (event) => {
-                                                    const base64 = event.target?.result as string;
-                                                    const base64Data = base64.split(',')[1];
-                                                    setPendingAttachments(prev => [...prev, {
-                                                        mimetype: blob.type,
-                                                        data: base64Data,
-                                                        filename: 'image.png'
-                                                    }]);
-                                                };
-                                                reader.readAsDataURL(blob);
-                                            }
-                                        }
-                                    });
-                                    if (hasImage) {
-                                        e.preventDefault();
-                                    }
-                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
