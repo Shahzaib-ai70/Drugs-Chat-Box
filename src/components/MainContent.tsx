@@ -190,11 +190,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; author?: string; fromMe: boolean; media?: any } | null>(null);
-  const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<Array<{ mimetype: string; data: string; filename: string }>>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const msgMenuRef = useRef<HTMLDivElement>(null);
 
   const [lastEventLog, setLastEventLog] = useState<string>('');
   
