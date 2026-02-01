@@ -258,17 +258,35 @@ const handleGetChatHistory = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
-             const mapped = messages.map(msg => ({
-                id: msg.id.toString(),
-                chatId: chatId,
-                author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
-                fromMe: msg.out,
-                body: msg.text || '',
-                timestamp: msg.date,
-                type: 'chat',
-                hasMedia: !!msg.media,
-                media: null,
-                ack: 1
+             const mapped = await Promise.all(messages.map(async (msg) => {
+                let quotedMsg = undefined;
+                if (msg.replyTo) {
+                    try {
+                        const q = await msg.getReplyMessage();
+                        if (q) {
+                            quotedMsg = {
+                                id: q.id.toString(),
+                                body: q.text || '',
+                                author: (await q.getSender())?.username || 'Unknown',
+                                fromMe: q.out
+                            };
+                        }
+                    } catch(e) {}
+                }
+
+                return {
+                    id: msg.id.toString(),
+                    chatId: chatId,
+                    author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
+                    fromMe: msg.out,
+                    body: msg.text || '',
+                    timestamp: msg.date,
+                    type: 'chat',
+                    hasMedia: !!msg.media,
+                    media: null,
+                    quotedMsg: quotedMsg,
+                    ack: 1
+                };
              }));
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -577,6 +595,21 @@ const initializeWhatsApp = async () => {
         } catch (e) {}
     }
 
+    let quotedMsg = undefined;
+    if (msg.hasQuotedMsg) {
+        try {
+            const q = await msg.getQuotedMessage();
+            if (q) {
+                quotedMsg = {
+                    id: q.id._serialized,
+                    body: q.body,
+                    author: q.author || q.from,
+                    fromMe: q.fromMe
+                };
+            }
+        } catch(e) {}
+    }
+
     const mappedMsg = {
       id: msg.id._serialized,
       chatId: chatId,
@@ -587,6 +620,7 @@ const initializeWhatsApp = async () => {
       type: msg.type,
       hasMedia: msg.hasMedia,
       media: media,
+      quotedMsg: quotedMsg,
       ack: msg.ack
     };
     
@@ -744,6 +778,21 @@ const initializeTelegram = async () => {
          } catch(e) { log(`TG Media Download Error: ${e}`); }
     }
 
+    let quotedMsg = undefined;
+    if (message.replyTo) {
+         try {
+             const q = await message.getReplyMessage();
+             if (q) {
+                 quotedMsg = {
+                    id: q.id.toString(),
+                    body: q.text || '',
+                    author: (await q.getSender())?.username || 'Unknown',
+                    fromMe: q.out
+                 };
+             }
+         } catch(e) {}
+    }
+
     const mappedMsg = {
         id: message.id.toString(),
         chatId: chatId,
@@ -754,6 +803,7 @@ const initializeTelegram = async () => {
         type: 'chat',
         hasMedia: !!message.media,
         media: media,
+        quotedMsg: quotedMsg,
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);

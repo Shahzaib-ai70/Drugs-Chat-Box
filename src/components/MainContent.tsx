@@ -1106,8 +1106,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             >
                                 {/* Quoted Message */}
                                 {m.quotedMsg && (
-                                    <div className="mb-2 bg-black/5 p-2 rounded-lg border-l-[4px] border-blue-500 text-xs">
-                                        <div className="font-bold text-blue-600 mb-0.5">
+                                    <div className="mb-2 bg-black/5 p-2 rounded-lg border-l-[4px] border-[#005c4b] text-xs">
+                                        <div className="font-bold text-[#005c4b] mb-0.5">
                                             {m.quotedMsg.fromMe ? t.you : (m.quotedMsg.author || t.contact)}
                                         </div>
                                         <div className="truncate text-gray-500 line-clamp-2">
