@@ -59,6 +59,21 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       }
   };
 
+  const handleDeleteChat = (chatId: string) => {
+      if (window.confirm(t.deleteChatConfirm || 'Are you sure you want to delete this chat?')) {
+          if (socketRef.current && activeService?.id) {
+              socketRef.current.emit('delete_chat', { 
+                  serviceId: activeService.id, 
+                  chatId 
+              });
+              // Optimistic update
+              setChats(prev => prev.filter(c => c.id !== chatId));
+              if (activeChatId === chatId) setActiveChatId(null);
+          }
+      }
+      setContextMenu(null);
+  };
+
   const handleContextMenu = (e: React.MouseEvent, chatId: string, archived: boolean) => {
       e.preventDefault();
       setContextMenu({ x: e.clientX, y: e.clientY, chatId, archived });
@@ -784,6 +799,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         });
     });
 
+    socket.on('message_deleted', ({ chatId, messageId }: { chatId: string, messageId: string }) => {
+        setMessagesByChat(prev => {
+            const normId = normalizeId(chatId);
+            const current = prev[normId] || [];
+            return {
+                ...prev,
+                [normId]: current.filter(m => m.id !== messageId)
+            };
+        });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -1475,16 +1501,46 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <Copy size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.copy}
                     </button>
                     <div className="h-px bg-white/10 my-1 mx-2" />
+                    
+                    {/* Delete for Everyone (only if from me) */}
+                    {msgContextMenu.msg.fromMe && (
+                        <button 
+                            onClick={() => {
+                                if (socketRef.current && activeService?.id) {
+                                    socketRef.current.emit('delete_message', { 
+                                        serviceId: activeService.id, 
+                                        messageId: msgContextMenu.msg.id,
+                                        chatId: msgContextMenu.msg.chatId,
+                                        everyone: true 
+                                    });
+                                    // Optimistic UI update
+                                    setMessagesByChat(prev => {
+                                        const normId = normalizeId(msgContextMenu.msg.chatId);
+                                        const current = prev[normId] || [];
+                                        return {
+                                            ...prev,
+                                            [normId]: current.filter(m => m.id !== msgContextMenu.msg.id)
+                                        };
+                                    });
+                                }
+                                setMsgContextMenu(null);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
+                        >
+                            <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.deleteForEveryone || 'Delete for Everyone'}
+                        </button>
+                    )}
+
+                    {/* Delete for Me */}
                     <button 
                         onClick={() => {
                             if (socketRef.current && activeService?.id) {
-                                socketRef.current.emit('deleteMessage', { 
+                                socketRef.current.emit('delete_message', { 
                                     serviceId: activeService.id, 
-                                    msgId: msgContextMenu.msg.id,
+                                    messageId: msgContextMenu.msg.id,
                                     chatId: msgContextMenu.msg.chatId,
-                                    everyone: true 
+                                    everyone: false 
                                 });
-
                                 // Optimistic UI update
                                 setMessagesByChat(prev => {
                                     const normId = normalizeId(msgContextMenu.msg.chatId);
@@ -1499,7 +1555,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }}
                         className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
                     >
-                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> Delete
+                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.deleteForMe || 'Delete for Me'}
                     </button>
                 </div>
             )}
@@ -1509,8 +1565,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 <>
                     <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)}></div>
                     <div 
-                        className="fixed z-50 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl py-1 w-40 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
-                        style={{ top: contextMenu.y, left: contextMenu.x }}
+                        className="fixed z-50 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl py-1 w-48 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                        style={{ 
+                            top: Math.min(contextMenu.y, window.innerHeight - 100), 
+                            left: Math.min(contextMenu.x, window.innerWidth - 200) 
+                        }}
                     >
                         <button 
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 hover:text-neon-blue transition-colors flex items-center gap-2"
@@ -1518,6 +1577,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         >
                             <Download size={14} className={contextMenu.archived ? "rotate-180" : ""} />
                             {contextMenu.archived ? (t.unarchive || 'Unarchive') : (t.archive || 'Archive')}
+                        </button>
+                        <button 
+                            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-2"
+                            onClick={() => handleDeleteChat(contextMenu.chatId)}
+                        >
+                            <Trash2 size={14} />
+                            {t.deleteChat || 'Delete Chat'}
                         </button>
                     </div>
                 </>

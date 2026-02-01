@@ -523,6 +523,18 @@ io.on('connection', (socket) => {
         if (worker) worker.process.send({ type: 'command', command: 'archive_chat', data });
     });
 
+    socket.on('delete_chat', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'delete_chat', data });
+    });
+
+    socket.on('delete_message', (data) => {
+        const { serviceId } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'delete_message', data });
+    });
+
     socket.on('fb_login_submit', (data) => {
         const { serviceId, email, password } = data;
         const worker = workers.get(serviceId);

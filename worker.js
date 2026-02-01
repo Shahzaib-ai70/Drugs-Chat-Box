@@ -134,8 +134,61 @@ process.on('message', async (msg) => {
         handleDownloadMedia(data);
     } else if (command === 'archive_chat') {
         handleArchiveChat(data);
+    } else if (command === 'delete_chat') {
+        handleDeleteChat(data);
+    } else if (command === 'delete_message') {
+        handleDeleteMessage(data);
     }
 });
+
+const handleDeleteChat = async (data) => {
+    const { chatId } = data;
+    log(`Deleting chat ${chatId}`);
+    
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            await chat.delete();
+            // Update local state
+            sessionState.chats = sessionState.chats.filter(c => c.id !== chatId);
+            io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
+        } catch(e) { log(`Delete Chat Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            await sessionState.client.deleteDialog(chatId);
+            sessionState.chats = sessionState.chats.filter(c => c.id !== chatId);
+            io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
+        } catch(e) { log(`TG Delete Chat Error: ${e}`); }
+    }
+};
+
+const handleDeleteMessage = async (data) => {
+    const { chatId, messageId, everyone } = data;
+    log(`Deleting message ${messageId} in ${chatId} (Everyone: ${everyone})`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            // WhatsApp requires the Message object to delete. 
+            // We'll search in recent messages.
+            const messages = await chat.fetchMessages({ limit: 50 }); 
+            const msg = messages.find(m => m.id._serialized === messageId);
+            
+            if (msg) {
+                await msg.delete(!!everyone);
+                io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
+            } else {
+                log('Message not found for deletion');
+            }
+        } catch(e) { log(`WA Delete Message Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            const msgIds = [parseInt(messageId)];
+            await sessionState.client.deleteMessages(chatId, msgIds, { revoke: !!everyone });
+            io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
+        } catch(e) { log(`TG Delete Message Error: ${e}`); }
+    }
+};
 
 const handleArchiveChat = async (data) => {
     const { chatId, archive } = data;
@@ -446,6 +499,16 @@ const initializeWhatsApp = async () => {
     sessionState.status = 'QR_READY';
     io.to(SERVICE_ID).emit('qr', qr);
     io.to(SERVICE_ID).emit('status', 'QR_READY');
+  });
+
+  client.on('message_revoke_everyone', async (after, before) => {
+      if (after) {
+          io.to(SERVICE_ID).emit('message_deleted', { chatId: after.id.remote, messageId: after.id._serialized });
+      }
+  });
+
+  client.on('message_revoke_me', async (msg) => {
+      io.to(SERVICE_ID).emit('message_deleted', { chatId: msg.id.remote, messageId: msg.id._serialized });
   });
 
   const fetchAndEmitChats = async (retryCount = 0) => {
