@@ -45,6 +45,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const activeChatIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
+  const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
   const handleArchiveChat = (chatId: string, archive: boolean) => {
       if (socketRef.current && activeService?.id) {
@@ -417,6 +418,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     setChats([]);
     setMyProfile(null);
     setMessagesByChat({});
+    setTypingStatus({});
     setQrValue('');
     setIsConnected(false);
     setIsAuthenticating(false);
@@ -530,6 +532,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             });
             return sortChats(updated);
         });
+    });
+
+    socket.on('chat_typing', ({ chatId, isTyping }) => {
+        setTypingStatus(prev => ({ ...prev, [chatId]: isTyping }));
+        if (isTyping) {
+            setTimeout(() => {
+                setTypingStatus(prev => ({ ...prev, [chatId]: false }));
+            }, 5000);
+        }
     });
 
     socket.on('wa_loading', ({ percent, message }) => {
@@ -1015,7 +1026,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                        )}
                                    </span>
                                )}
-                               <span className="truncate">{c.lastMessage}</span>
+                               {typingStatus[c.id] ? (
+                                   <span className="text-neon-blue font-bold animate-pulse">Typing...</span>
+                               ) : (
+                                   <span className="truncate">{c.lastMessage}</span>
+                               )}
                            </div>
                            {c.unreadCount > 0 && (
                              <div className="min-w-[18px] h-[18px] px-1.5 bg-neon-purple rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-[0_0_10px_rgba(188,19,254,0.6)] animate-pulse">
@@ -1134,7 +1149,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <div className="text-white font-bold text-sm tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
                                 {chats.find(c => c.id === activeChatId)?.name || normalizeId(activeChatId || '')}
                             </div>
-                            {chats.find(c => c.id === activeChatId)?.lastSeen && (
+                            {typingStatus[activeChatId] ? (
+                                <div className="text-neon-blue text-xs font-medium flex items-center gap-1 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] mt-0.5 animate-pulse">
+                                    <span className="w-1.5 h-1.5 bg-neon-blue rounded-full shadow-[0_0_5px_rgba(0,243,255,1)]"></span>
+                                    Typing...
+                                </div>
+                            ) : chats.find(c => c.id === activeChatId)?.lastSeen && (
                                 <div className="text-neon-blue text-xs font-medium flex items-center gap-1 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] mt-0.5">
                                     <span className="w-1.5 h-1.5 bg-neon-blue rounded-full shadow-[0_0_5px_rgba(0,243,255,1)] animate-pulse"></span>
                                     {chats.find(c => c.id === activeChatId)?.lastSeen}
