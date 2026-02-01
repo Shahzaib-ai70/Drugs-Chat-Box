@@ -486,6 +486,20 @@ io.on('connection', (socket) => {
         if (worker) worker.process.send({ type: 'command', command: 'fb_input_event', data: event });
     });
 
+    socket.on('fb_update_translation', (data) => {
+        // data contains autoTranslateIncoming, targetLang, and implicitly the socket context but we need serviceId
+        // The socket is joined to rooms, but for this specific event we need to know WHICH service.
+        // Usually the client emits serviceId with the event.
+        // Update RemoteBrowserView to send serviceId in the payload.
+    });
+
+    // Better implementation: Update the event listener to expect serviceId
+    socket.on('fb_update_translation', (data) => {
+        const { serviceId, ...settings } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_update_translation', data: settings });
+    });
+
     socket.on('fb_2fa_submit', (data) => {
         const { serviceId, code } = data;
         const worker = workers.get(serviceId);

@@ -19,6 +19,18 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
   useEffect(() => {
     if (!socket) return;
 
+    // Send translation settings to worker
+    socket.emit('fb_update_translation', {
+        serviceId,
+        autoTranslateIncoming: translationSettings?.autoTranslateIncoming,
+        targetLang: translationSettings?.translateToLang || 'en'
+    });
+
+  }, [socket, translationSettings]);
+
+  useEffect(() => {
+    if (!socket) return;
+
     const handleScreenUpdate = (data: { data: string }) => {
       setImageSrc(`data:image/jpeg;base64,${data.data}`);
       setIsConnected(true);

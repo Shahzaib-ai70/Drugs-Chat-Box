@@ -4,6 +4,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
+import translate from 'translate-google';
 
 // Environment Variables
 const PORT = process.env.PORT || 3007;
@@ -61,7 +62,11 @@ const sessionState = {
     browser: null,
     page: null,
     status: 'INITIALIZING', 
-    isScreencasting: false
+    isScreencasting: false,
+    translationSettings: {
+        autoTranslateIncoming: false,
+        targetLang: 'en'
+    }
 };
 
 // Initialize Facebook
@@ -93,6 +98,65 @@ const initFacebook = async () => {
         
         log('Navigating to Facebook...');
         await sessionState.page.goto('https://www.facebook.com', { waitUntil: 'networkidle2' });
+
+        // Expose Translation Service to Page
+        await sessionState.page.exposeFunction('translateService', async (text) => {
+            if (!sessionState.translationSettings.autoTranslateIncoming) return null;
+            try {
+                const res = await translate(text, { to: sessionState.translationSettings.targetLang });
+                return res;
+            } catch (e) {
+                // log('Translation error: ' + e);
+                return null;
+            }
+        });
+
+        // Inject Mutation Observer for Translation
+        await sessionState.page.evaluate(() => {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                const el = node;
+                                // Basic Heuristic for Message Bubbles:
+                                // 1. Look for text content
+                                // 2. Check if it's likely a message (div with dir="auto" is common in FB)
+                                // 3. Avoid inputs and small UI elements
+                                const textNodes = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+                                let currentNode;
+                                while(currentNode = textNodes.nextNode()) {
+                                    if(currentNode.parentElement.tagName === 'SCRIPT' || 
+                                       currentNode.parentElement.tagName === 'STYLE' ||
+                                       currentNode.parentElement.isContentEditable) continue;
+
+                                    const text = currentNode.nodeValue.trim();
+                                    // Translate if long enough and not already translated
+                                    if (text.length > 3 && !currentNode.parentElement.getAttribute('data-translated')) {
+                                        const parent = currentNode.parentElement;
+                                        parent.setAttribute('data-translated', 'pending');
+                                        
+                                        window.translateService(text).then(translated => {
+                                            if (translated) {
+                                                currentNode.nodeValue = translated;
+                                                parent.setAttribute('data-translated', 'true');
+                                                parent.setAttribute('title', 'Original: ' + text); // Tooltip
+                                                parent.style.borderBottom = '1px dashed #888'; // Indicator
+                                            } else {
+                                                parent.removeAttribute('data-translated');
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Start observing broadly (body) but be careful with performance
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
 
         // Start Screencast immediately
         startScreencast();
@@ -133,6 +197,13 @@ process.on('message', async (msg) => {
 
     if (command === 'request_state') {
         io.to(SERVICE_ID).emit('status', 'READY'); // Always claim ready so frontend shows view
+    } else if (command === 'fb_update_translation') {
+        // Update translation settings
+        sessionState.translationSettings = {
+            autoTranslateIncoming: data.autoTranslateIncoming,
+            targetLang: data.targetLang
+        };
+        log(`Updated Translation Settings: ${JSON.stringify(sessionState.translationSettings)}`);
     } else if (command === 'fb_input_event') {
         if (!sessionState.page) return;
         const { type, x, y, text, key } = data;
