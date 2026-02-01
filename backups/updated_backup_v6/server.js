@@ -19,7 +19,10 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } }); // Main socket for global events (optional)
+const io = new Server(server, { 
+  cors: { origin: "*" },
+  maxHttpBufferSize: 50 * 1024 * 1024 // 50MB to handle large image/media uploads
+}); // Main socket for global events (optional)
 
 const PORT = process.env.PORT || 3005;
 const BASE_WORKER_PORT = 3006;
@@ -118,12 +121,13 @@ const spawnWorker = (service) => {
         log(`Assigned new port ${port} to service ${service.id}`);
     }
 
-    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : 'whatsapp';
+    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : service.service_id.startsWith('fb') ? 'facebook' : 'whatsapp';
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
     // Use fork for IPC communication
-    const child = fork('worker.js', [], {
+    const workerFile = serviceType === 'facebook' ? 'worker_facebook.js' : 'worker.js';
+    const child = fork(workerFile, [], {
         env: { ...process.env, PORT: port, SERVICE_ID: service.id, SERVICE_TYPE: serviceType },
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
@@ -135,6 +139,13 @@ const spawnWorker = (service) => {
         if (msg.type === 'event') {
             // log(`Relay event ${msg.event} from ${service.id}`);
             io.to(service.id).emit(msg.event, msg.data);
+        } else if (msg.type === 'response') {
+            const { requestId, data } = msg;
+            if (pendingCallbacks.has(requestId)) {
+                const callback = pendingCallbacks.get(requestId);
+                callback(data);
+                pendingCallbacks.delete(requestId);
+            }
         }
     });
 
@@ -187,7 +198,12 @@ app.post('/api/create_service', (req, res) => {
     const { customName, serviceType, ownerCode } = req.body; // serviceType: 'whatsapp' or 'telegram'
     const id = (Date.now()).toString(36) + Math.random().toString(36).substr(2);
     // Fix: Check if serviceType starts with 'tg' to support tg1, tg2, etc.
-    const serviceId = (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) ? `tg_${id}` : id;
+    let serviceId = id;
+    if (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) {
+        serviceId = `tg_${id}`;
+    } else if (serviceType === 'facebook' || (serviceType && serviceType.startsWith('fb'))) {
+        serviceId = `fb_${id}`;
+    }
 
     try {
         const port = getNextFreePort();
@@ -379,6 +395,8 @@ if (fs.existsSync(distPath)) {
   });
 }
 
+const pendingCallbacks = new Map();
+
 // Socket.IO Gateway Logic
 io.on('connection', (socket) => {
     log(`Client connected to Master Gateway: ${socket.id}`);
@@ -408,13 +426,25 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('sendMessage', (data) => {
+    socket.on('sendMessage', (data, callback) => {
         const { serviceId } = data;
         const worker = workers.get(serviceId);
         if (worker && worker.process) {
-            worker.process.send({ type: 'command', command: 'sendMessage', data });
+            const requestId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            if (typeof callback === 'function') {
+                pendingCallbacks.set(requestId, callback);
+                // Set timeout to clear callback if no response
+                setTimeout(() => {
+                    if (pendingCallbacks.has(requestId)) {
+                        pendingCallbacks.delete(requestId);
+                        callback({ status: 'error', error: 'Timeout' });
+                    }
+                }, 30000);
+            }
+            worker.process.send({ type: 'command', command: 'sendMessage', data, requestId });
         } else {
-            socket.emit('error', 'Service not running');
+            if (typeof callback === 'function') callback({ status: 'error', error: 'Service not running' });
+            else socket.emit('error', 'Service not running');
         }
     });
 
@@ -445,6 +475,38 @@ io.on('connection', (socket) => {
         const { serviceId } = data;
         const worker = workers.get(serviceId);
         if (worker) worker.process.send({ type: 'command', command: 'download_media', data });
+    });
+
+    socket.on('fb_login_submit', (data) => {
+        const { serviceId, email, password } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_login_submit', data: { email, password } });
+    });
+
+    socket.on('fb_input_event', (data) => {
+        const { serviceId, event } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_input_event', data: event });
+    });
+
+    socket.on('fb_update_translation', (data) => {
+        // data contains autoTranslateIncoming, targetLang, and implicitly the socket context but we need serviceId
+        // The socket is joined to rooms, but for this specific event we need to know WHICH service.
+        // Usually the client emits serviceId with the event.
+        // Update RemoteBrowserView to send serviceId in the payload.
+    });
+
+    // Better implementation: Update the event listener to expect serviceId
+    socket.on('fb_update_translation', (data) => {
+        const { serviceId, ...settings } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_update_translation', data: settings });
+    });
+
+    socket.on('fb_2fa_submit', (data) => {
+        const { serviceId, code } = data;
+        const worker = workers.get(serviceId);
+        if (worker) worker.process.send({ type: 'command', command: 'fb_2fa_submit', data: { code } });
     });
 });
 

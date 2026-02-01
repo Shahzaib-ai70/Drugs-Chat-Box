@@ -40,12 +40,13 @@ else
     echo " -> UFW not found. Skipping firewall config."
 fi
 
-# 1. DELETE ONLY CONFLICTING CONFIGS (Safe Mode)
+# 1. CLEAN EXISTING CONFIG (Safe Mode)
 echo ""
-echo "[1] Removing old 'default' config if exists..."
+echo "[1] Configuring Nginx..."
+# Only remove default and our own config, do NOT touch other projects
 rm -f /etc/nginx/sites-enabled/default
-# Remove our own previous config to update it, but leave others alone
 rm -f /etc/nginx/sites-enabled/dlchats-app
+echo " -> Cleaned up old dlchats-app config."
 
 # 2. Setup New Project Nginx Config (FORCE OVERWRITE)
 echo ""

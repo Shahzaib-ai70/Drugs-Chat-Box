@@ -166,74 +166,55 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
 
   return (
     <div 
-      className="flex-1 h-full bg-[#0f0c29] flex flex-col overflow-hidden relative"
+      className="flex-1 h-full bg-gray-900 flex flex-col overflow-hidden"
       onKeyDown={handleContainerKeyDown}
       onPaste={handlePaste}
       tabIndex={0} // Make div focusable to capture keyboard events
       style={{ outline: 'none' }}
     >
-      {/* Background Ambience */}
-      <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-900/10 rounded-full blur-[100px]"></div>
-      </div>
-
       {/* Header */}
-      <div className="w-full bg-[#1a1a2e]/90 backdrop-blur-md border-b border-white/10 text-white p-3 text-sm flex justify-between items-center shrink-0 z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center border border-blue-500/30 shadow-[0_0_10px_rgba(37,99,235,0.2)]">
-                <span className="font-bold text-blue-400">FB</span>
-            </div>
-            <div>
-                <span className="font-semibold tracking-wide text-gray-100 block leading-tight">Remote View</span>
-                <span className="text-[10px] text-gray-500 font-mono tracking-wider">{serviceId}</span>
-            </div>
+      <div className="w-full bg-gray-800 text-white p-2 text-sm flex justify-between items-center shrink-0 z-10 shadow-md">
+        <div className="flex items-center gap-2">
+            <span className="font-semibold">Facebook Remote View</span>
+            <span className="text-xs text-gray-400">({serviceId})</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
             {translationSettings?.autoTranslateOutgoing && (
-                <div className="flex items-center gap-2 text-xs text-neon-blue bg-neon-blue/10 border border-neon-blue/20 px-3 py-1.5 rounded-full shadow-[0_0_10px_rgba(0,243,255,0.1)]">
+                <div className="flex items-center gap-1 text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
                     <Languages size={12} />
-                    <span>To: <span className="font-bold">{translationSettings.translateBeforeSendingLang}</span></span>
+                    <span>Translating to: {translationSettings.translateBeforeSendingLang}</span>
                 </div>
             )}
-            <div className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
-                <span className={`h-2 w-2 rounded-full shadow-[0_0_5px_currentColor] ${isConnected ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'}`}></span>
-                <span className="text-xs text-gray-300 font-medium">{isConnected ? 'Live Stream' : 'Connecting...'}</span>
+            <div className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="text-xs text-gray-300">{isConnected ? 'Live' : 'Connecting'}</span>
             </div>
         </div>
       </div>
       
       {/* Main Viewport */}
-      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-transparent relative z-0">
+      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-gray-900/50">
         {imageSrc ? (
-          <div className="relative group perspective-1000">
-              <img
-                ref={imgRef}
-                src={imageSrc}
-                alt="Remote Browser"
-                className="shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 rounded-xl max-w-full max-h-full object-contain bg-white transform transition-transform duration-300"
-                onClick={(e) => handleMouseEvent(e, 'click')}
-                style={{ cursor: 'pointer' }}
-              />
-          </div>
+          <img
+            ref={imgRef}
+            src={imageSrc}
+            alt="Remote Browser"
+            className="shadow-2xl border border-gray-700 max-w-full max-h-full object-contain"
+            onClick={(e) => handleMouseEvent(e, 'click')}
+            style={{ cursor: 'pointer' }}
+          />
         ) : (
-          <div className="text-gray-400 flex flex-col items-center gap-6">
-            <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
-                </div>
-            </div>
-            <div className="text-center">
-                <p className="text-lg font-light tracking-wide text-white">Initializing Remote Browser</p>
-                <p className="text-xs text-gray-500 mt-2 tracking-widest uppercase">Secure Connection</p>
-            </div>
+          <div className="text-gray-400 flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+            <p>Connecting to Facebook Browser...</p>
+            <p className="text-xs text-gray-500">Please wait while the browser initializes</p>
           </div>
         )}
       </div>
 
       {/* Input Bar for Translation */}
-      <div className="w-full bg-[#1a1a2e]/90 backdrop-blur-md p-4 border-t border-white/10 shrink-0 flex gap-3 items-center relative z-20">
-          <div className="flex-1 relative group">
+      <div className="w-full bg-white p-3 border-t border-gray-200 shrink-0 flex gap-2 items-center">
+          <div className="flex-1 relative">
             <input
                 type="text"
                 value={inputValue}
@@ -241,21 +222,21 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
                 onKeyDown={handleInputKeyDown}
                 placeholder={translationSettings?.autoTranslateOutgoing 
                     ? `Type here to auto-translate to ${translationSettings.translateBeforeSendingLang}...` 
-                    : "Type a message to send..."}
-                className="w-full bg-black/40 text-white border border-white/10 rounded-xl px-5 py-3 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 focus:bg-black/60 transition-all text-sm placeholder-gray-500 shadow-inner"
+                    : "Type a message..."}
+                className="w-full bg-gray-100 text-gray-800 border-0 rounded-full px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
             />
             {isTranslating && (
-                <div className="absolute right-4 top-3.5">
-                    <Loader2 className="animate-spin h-4 w-4 text-neon-blue" />
+                <div className="absolute right-3 top-2.5">
+                    <Loader2 className="animate-spin h-4 w-4 text-blue-500" />
                 </div>
             )}
           </div>
           <button 
             onClick={handleSend}
             disabled={!inputValue.trim() || isTranslating}
-            className="p-3 bg-neon-blue/20 hover:bg-neon-blue/40 disabled:opacity-50 disabled:hover:bg-neon-blue/20 text-neon-blue border border-neon-blue/50 rounded-xl transition-all shadow-[0_0_15px_rgba(0,243,255,0.2)] hover:shadow-[0_0_25px_rgba(0,243,255,0.4)] active:scale-95"
+            className="p-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 text-white rounded-full transition-colors shadow-sm"
           >
-            <Send size={20} className="ml-0.5" />
+            <Send size={18} />
           </button>
       </div>
     </div>

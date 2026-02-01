@@ -1,12 +1,14 @@
 import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
-import { FaWhatsapp } from 'react-icons/fa';
+import { FaWhatsapp, FaFacebookF } from 'react-icons/fa';
+import RemoteBrowserView from './RemoteBrowserView';
 import type { AddedService } from '../types';
 import type { TranslationSettings } from './TranslationPanel';
 import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
+import { useLanguage } from '../translations';
 
 interface MainContentProps {
   activeService?: AddedService;
@@ -23,16 +25,21 @@ interface PendingOriginal {
 }
 
 const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
+  const { t } = useLanguage();
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
   const [qrValue, setQrValue] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isLoginRequired, setIsLoginRequired] = useState(false); // For Facebook Login
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<{ percent: number; message: string } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
   const socketRef = useRef<Socket | null>(null);
-  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean }>>([]);
+  const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
+  const [chats, setChats] = useState<Array<{ id: string; name: string; isGroup: boolean; unreadCount: number; lastMessage: string; lastTimestamp: number; profilePicUrl?: string; lastSeen?: string; archived?: boolean; lastMessageFromMe?: boolean; lastMessageAck?: number }>>([]);
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
@@ -147,7 +154,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; author?: string; fromMe: boolean; media?: any } | null>(null);
   const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [pastedImage, setPastedImage] = useState<{ mimetype: string; data: string } | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Array<{ mimetype: string; data: string; filename: string }>>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const msgMenuRef = useRef<HTMLDivElement>(null);
 
@@ -225,125 +232,143 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   }, [activeChatId, translationSettings, messagesByChat]); // messagesByChat dependency ensures history load triggers this
 
   const handleSendMessage = async () => {
-    if ((!messageInput.trim() && !pastedImage) || !activeChatId || !activeService?.id) return;
+    if ((!messageInput.trim() && pendingAttachments.length === 0) || !activeChatId || !activeService?.id) return;
     
     if (!socketRef.current) {
         console.error('CRITICAL: Socket not connected when trying to send message');
-        alert('Connection lost. Please refresh the page.');
+        alert(t.connectionLost);
         return;
     }
-    
-    const tempId = 'temp_' + Date.now();
-    const timestamp = Math.floor(Date.now() / 1000);
 
-    let body = messageInput;
-    let originalBody: string | undefined = undefined;
+    const baseTimestamp = Math.floor(Date.now() / 1000);
+    let textToSend = messageInput;
+    let originalText: string | undefined = undefined;
 
     // Outgoing Translation
-    if (body.trim() && translationSettings?.autoTranslateOutgoing && 
+    if (textToSend.trim() && translationSettings?.autoTranslateOutgoing && 
         translationSettings.translateBeforeSendingLang && 
         translationSettings.translateBeforeSendingLang !== 'auto') {
         
         setIsTranslating(true);
-        const translated = await translateText(body, translationSettings.translateBeforeSendingLang);
+        const translated = await translateText(textToSend, translationSettings.translateBeforeSendingLang);
         setIsTranslating(false);
         
         if (translated) {
-            originalBody = body;
-            body = translated;
-            // FIX: Update ref immediately to avoid race condition with fast socket response
-            outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalBody! };
-            setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalBody! }));
+            originalText = textToSend;
+            textToSend = translated;
+        }
+    }
 
-            // Add to pending queue for recovery after refresh
-            setPendingOriginals(prev => [...prev, {
+    // Helper to send a single message
+    const sendSingleMessage = (content: string, media?: { mimetype: string; data: string; filename: string }) => {
+        const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const timestamp = baseTimestamp;
+
+        // Optimistic UI Update
+        const optimisticMsg = {
+            id: tempId,
+            chatId: activeChatId,
+            author: myProfile?.name || 'Me',
+            fromMe: true,
+            body: content,
+            timestamp: timestamp,
+            type: media ? (media.mimetype.startsWith('image/') ? 'image' : 'document') : 'chat',
+            ack: 0,
+            hasMedia: !!media,
+            media: media,
+            originalBody: (!media && originalText) ? originalText : undefined,
+            quotedMsg: replyingTo ? {
+                id: replyingTo.id,
+                body: replyingTo.body,
+                author: replyingTo.author || '',
+                fromMe: replyingTo.fromMe
+            } : undefined
+        };
+
+        if (originalText && !media) {
+             outgoingOriginalsRef.current = { ...outgoingOriginalsRef.current, [tempId]: originalText };
+             setOutgoingOriginals(prev => ({ ...prev, [tempId]: originalText! }));
+             
+             // Add to pending queue for recovery
+             setPendingOriginals(prev => [...prev, {
                 tempId,
-                body: translated,
-                original: originalBody!,
+                body: content,
+                original: originalText!,
                 timestamp,
                 chatId: activeChatId
             }]);
         }
+
+        setMessagesByChat(prev => {
+            const normId = normalizeId(activeChatId);
+            const current = prev[normId] || [];
+            return { ...prev, [normId]: [...current, optimisticMsg].sort((a, b) => a.timestamp - b.timestamp) };
+        });
+
+        // Update Chat List Preview
+        setChats(prevChats => {
+            const updated = prevChats.map(chat => {
+                if (normalizeId(chat.id) === normalizeId(activeChatId)) {
+                    return {
+                        ...chat,
+                        lastMessage: media ? (media.mimetype.startsWith('image/') ? '📷 Photo' : '📁 File') : content,
+                        lastTimestamp: timestamp
+                    };
+                }
+                return chat;
+            });
+            return sortChats(updated);
+        });
+
+        // Emit Socket Event
+        socketRef.current?.emit('sendMessage', {
+            type: 'sendMessage',
+            serviceId: activeService.id,
+            chatId: activeChatId,
+            body: content,
+            quotedMessageId: replyingTo?.id,
+            media: media
+        }, (response: any) => {
+            if (response?.status === 'error') {
+                console.error('Failed to send:', response.error);
+            } else if (response?.messageId) {
+                // Update temp ID to real ID
+                if (originalText && !media) {
+                     setOutgoingOriginals(prev => ({ ...prev, [response.messageId]: originalText! }));
+                }
+                
+                setMessagesByChat(prev => {
+                    const normId = normalizeId(activeChatId);
+                    const current = prev[normId] || [];
+                    const updated = current.map(m => m.id === tempId ? { ...m, id: response.messageId } : m);
+                    return { ...prev, [normId]: updated };
+                });
+            }
+        });
+    };
+
+    // 1. Send Text Message (if any)
+    if (textToSend.trim()) {
+        sendSingleMessage(textToSend.trim());
     }
 
-    // Optimistic Update: Immediately add message to UI
-    setMessagesByChat(prev => {
-        const normId = normalizeId(activeChatId);
-        const current = prev[normId] || [];
-        return { 
-            ...prev, 
-            [normId]: [...current, {
-                id: tempId,
-                chatId: activeChatId,
-                author: 'Me',
-                fromMe: true,
-                body: body,
-                timestamp: timestamp,
-                originalBody: originalBody,
-                ack: 0, // Pending
-                type: pastedImage ? 'image' : 'chat',
-                hasMedia: !!pastedImage,
-                media: pastedImage ? { mimetype: pastedImage.mimetype, data: pastedImage.data, filename: 'image.png' } : undefined,
-                quotedMsg: replyingTo ? {
-                    id: replyingTo.id,
-                    body: replyingTo.body,
-                    author: replyingTo.author || '',
-                    fromMe: replyingTo.fromMe
-                } : undefined
-            }]
-        };
-    });
-    
-    // Also update the chat list preview optimistically
-    setChats(prevChats => {
-        const updated = prevChats.map(chat => {
-            if (normalizeId(chat.id) === normalizeId(activeChatId)) {
-                return {
-                    ...chat,
-                    lastMessage: pastedImage ? '📷 Photo' : body,
-                    lastTimestamp: timestamp
-                };
-            }
-            return chat;
-        });
-        return sortChats(updated);
-    });
-
-    console.log('Sending message via WebSocket:', {
-        serviceId: activeService.id,
-        chatId: activeChatId,
-        body: body,
-        hasMedia: !!pastedImage
-    });
-
-    socketRef.current.emit('sendMessage', {
-        type: 'sendMessage', 
-        serviceId: activeService.id,
-        chatId: activeChatId,
-        body: body,
-        quotedMessageId: replyingTo?.id,
-        media: pastedImage ? { mimetype: pastedImage.mimetype, data: pastedImage.data, filename: 'image.png' } : undefined
-    }, (response: any) => {
-        console.log('Server Ack:', response);
-        if (response?.status === 'error') {
-            alert('Failed to send: ' + response.error);
-        } else if (response?.messageId) {
-            // Update the temp ID with real ID
-            if (originalBody) {
-                setOutgoingOriginals(prev => ({ ...prev, [response.messageId]: originalBody! }));
-            }
-            setMessagesByChat(prev => {
-                const normId = normalizeId(activeChatId);
-                const current = prev[normId] || [];
-                const updated = current.map(m => m.id === tempId ? { ...m, id: response.messageId } : m);
-                return { ...prev, [normId]: updated };
-            });
+    // 2. Send Attachments
+    const sendAttachments = async () => {
+        for (let i = 0; i < pendingAttachments.length; i++) {
+            const att = pendingAttachments[i];
+            await new Promise(r => setTimeout(r, 200 + (i * 50))); 
+            // Send media without filename as caption (empty string)
+            sendSingleMessage('', att);
         }
-    });
-    
+    };
+
+    if (pendingAttachments.length > 0) {
+        sendAttachments();
+    }
+
     setMessageInput('');
+    setPendingAttachments([]);
     setReplyingTo(null);
-    setPastedImage(null);
   };
 
   useEffect(() => {
@@ -379,7 +404,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     setLoadingStatus(null);
     setConnectionStatus('CONNECTING');
 
-    if (!isWhatsApp || !activeService?.id) return;
+    // Allow socket connection for WhatsApp, Telegram, AND Facebook
+    // The previous check (!isWhatsApp) excluded Facebook, preventing socket connection
+    if (!activeService?.id) return;
 
     // Connect to Gateway (Master Server)
     const socketUrl = undefined; // Connects to window.location.origin
@@ -388,6 +415,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     const socket = io(socketUrl);
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     if (Notification.permission !== 'granted') {
         Notification.requestPermission();
@@ -437,7 +465,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setIsAuthenticating(true);
         setQrValue(''); // Clear QR code on authentication
         // Start showing loading state
-        setLoadingStatus({ percent: 0, message: 'Authenticating...' });
+        setLoadingStatus({ percent: 0, message: t.authenticating });
         setIsLoadingChats(true);
     });
 
@@ -500,7 +528,31 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
              // Handled by tg_2fa_required
              return;
         }
-        alert('WhatsApp Error: ' + err);
+        alert(t.whatsappError + ': ' + err);
+    });
+    
+    socket.on('fb_login_required', () => {
+        console.log('Facebook Login Required');
+        setIsLoginRequired(true);
+        setIsConnected(false);
+        setIsAuthenticating(false);
+        setLoadingStatus(null);
+    });
+
+    socket.on('fb_login_error', ({ message }) => {
+        console.error('Facebook Login Error:', message);
+        alert(t.loginFailed + ': ' + message);
+        setIsAuthenticating(false);
+        setLoadingStatus(null);
+        setIsLoginRequired(true); // Ensure form is visible
+    });
+
+    socket.on('fb_2fa_required', () => {
+        console.log('Facebook 2FA Required');
+        setIs2FARequired(true);
+        setIsAuthenticating(false);
+        setIsConnected(false);
+        setLoadingStatus(null);
     });
     
     socket.on('tg_2fa_required', ({ hint }) => {
@@ -679,6 +731,19 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         setMessagesByChat(prev => {
             const normId = normalizeId(chatId);
             const current = prev[normId] || [];
+            
+            // Check if we have the message with this ID
+            const exists = current.some(m => m.id === id);
+            
+            // If not found, it might be a race condition where we still have the temp ID
+            // But we can't easily match real ID to temp ID here without more info.
+            // However, usually the callback updates the ID first.
+            
+            if (!exists) {
+                console.warn(`Received ack for unknown message ${id} in chat ${chatId}`);
+                return prev;
+            }
+
             const updated = current.map(m => {
                 if (m.id === id) {
                     return { ...m, ack };
@@ -703,6 +768,79 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     return () => clearInterval(timer);
   }, [qrValue]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const processFile = (file: File) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          setPendingAttachments(prev => [...prev, {
+              mimetype: file.type || 'application/octet-stream',
+              data: base64Data,
+              filename: file.name
+          }]);
+      };
+      reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    files.forEach(processFile);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+      const items = e.clipboardData.items;
+      let hasFile = false;
+      
+      Array.from(items).forEach(item => {
+          const blob = item.getAsFile();
+          if (blob) {
+              hasFile = true;
+              processFile(blob);
+          }
+      });
+
+      if (hasFile) {
+          e.preventDefault();
+      }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(processFile);
+        // Reset input value to allow selecting same file again
+        e.target.value = '';
+    }
+  };
+
+  const handleFacebookLogin = () => {
+    if (!loginEmail || !loginPassword || !activeService?.id) return;
+    setLoadingStatus({ percent: 10, message: t.loggingIn });
+    socketRef.current?.emit('fb_login_submit', { serviceId: activeService.id, email: loginEmail, password: loginPassword });
+  };
+
+  // Render Remote Browser for Facebook
+    if (activeService?.service.id.startsWith('fb')) {
+        return (
+            <RemoteBrowserView 
+                socket={socketInstance} 
+                serviceId={activeService.id} 
+                translationSettings={translationSettings}
+            />
+        );
+    }
+
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {
       return (
@@ -724,7 +862,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                  </div>
                  <div className="flex flex-col">
                     <span className="font-semibold text-gray-700 text-sm">{myProfile?.name || "My Chats"}</span>
-                    <span className="text-xs text-green-500 font-medium">online</span>
+                    <span className="text-xs text-green-500 font-medium">{t.online}</span>
                  </div>
                </div>
                <div className="flex gap-2 text-gray-500">
@@ -735,7 +873,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             socketRef.current.emit('force_sync_chats', activeService.id);
                         }
                     }}
-                    title="Refresh Chats"
+                    title={t.refresh}
                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                  >
                     <IoMdRefresh size={20} className={isLoadingChats ? "animate-spin" : ""} />
@@ -749,7 +887,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
               <div className="relative">
                 <input 
                   className="w-full h-10 rounded-xl bg-gray-50 px-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all text-gray-700 placeholder-gray-400" 
-                  placeholder="Search chats..." 
+                  placeholder={t.search} 
                 />
                 <Search size={16} className="absolute left-3.5 top-3 text-gray-400" />
               </div>
@@ -761,14 +899,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
                      <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
                      <div className="text-gray-400 text-sm font-medium">
-                        {loadingStatus ? `Syncing: ${loadingStatus.percent}%` : 'Loading chats...'}
+                        {loadingStatus ? `${t.syncing}: ${loadingStatus.percent}%` : t.loadingChats}
                      </div>
                   </div>
               ) : (
                 <>
                   {chats.length === 0 && (
                       <div className="p-8 text-center text-gray-400 text-sm">
-                          No chats found. <br/> Click refresh if this seems wrong.
+                          {t.noChats} <br/> {t.refresh}
                       </div>
                   )}
                   {chats.filter(c => !c.archived).map(c => (
@@ -799,13 +937,28 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{c.name || 'Unknown'}</span>
+                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{c.name || t.unknown}</span>
                           <span className={`text-[11px] ${c.unreadCount > 0 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                             {c.lastTimestamp ? new Date(c.lastTimestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{c.lastMessage}</div>
+                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'} flex items-center gap-1`}>
+                               {c.lastMessageFromMe && (
+                                   <span className="shrink-0">
+                                       {c.lastMessageAck === 3 ? (
+                                           <CheckCheck size={14} className="text-blue-500" />
+                                       ) : c.lastMessageAck === 2 ? (
+                                           <CheckCheck size={14} className="text-gray-400" />
+                                       ) : c.lastMessageAck === 1 ? (
+                                           <Check size={14} className="text-gray-400" />
+                                       ) : (
+                                           <Clock size={14} className="text-gray-300" />
+                                       )}
+                                   </span>
+                               )}
+                               <span className="truncate">{c.lastMessage}</span>
+                           </div>
                            {c.unreadCount > 0 && (
                              <div className="min-w-[18px] h-[18px] px-1.5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm shadow-blue-200">
                                {c.unreadCount}
@@ -821,7 +974,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
           </div>
 
           {/* Right Area - Chat Window */}
-          <div className="flex-1 bg-[#F0F2F5] flex flex-col h-full overflow-hidden relative">
+          <div 
+            className="flex-1 bg-[#F0F2F5] flex flex-col h-full overflow-hidden relative"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onPaste={handlePaste}
+          >
             
             {/* 2FA Modal */}
             {is2FARequired && (
@@ -832,13 +990,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 <Lock size={32} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900">Two-Step Verification</h3>
+                                <h3 className="text-xl font-bold text-gray-900">{t.twoStepVerification}</h3>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    Your account is protected with an additional password.
+                                    {t.twoStepDescription}
                                 </p>
                                 {passwordHint && (
                                     <p className="text-sm text-blue-600 mt-2 bg-blue-50 px-3 py-1 rounded-full inline-block">
-                                        Hint: {passwordHint}
+                                        {t.hint}: {passwordHint}
                                     </p>
                                 )}
                             </div>
@@ -848,14 +1006,18 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     type="password"
                                     value={password2FA}
                                     onChange={(e) => setPassword2FA(e.target.value)}
-                                    placeholder="Enter your password"
+                                    placeholder={t.enterPassword}
                                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-center text-lg tracking-widest"
                                     autoFocus
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && password2FA) {
-                                            socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                            if (serviceName.toLowerCase().includes('facebook')) {
+                                                socketRef.current?.emit('fb_2fa_submit', { serviceId: activeService?.id, code: password2FA });
+                                            } else {
+                                                socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                            }
                                             setIs2FARequired(false);
-                                            setLoadingStatus({ percent: 50, message: 'Verifying password...' });
+                                            setLoadingStatus({ percent: 50, message: t.verifyingPassword });
                                         }
                                     }}
                                 />
@@ -864,9 +1026,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <button
                                 onClick={() => {
                                     if (password2FA) {
-                                        socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                        if (serviceName.toLowerCase().includes('facebook')) {
+                                            socketRef.current?.emit('fb_2fa_submit', { serviceId: activeService?.id, code: password2FA });
+                                        } else {
+                                            socketRef.current?.emit('tg_2fa_submit', { password: password2FA });
+                                        }
                                         setIs2FARequired(false);
-                                        setLoadingStatus({ percent: 50, message: 'Verifying password...' });
+                                        setLoadingStatus({ percent: 50, message: t.verifyingPassword });
                                     }
                                 }}
                                 disabled={!password2FA}
@@ -875,7 +1041,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]' 
                                         : 'bg-gray-300 cursor-not-allowed'}`}
                             >
-                                Verify Password
+                                {t.verifyPassword}
                             </button>
                         </div>
                     </div>
@@ -922,7 +1088,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {loadingHistory && <div className="text-center text-gray-400 text-xs py-4">Loading conversation...</div>}
+                    {loadingHistory && <div className="text-center text-gray-400 text-xs py-4">{t.loadingConversation}</div>}
                     
                     {(messagesByChat[normalizeId(activeChatId || '')] || []).map(m => {
                         const isTranslated = !m.fromMe && translations[m.id];
@@ -940,9 +1106,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             >
                                 {/* Quoted Message */}
                                 {m.quotedMsg && (
-                                    <div className="mb-2 bg-black/5 p-2 rounded-lg border-l-[4px] border-blue-500 text-xs">
-                                        <div className="font-bold text-blue-600 mb-0.5">
-                                            {m.quotedMsg.fromMe ? 'You' : (m.quotedMsg.author || 'Contact')}
+                                    <div className="mb-2 bg-black/5 p-2 rounded-lg border-l-[4px] border-[#005c4b] text-xs">
+                                        <div className="font-bold text-[#005c4b] mb-0.5">
+                                            {m.quotedMsg.fromMe ? t.you : (m.quotedMsg.author || t.contact)}
                                         </div>
                                         <div className="truncate text-gray-500 line-clamp-2">
                                             {m.quotedMsg.body}
@@ -978,7 +1144,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                         {!m.media.mimetype.startsWith('image/') && !m.media.mimetype.startsWith('video/') && (
                                             <div className="flex items-center gap-2 p-3 bg-black/5 rounded-lg">
                                                 <Download size={20} className="text-gray-500" />
-                                                <span className="text-sm truncate max-w-[200px]">{m.media.filename || 'Attachment'}</span>
+                                                <span className="text-sm truncate max-w-[200px]">{m.media.filename || t.attachment}</span>
                                             </div>
                                         )}
                                     </div>
@@ -1001,26 +1167,28 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                              <Download size={20} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-gray-700">Media omitted</span>
-                                            <span className="text-xs text-gray-500">Click to download</span>
+                                            <span className="text-sm font-medium text-gray-700">{t.mediaOmitted}</span>
+                                            <span className="text-xs text-gray-500">{t.clickToDownload}</span>
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Message Body */}
-                                <div className="leading-relaxed whitespace-pre-wrap break-words">
-                                    {isTranslated ? translations[m.id] : m.body}
-                                </div>
+                                {(m.body || isTranslated) && (
+                                    <div className="leading-relaxed whitespace-pre-wrap break-words">
+                                        {isTranslated ? translations[m.id] : m.body}
+                                    </div>
+                                )}
                                 
                                 {/* Translation Original Text */}
                                 {isTranslated && (
                                     <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-400 italic">
-                                        Original: {m.body}
+                                        {t.original}: {m.body}
                                     </div>
                                 )}
                                 {(m.originalBody || outgoingOriginals[m.id]) && (
                                     <div className="mt-1 pt-1 border-t border-green-200/50 text-xs text-gray-500 italic">
-                                        Original: {m.originalBody || outgoingOriginals[m.id]}
+                                        {t.original}: {m.originalBody || outgoingOriginals[m.id]}
                                     </div>
                                 )}
 
@@ -1051,13 +1219,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="flex items-center justify-between bg-white border-l-[4px] border-blue-500 rounded-lg p-2 mb-2 shadow-sm animate-in slide-in-from-bottom-2 mx-1">
                             <div className="flex-1 min-w-0 px-2 py-1 bg-gray-50/50 rounded">
                                 <div className="text-blue-500 text-xs font-bold mb-0.5">
-                                    {replyingTo.fromMe ? 'You' : (replyingTo.author || 'Contact')}
+                                    {replyingTo.fromMe ? t.you : (replyingTo.author || t.contact)}
                                 </div>
                                 <div className="text-gray-500 text-sm truncate flex items-center gap-1">
                                     {replyingTo.media ? (
                                         <>
                                             <Camera size={14} /> 
-                                            {replyingTo.media.mimetype.startsWith('image/') ? 'Photo' : 'Media'}
+                                            {replyingTo.media.mimetype.startsWith('image/') ? t.photo : t.media}
                                         </>
                                     ) : (
                                         replyingTo.body
@@ -1077,35 +1245,65 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <button className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full">
                                 <Smile size={22} onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
                             </button>
-                            <button className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full">
+                            <button 
+                                className="hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-50 rounded-full"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
                                 <IoMdAdd size={22} />
                             </button>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                multiple 
+                                onChange={handleFileInputChange}
+                            />
                         </div>
                         
                         <div className="flex-1 relative">
+
                              {showEmojiPicker && (
                                 <div className="absolute bottom-14 left-0 z-50 shadow-xl rounded-xl border border-gray-100">
                                     <EmojiPicker onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
                                 </div>
                             )}
-                            {pastedImage && (
+                            {pendingAttachments.length > 0 && (
                                 <div className="absolute bottom-16 left-0 right-0 z-40 px-4">
                                     <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 animate-in slide-in-from-bottom-2">
                                         <div className="flex items-start justify-between mb-2">
-                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Image Preview</span>
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                                {pendingAttachments.length} {t.attachment}
+                                            </span>
                                             <button 
-                                                onClick={() => setPastedImage(null)}
+                                                onClick={() => setPendingAttachments([])}
                                                 className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600"
                                             >
                                                 <X size={16} />
                                             </button>
                                         </div>
-                                        <div className="flex justify-center bg-gray-50 rounded-lg p-2 border border-gray-100 border-dashed">
-                                            <img 
-                                                src={`data:${pastedImage.mimetype};base64,${pastedImage.data}`} 
-                                                className="max-h-[200px] rounded-lg shadow-sm"
-                                                alt="Pasted content"
-                                            />
+                                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                            {pendingAttachments.map((att, idx) => (
+                                                <div key={idx} className="relative shrink-0 group">
+                                                    {att.mimetype.startsWith('image/') ? (
+                                                        <img 
+                                                            src={`data:${att.mimetype};base64,${att.data}`} 
+                                                            className="h-20 w-20 object-cover rounded-lg border border-gray-100"
+                                                            alt="Preview"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-20 w-20 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-100 text-gray-500 text-xs p-1 text-center break-all">
+                                                            <Download size={20} className="mb-1" />
+                                                            <span className="line-clamp-2">{att.filename || t.file}</span>
+                                                        </div>
+                                                    )}
+                                                    <button 
+                                                        onClick={() => setPendingAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -1113,41 +1311,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <textarea
                                 value={messageInput}
                                 onChange={(e) => setMessageInput(e.target.value)}
-                                onPaste={(e) => {
-                                    const items = e.clipboardData.items;
-                                    for (let i = 0; i < items.length; i++) {
-                                        if (items[i].type.indexOf('image') !== -1) {
-                                            const blob = items[i].getAsFile();
-                                            if (blob) {
-                                                const reader = new FileReader();
-                                                reader.onload = (event) => {
-                                                    const base64 = event.target?.result as string;
-                                                    // Remove prefix (data:image/png;base64,)
-                                                    const base64Data = base64.split(',')[1];
-                                                    setPastedImage({
-                                                        mimetype: blob.type,
-                                                        data: base64Data
-                                                    });
-                                                };
-                                                reader.readAsDataURL(blob);
-                                            }
-                                        }
-                                    }
-                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSendMessage();
                                     }
                                 }}
-                                placeholder="Type a message"
+                                placeholder={t.typeMessage}
                                 className="w-full max-h-[100px] py-2.5 px-2 text-gray-800 placeholder-gray-400 bg-transparent resize-none focus:outline-none custom-scrollbar"
                                 rows={1}
                             />
                         </div>
 
                         <div className="pb-1 pr-1">
-                            {messageInput.trim() || pastedImage ? (
+                            {messageInput.trim() || pendingAttachments.length > 0 ? (
                                 <button 
                                     onClick={handleSendMessage}
                                     className="p-2.5 bg-[#005c4b] hover:bg-[#004a3c] text-white rounded-xl transition-all shadow-sm active:scale-95"
@@ -1162,7 +1339,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         </div>
                     </div>
                     {isTranslating && (
-                        <div className="text-[10px] text-gray-400 text-center mt-1">Translating...</div>
+                        <div className="text-[10px] text-gray-400 text-center mt-1">{t.translated}...</div>
                     )}
                 </div>
                 </>
@@ -1196,7 +1373,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                     >
-                        <CornerUpLeft size={16} /> Reply
+                        <CornerUpLeft size={16} /> {t.reply}
                     </button>
                     <button 
                         onClick={() => {
@@ -1205,7 +1382,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                     >
-                        <Copy size={16} /> Copy
+                        <Copy size={16} /> {t.copy}
                     </button>
                     <div className="h-px bg-gray-100 my-1" />
                     <button 
@@ -1280,53 +1457,102 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       );
     }
 
+    // Facebook Login Screen
+    if (isLoginRequired) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+                <div className="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full">
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white mb-4">
+                            <FaFacebookF size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">{t.loginToFacebook}</h2>
+                        <p className="text-gray-500 text-center mt-2">{t.enterCredentials}</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t.emailOrPhone}</label>
+                            <input 
+                                type="text" 
+                                value={loginEmail}
+                                onChange={(e) => setLoginEmail(e.target.value)}
+                                className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                                placeholder="email@example.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t.password}</label>
+                            <input 
+                                type="password" 
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                                placeholder="••••••••"
+                                onKeyDown={(e) => e.key === 'Enter' && handleFacebookLogin()}
+                            />
+                        </div>
+                        <button 
+                            onClick={handleFacebookLogin}
+                            disabled={!loginEmail || !loginPassword}
+                            className={`w-full h-12 rounded-xl font-bold text-white transition-all shadow-lg shadow-blue-200 mt-2
+                                ${loginEmail && loginPassword ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-gray-300 cursor-not-allowed'}`}
+                        >
+                            {t.login}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // QR Code Screen - Only show if we actually have a QR code or status says so
     if (qrValue || connectionStatus === 'QR_READY') {
         return (
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
                 <div className="bg-white p-10 rounded-2xl shadow-xl max-w-4xl w-full flex gap-12 items-center">
                     <div className="flex-1">
-                        <h1 className="text-3xl font-light text-gray-800 mb-8">Use {serviceName} on your computer</h1>
+                        <h1 className="text-3xl font-light text-gray-800 mb-8">{t.useServiceOnComputer}</h1>
                         {serviceName.toLowerCase().includes('telegram') || activeService?.service?.id?.startsWith('tg') ? (
                             <ol className="space-y-6 text-gray-600 text-lg">
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">1.</span>
-                                    Open Telegram on your phone
+                                    {t.openAppOnPhone}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">2.</span>
-                                    Go to <strong>Settings</strong> {'>'} <strong>Devices</strong>
+                                    {t.goToSettings}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">3.</span>
-                                    Tap <strong>Link Desktop Device</strong>
+                                    {t.tapLinkDevice}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">4.</span>
-                                    Point your phone to this screen
+                                    {t.pointPhone}
                                 </li>
                             </ol>
                         ) : (
                             <ol className="space-y-6 text-gray-600 text-lg">
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">1.</span>
-                                    Open WhatsApp on your phone
+                                    {t.openAppOnPhone}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">2.</span>
-                                    Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>
+                                    {t.goToSettings}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">3.</span>
-                                    Tap on <strong>Link a Device</strong>
+                                    {t.tapLinkDevice}
                                 </li>
                                 <li className="flex gap-4">
                                     <span className="font-medium text-gray-900">4.</span>
-                                    Point your phone to this screen to capture the code
+                                    {t.pointPhone}
                                 </li>
                             </ol>
                         )}
-                        <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">Need help to get started?</div>
+                        <div className="mt-8 text-blue-600 font-medium cursor-pointer hover:underline">{t.needHelp}</div>
                     </div>
                     
                     <div className="flex flex-col items-center">
@@ -1336,7 +1562,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     <QRCode value={qrValue} size={260} />
                                 ) : (
                                     <div className="w-[260px] h-[260px] bg-gray-100 flex items-center justify-center animate-pulse">
-                                        <div className="text-gray-400">Generating QR...</div>
+                                        <div className="text-gray-400">{t.generatingQR}</div>
                                     </div>
                                 )}
                             </div>
@@ -1344,7 +1570,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer">
                                     <div className="flex flex-col items-center gap-2 text-gray-800">
                                         <RefreshCcw size={32} />
-                                        <span className="font-medium">Click to reload QR</span>
+                                        <span className="font-medium">{t.clickToReloadQR}</span>
                                     </div>
                                 </div>
                             )}
@@ -1353,7 +1579,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="mt-6 flex items-center gap-3">
                             <div className="flex items-center gap-2 text-gray-500 text-sm">
                                 <input type="checkbox" className="rounded border-gray-300 text-[#00a884] focus:ring-[#00a884]" defaultChecked />
-                                <label>Keep me signed in</label>
+                                <label>{t.keepMeSignedIn}</label>
                             </div>
                         </div>
                     </div>
@@ -1367,8 +1593,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
              <div className="flex flex-col items-center">
                  <div className="w-16 h-16 border-4 border-gray-200 border-t-[#00a884] rounded-full animate-spin mb-6"></div>
-                 <h2 className="text-xl font-medium text-gray-800 mb-2">Connecting to {serviceName}...</h2>
-                 <p className="text-gray-500">Restoring your session. This may take a few seconds.</p>
+                 <h2 className="text-xl font-medium text-gray-800 mb-2">{t.connectingTo} {serviceName}...</h2>
+                 <p className="text-gray-500">{t.restoringSession}</p>
              </div>
         </div>
     );
@@ -1379,7 +1605,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     <div className="flex-1 flex items-center justify-center bg-gray-50 text-gray-400">
       <div className="text-center">
         <MessageCircle size={48} className="mx-auto mb-4 opacity-20" />
-        <p>Select a service to start messaging</p>
+        <p>{t.selectService}</p>
       </div>
     </div>
   );

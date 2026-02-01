@@ -13,7 +13,7 @@ interface SidebarRightProps {
 
 const SidebarRight = ({ onLangClick, isLangActive }: SidebarRightProps) => {
   return (
-    <div className="w-16 bg-white border-l border-gray-100 flex flex-col items-center py-4 gap-4 shrink-0 z-30 shadow-sm">
+    <div className="w-16 glass-panel border-l border-white/5 flex flex-col items-center py-4 gap-4 shrink-0 z-30 shadow-2xl">
       <SideTool icon={<MessageSquareQuote size={20} />} label="Reply" active={false} />
       
       <SideTool 
@@ -32,17 +32,17 @@ const SidebarRight = ({ onLangClick, isLangActive }: SidebarRightProps) => {
 
 const SideTool = ({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) => (
   <button 
-    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all w-12 h-14 group ${
+    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all w-12 h-14 group border border-transparent ${
       active 
-        ? 'bg-blue-50 text-blue-600' 
-        : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
+        ? 'bg-neon-blue/10 text-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.3)] border-neon-blue/30' 
+        : 'text-gray-500 hover:bg-white/5 hover:text-white hover:border-white/10'
     }`}
     onClick={onClick}
   >
-    <div className={`transition-transform duration-200 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
+    <div className={`transition-transform duration-200 ${active ? 'scale-110 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]' : 'group-hover:scale-110'}`}>
       {icon}
     </div>
-    <span className={`text-[9px] font-semibold tracking-tight ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+    <span className={`text-[9px] font-bold tracking-tight ${active ? 'text-neon-blue' : 'text-gray-500 group-hover:text-gray-300'}`}>
       {label}
     </span>
   </button>

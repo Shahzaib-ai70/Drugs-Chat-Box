@@ -31,5 +31,3 @@ fb_auth
 *.sln
 *.sw?
 *.zip
-
-.wwebjs_cache

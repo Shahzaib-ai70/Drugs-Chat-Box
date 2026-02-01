@@ -103,53 +103,59 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-8">
-            <div className="max-w-6xl mx-auto">
-                <header className="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
+        <div className="min-h-screen bg-[#0f0c29] text-white p-8 relative overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-blue/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-purple/10 rounded-full blur-[100px] animate-pulse-slow delay-1000"></div>
+            </div>
+
+            <div className="max-w-6xl mx-auto relative z-10">
+                <header className="flex justify-between items-center mb-8 border-b border-white/10 pb-6 bg-[#1a1a2e]/50 backdrop-blur-md rounded-2xl px-8 py-4 shadow-[0_0_20px_rgba(0,0,0,0.3)]">
                     <div>
-                        <h1 className="text-3xl font-bold text-emerald-400">Admin Dashboard</h1>
-                        <p className="text-gray-400">Manage invitation codes and monitor usage</p>
+                        <h1 className="text-3xl font-bold text-white tracking-wide drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">Admin <span className="text-neon-blue">Dashboard</span></h1>
+                        <p className="text-gray-400 text-sm mt-1">Manage invitation codes and monitor usage</p>
                     </div>
                     <button 
                         onClick={onLogout}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 transition"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-neon-red/50 rounded-xl text-gray-300 hover:text-neon-red transition-all shadow-lg hover:shadow-[0_0_15px_rgba(255,0,0,0.2)] active:scale-95"
                     >
                         <LogOut size={18} /> Logout
                     </button>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-                        <h3 className="text-gray-400 text-sm font-medium uppercase mb-2">Total Users</h3>
-                        <p className="text-3xl font-bold text-white">{users.length}</p>
+                    <div className="bg-[#1a1a2e]/80 backdrop-blur-xl p-6 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.3)] border border-white/10 group hover:border-neon-blue/30 transition-colors">
+                        <h3 className="text-neon-blue text-xs font-bold uppercase tracking-widest mb-2 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">Total Users</h3>
+                        <p className="text-4xl font-light text-white group-hover:scale-105 transition-transform origin-left">{users.length}</p>
                     </div>
-                    <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-                        <h3 className="text-gray-400 text-sm font-medium uppercase mb-2">Active Connections</h3>
-                        <p className="text-3xl font-bold text-blue-400">
+                    <div className="bg-[#1a1a2e]/80 backdrop-blur-xl p-6 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.3)] border border-white/10 group hover:border-neon-purple/30 transition-colors">
+                        <h3 className="text-neon-purple text-xs font-bold uppercase tracking-widest mb-2 drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">Active Connections</h3>
+                        <p className="text-4xl font-light text-white group-hover:scale-105 transition-transform origin-left">
                             {users.reduce((acc, user) => acc + user.serviceCount, 0)}
                         </p>
                     </div>
-                    <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 col-span-2 flex flex-col justify-center gap-4">
-                        <div className="flex gap-2">
+                    <div className="bg-[#1a1a2e]/80 backdrop-blur-xl p-6 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.3)] border border-white/10 col-span-2 flex flex-col justify-center gap-4">
+                        <div className="flex gap-3">
                             <input 
                                 type="text" 
                                 placeholder="Custom Code (Optional)" 
                                 value={customCode} 
                                 onChange={e => setCustomCode(e.target.value)}
-                                className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded flex-1 focus:outline-none focus:border-emerald-500"
+                                className="bg-black/30 border border-white/10 text-white px-4 py-3 rounded-xl flex-1 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-all placeholder-gray-600 shadow-inner"
                             />
                             <input 
                                 type="text" 
                                 placeholder="Owner Name (Optional)" 
                                 value={ownerName} 
                                 onChange={e => setOwnerName(e.target.value)}
-                                className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded flex-1 focus:outline-none focus:border-emerald-500"
+                                className="bg-black/30 border border-white/10 text-white px-4 py-3 rounded-xl flex-1 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-all placeholder-gray-600 shadow-inner"
                             />
                         </div>
                         <button
                             onClick={generateCode}
                             disabled={generating}
-                            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg shadow transition disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 bg-neon-blue/20 hover:bg-neon-blue/40 text-neon-blue border border-neon-blue/50 font-bold py-3 px-6 rounded-xl shadow-[0_0_15px_rgba(0,243,255,0.1)] hover:shadow-[0_0_25px_rgba(0,243,255,0.3)] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus size={20} />
                             {generating ? 'Generating...' : 'Generate New Invitation Code'}
@@ -157,36 +163,36 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                     </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
-                    <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-                        <h2 className="text-lg font-semibold text-white">Registered Users</h2>
-                        <button onClick={fetchUsers} className="p-2 hover:bg-gray-700 rounded-full transition text-gray-400">
-                            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                <div className="bg-[#1a1a2e]/80 backdrop-blur-xl rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden">
+                    <div className="p-6 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-white tracking-wide">Registered Users</h2>
+                        <button onClick={fetchUsers} className="p-2 hover:bg-white/10 rounded-full transition text-neon-blue hover:shadow-[0_0_10px_rgba(0,243,255,0.5)]">
+                            <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                         </button>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="bg-gray-900/50 text-gray-400 text-sm uppercase">
+                            <thead className="bg-black/20 text-gray-400 text-xs uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-6 py-4 font-medium">Invitation Code</th>
-                                    <th className="px-6 py-4 font-medium">Owner Name</th>
-                                    <th className="px-6 py-4 font-medium">Created At</th>
-                                    <th className="px-6 py-4 font-medium">Connected Accounts</th>
-                                    <th className="px-6 py-4 font-medium">Status</th>
-                                    <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                    <th className="px-6 py-4 font-semibold">Invitation Code</th>
+                                    <th className="px-6 py-4 font-semibold">Owner Name</th>
+                                    <th className="px-6 py-4 font-semibold">Created At</th>
+                                    <th className="px-6 py-4 font-semibold">Connected Accounts</th>
+                                    <th className="px-6 py-4 font-semibold">Status</th>
+                                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-700">
+                            <tbody className="divide-y divide-white/5">
                                 {users.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                             No users found. Generate a code to get started.
                                         </td>
                                     </tr>
                                 ) : (
                                     users.map((user) => (
-                                        <tr key={user.code} className="hover:bg-gray-750 transition">
-                                            <td className="px-6 py-4 font-mono text-lg text-emerald-400 tracking-wider">
+                                        <tr key={user.code} className="hover:bg-white/5 transition duration-200">
+                                            <td className="px-6 py-4 font-mono text-lg text-neon-blue tracking-wider drop-shadow-[0_0_5px_rgba(0,243,255,0.3)]">
                                                 {user.code}
                                             </td>
                                             <td className="px-6 py-4 text-gray-300">
@@ -196,26 +202,27 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                                             type="text"
                                                             value={editName}
                                                             onChange={e => setEditName(e.target.value)}
-                                                            className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-emerald-500 w-full"
+                                                            className="bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-neon-blue w-full text-white"
+                                                            autoFocus
                                                         />
                                                     </div>
                                                 ) : (
-                                                    user.owner_name || '-'
+                                                    user.owner_name || <span className="text-gray-600 italic">-</span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-300">
-                                                {new Date(user.created_at).toLocaleDateString()} {new Date(user.created_at).toLocaleTimeString()}
+                                            <td className="px-6 py-4 text-gray-400 text-sm">
+                                                {new Date(user.created_at).toLocaleDateString()} <span className="text-gray-600">|</span> {new Date(user.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${user.serviceCount > 0 ? 'bg-blue-900/50 text-blue-400' : 'bg-gray-700 text-gray-400'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.serviceCount > 0 ? 'bg-neon-blue/10 text-neon-blue border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.1)]' : 'bg-white/5 text-gray-500 border-white/5'}`}>
                                                     {user.serviceCount} Services
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded text-xs border ${
+                                                <span className={`px-2 py-1 rounded text-xs border font-medium ${
                                                     !user.status || user.status === 'active' 
-                                                        ? 'bg-green-900/30 text-green-400 border-green-900/50' 
-                                                        : 'bg-red-900/30 text-red-400 border-red-900/50'
+                                                        ? 'bg-green-500/10 text-green-400 border-green-500/30' 
+                                                        : 'bg-red-500/10 text-red-400 border-red-500/30'
                                                 }`}>
                                                     {user.status || 'Active'}
                                                 </span>
@@ -225,14 +232,14 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                                     <>
                                                         <button
                                                             onClick={saveEditing}
-                                                            className="text-emerald-400 hover:text-emerald-300 p-2 hover:bg-emerald-900/20 rounded transition"
+                                                            className="text-neon-blue hover:text-white p-2 hover:bg-neon-blue/20 rounded-lg transition"
                                                             title="Save"
                                                         >
                                                             <Save size={18} />
                                                         </button>
                                                         <button
                                                             onClick={cancelEditing}
-                                                            className="text-gray-400 hover:text-gray-300 p-2 hover:bg-gray-700/50 rounded transition"
+                                                            className="text-gray-400 hover:text-white p-2 hover:bg-white/10 rounded-lg transition"
                                                             title="Cancel"
                                                         >
                                                             <X size={18} />
@@ -242,14 +249,14 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                                     <>
                                                         <button
                                                             onClick={() => startEditing(user)}
-                                                            className="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-900/20 rounded transition"
+                                                            className="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-500/10 rounded-lg transition"
                                                             title="Edit Name"
                                                         >
                                                             <Edit2 size={18} />
                                                         </button>
                                                         <button
                                                             onClick={() => deleteCode(user.code)}
-                                                            className="text-red-400 hover:text-red-300 p-2 hover:bg-red-900/20 rounded transition"
+                                                            className="text-red-400 hover:text-red-300 p-2 hover:bg-red-500/10 rounded-lg transition"
                                                             title="Revoke Access"
                                                         >
                                                             <Trash2 size={18} />

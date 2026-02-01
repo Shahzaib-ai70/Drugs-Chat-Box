@@ -163,25 +163,25 @@ const SearchableLanguageSelect = ({ value, onChange, label, excludeAuto = false 
 
     return (
         <div className="relative" ref={containerRef}>
-            <label className="block text-xs font-medium text-gray-500 mb-2">{label}</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</label>
             
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 px-3 flex items-center justify-between hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full bg-black/30 border border-white/10 text-gray-200 text-sm rounded-xl py-3 px-4 flex items-center justify-between hover:border-neon-blue/50 hover:shadow-[0_0_10px_rgba(0,243,255,0.1)] focus:outline-none focus:border-neon-blue transition-all group"
             >
-                <span className="truncate">{selectedLang ? selectedLang.name : value}</span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <span className="truncate group-hover:text-white transition-colors">{selectedLang ? selectedLang.name : value}</span>
+                <ChevronDown size={14} className={`text-gray-500 group-hover:text-neon-blue transition-all ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                    <div className="p-2 border-b border-gray-50">
+                <div className="absolute z-50 w-full mt-2 bg-[#1a1a2e]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
+                    <div className="p-2 border-b border-white/5 bg-black/20">
                         <div className="relative">
-                            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+                            <Search size={14} className="absolute left-3 top-2.5 text-gray-500" />
                             <input
                                 type="text"
                                 placeholder="Search language..."
-                                className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 border-none rounded-lg focus:ring-0 text-gray-700 placeholder-gray-400"
+                                className="w-full pl-9 pr-3 py-2 text-sm bg-black/40 border border-white/5 rounded-lg focus:ring-1 focus:ring-neon-blue/50 focus:border-neon-blue/50 text-white placeholder-gray-600 focus:outline-none transition-all"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 autoFocus
@@ -189,7 +189,7 @@ const SearchableLanguageSelect = ({ value, onChange, label, excludeAuto = false 
                         </div>
                     </div>
                     
-                    <div className="max-h-[200px] overflow-y-auto">
+                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar p-1">
                         {filteredLanguages.length > 0 ? (
                             filteredLanguages.map(l => (
                                 <button
@@ -199,16 +199,18 @@ const SearchableLanguageSelect = ({ value, onChange, label, excludeAuto = false 
                                         setIsOpen(false);
                                         setSearchTerm('');
                                     }}
-                                    className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-blue-50 transition-colors ${
-                                        value === l.code ? 'bg-blue-50/50 text-blue-600 font-medium' : 'text-gray-700'
+                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between rounded-lg transition-all mb-0.5 ${
+                                        value === l.code 
+                                        ? 'bg-neon-blue/10 text-neon-blue font-bold shadow-[inset_0_0_10px_rgba(0,243,255,0.05)]' 
+                                        : 'text-gray-300 hover:bg-white/5 hover:text-white'
                                     }`}
                                 >
                                     {l.name}
-                                    {value === l.code && <Check size={14} className="text-blue-600" />}
+                                    {value === l.code && <Check size={14} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />}
                                 </button>
                             ))
                         ) : (
-                            <div className="px-3 py-4 text-center text-xs text-gray-400">
+                            <div className="px-3 py-6 text-center text-xs text-gray-500">
                                 No languages found
                             </div>
                         )}
@@ -225,64 +227,67 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
   };
 
   return (
-    <div className="w-[320px] bg-white border-l border-gray-100 flex flex-col h-full shadow-2xl z-20 font-sans">
+    <div className="w-[340px] bg-[#1a1a2e]/95 backdrop-blur-2xl border-l border-white/10 flex flex-col h-full shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 font-sans relative">
+      {/* Decorative Glow */}
+      <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-neon-blue/5 rounded-full blur-[80px] pointer-events-none"></div>
+
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white">
+      <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-white/5 shrink-0 relative z-10">
         <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                <Languages size={18} />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neon-blue/20 to-blue-600/20 border border-white/10 flex items-center justify-center text-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+                <Languages size={18} className="drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]" />
             </div>
             <div>
-                <h3 className="font-semibold text-gray-800 text-sm">Translation</h3>
-                <p className="text-[10px] text-gray-400">Real-time chat translation</p>
+                <h3 className="font-bold text-white text-sm tracking-wide">Translation</h3>
+                <p className="text-[10px] text-gray-400 font-medium">Real-time AI Language Layer</p>
             </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-50 rounded-full transition-colors">
-          <X size={18} />
+        <button onClick={onClose} className="text-gray-400 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors hover:rotate-90 duration-300">
+          <X size={20} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar relative z-10">
         {/* Scope Selector */}
-        <div className="bg-gray-50 p-1 rounded-xl flex">
+        <div className="bg-black/40 p-1.5 rounded-xl flex border border-white/5">
           <button 
             onClick={() => onModeChange('current')}
             disabled={!activeChatId}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
                 mode === 'current' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                ? 'bg-[#1a1a2e] text-neon-blue shadow-lg border border-white/10' 
+                : 'text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed'
             }`}
           >
-            <Settings2 size={12} />
+            <Settings2 size={14} />
             Current Chat
           </button>
           <button 
             onClick={() => onModeChange('global')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
                 mode === 'global' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-[#1a1a2e] text-neon-purple shadow-lg border border-white/10' 
+                : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            <Globe size={12} />
+            <Globe size={14} />
             Global Rules
           </button>
         </div>
 
         {/* Info Banner */}
         {mode === 'current' && activeChatId && (
-            <div className="text-xs text-blue-600 bg-blue-50/50 border border-blue-100 px-3 py-2.5 rounded-lg flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                Configuring for: <span className="font-semibold truncate max-w-[150px]">{activeChatId.split('@')[0]}</span>
+            <div className="text-xs text-neon-blue bg-neon-blue/10 border border-neon-blue/20 px-4 py-3 rounded-xl flex items-center gap-3 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
+                <div className="w-2 h-2 bg-neon-blue rounded-full animate-pulse shadow-[0_0_5px_currentColor]"></div>
+                <span className="flex-1">Configuring for: <span className="font-bold text-white block truncate mt-0.5 text-sm">{activeChatId.split('@')[0]}</span></span>
             </div>
         )}
 
         {/* Incoming Settings */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-800">Incoming Messages</h4>
-            <div className="relative inline-block w-11 h-6 transition duration-200 ease-in-out">
+        <div className="space-y-5">
+          <div className="flex items-center justify-between group">
+            <h4 className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors">Incoming Messages</h4>
+            <div className="relative inline-block w-12 h-7 transition duration-200 ease-in-out">
                 <input 
                     type="checkbox" 
                     id="auto-translate-incoming" 
@@ -292,17 +297,19 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
                 />
                 <label 
                     htmlFor="auto-translate-incoming" 
-                    className={`block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-200 ${
-                        settings.autoTranslateIncoming ? 'bg-blue-600' : 'bg-gray-200'
+                    className={`block overflow-hidden h-7 rounded-full cursor-pointer transition-all duration-300 border ${
+                        settings.autoTranslateIncoming 
+                        ? 'bg-neon-blue/20 border-neon-blue/50 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
+                        : 'bg-black/40 border-gray-600'
                     }`}
                 ></label>
-                <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 shadow-sm ${
-                    settings.autoTranslateIncoming ? 'translate-x-5' : 'translate-x-0'
+                <span className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 shadow-md ${
+                    settings.autoTranslateIncoming ? 'translate-x-5 bg-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.8)]' : 'translate-x-0 bg-gray-400'
                 }`}></span>
             </div>
           </div>
           
-          <div className={`space-y-4 transition-opacity duration-200 ${settings.autoTranslateIncoming ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+          <div className={`space-y-5 transition-all duration-300 ${settings.autoTranslateIncoming ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-2 grayscale'}`}>
             <SearchableLanguageSelect 
                 label="Translate incoming from"
                 value={settings.sourceLang}
@@ -318,13 +325,13 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
           </div>
         </div>
 
-        <div className="h-px bg-gray-100"></div>
+        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
 
         {/* Outgoing Settings */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-800">Outgoing Messages</h4>
-            <div className="relative inline-block w-11 h-6 transition duration-200 ease-in-out">
+        <div className="space-y-5">
+          <div className="flex items-center justify-between group">
+            <h4 className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors">Outgoing Messages</h4>
+            <div className="relative inline-block w-12 h-7 transition duration-200 ease-in-out">
                 <input 
                     type="checkbox" 
                     id="auto-translate-outgoing" 
@@ -334,17 +341,19 @@ const TranslationPanel = ({ settings, onUpdateSettings, onClose, mode, onModeCha
                 />
                 <label 
                     htmlFor="auto-translate-outgoing" 
-                    className={`block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-200 ${
-                        settings.autoTranslateOutgoing ? 'bg-blue-600' : 'bg-gray-200'
+                    className={`block overflow-hidden h-7 rounded-full cursor-pointer transition-all duration-300 border ${
+                        settings.autoTranslateOutgoing 
+                        ? 'bg-neon-blue/20 border-neon-blue/50 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
+                        : 'bg-black/40 border-gray-600'
                     }`}
                 ></label>
-                <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 shadow-sm ${
-                    settings.autoTranslateOutgoing ? 'translate-x-5' : 'translate-x-0'
+                <span className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 shadow-md ${
+                    settings.autoTranslateOutgoing ? 'translate-x-5 bg-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.8)]' : 'translate-x-0 bg-gray-400'
                 }`}></span>
             </div>
           </div>
 
-          <div className={`space-y-4 transition-opacity duration-200 ${settings.autoTranslateOutgoing ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+          <div className={`space-y-5 transition-all duration-300 ${settings.autoTranslateOutgoing ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-2 grayscale'}`}>
              <SearchableLanguageSelect 
                 label="Translate my messages to"
                 value={settings.translateBeforeSendingLang}
