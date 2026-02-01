@@ -355,7 +355,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         for (let i = 0; i < pendingAttachments.length; i++) {
             const att = pendingAttachments[i];
             await new Promise(r => setTimeout(r, 200 + (i * 50))); 
-            sendSingleMessage(att.filename || 'Media', att);
+            // Send media without filename as caption (empty string)
+            sendSingleMessage('', att);
         }
     };
 
@@ -1156,9 +1157,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 )}
 
                                 {/* Message Body */}
-                                <div className="leading-relaxed whitespace-pre-wrap break-words">
-                                    {isTranslated ? translations[m.id] : m.body}
-                                </div>
+                                {(m.body || isTranslated) && (
+                                    <div className="leading-relaxed whitespace-pre-wrap break-words">
+                                        {isTranslated ? translations[m.id] : m.body}
+                                    </div>
+                                )}
                                 
                                 {/* Translation Original Text */}
                                 {isTranslated && (
