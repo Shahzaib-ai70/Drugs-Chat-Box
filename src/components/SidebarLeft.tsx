@@ -36,10 +36,6 @@ const SidebarLeft = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState('');
 
-  // Auto Reply Modal State
-  const [showAutoReplyModal, setShowAutoReplyModal] = useState(false);
-  const [autoReplyServiceId, setAutoReplyServiceId] = useState<string | null>(null);
-
   const startEditing = (e: React.MouseEvent, id: string, currentName: string) => {
     e.stopPropagation();
     setEditingId(id);
@@ -296,18 +292,7 @@ const SidebarLeft = ({
                 Refresh
             </button>
             <div className="h-px bg-white/10 my-1"></div>
-            <button 
-                className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-white/10 flex items-center gap-2 transition-colors hover:text-white"
-                onClick={() => {
-                    setAutoReplyServiceId(contextMenu.id);
-                    setShowAutoReplyModal(true);
-                    setContextMenu(null);
-                }}
-            >
-                <MessageSquare size={14} className="text-neon-blue" />
-                Auto Reply
-            </button>
-            <div className="h-px bg-white/10 my-1"></div>
+
             <button 
                 className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                 onClick={() => {
