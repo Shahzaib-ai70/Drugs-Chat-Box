@@ -138,6 +138,8 @@ process.on('message', async (msg) => {
         handleDeleteChat(data);
     } else if (command === 'delete_message') {
         handleDeleteMessage(data);
+    } else if (command === 'react_message') {
+        handleReactMessage(data);
     }
 });
 
@@ -170,15 +172,15 @@ const handleDeleteMessage = async (data) => {
         try {
             const chat = await sessionState.client.getChatById(chatId);
             // WhatsApp requires the Message object to delete. 
-            // We'll search in recent messages.
-            const messages = await chat.fetchMessages({ limit: 50 }); 
+            // We'll search in recent messages. Increased limit for better findability.
+            const messages = await chat.fetchMessages({ limit: 100 }); 
             const msg = messages.find(m => m.id._serialized === messageId);
             
             if (msg) {
                 await msg.delete(!!everyone);
                 io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
             } else {
-                log('Message not found for deletion');
+                log('Message not found for deletion (checked last 100)');
             }
         } catch(e) { log(`WA Delete Message Error: ${e}`); }
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
@@ -187,6 +189,30 @@ const handleDeleteMessage = async (data) => {
             await sessionState.client.deleteMessages(chatId, msgIds, { revoke: !!everyone });
             io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
         } catch(e) { log(`TG Delete Message Error: ${e}`); }
+    }
+};
+
+const handleReactMessage = async (data) => {
+    const { chatId, messageId, reaction } = data;
+    log(`Reacting to message ${messageId} in ${chatId} with ${reaction}`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            const messages = await chat.fetchMessages({ limit: 100 });
+            const msg = messages.find(m => m.id._serialized === messageId);
+            
+            if (msg) {
+                await msg.react(reaction);
+            } else {
+                log('Message not found for reaction');
+            }
+        } catch(e) { log(`WA React Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            // GramJS sendReaction
+            await sessionState.client.sendReaction(chatId, parseInt(messageId), reaction);
+        } catch(e) { log(`TG React Error: ${e}`); }
     }
 };
 

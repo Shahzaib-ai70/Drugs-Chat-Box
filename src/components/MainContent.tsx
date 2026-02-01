@@ -45,6 +45,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const activeChatIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
+  const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{show: boolean, msg: any | null}>({show: false, msg: null});
+  const msgMenuRef = useRef<HTMLDivElement>(null);
   const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
   const handleArchiveChat = (chatId: string, archive: boolean) => {
@@ -1476,12 +1479,36 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             {msgContextMenu && (
                 <div 
                     ref={msgMenuRef}
-                    className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
+                    className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
                     style={{ 
-                        top: Math.min(msgContextMenu.y, window.innerHeight - 200), 
+                        top: Math.min(msgContextMenu.y, window.innerHeight - 250), 
                         left: Math.min(msgContextMenu.x, window.innerWidth - 200) 
                     }}
                 >
+                    {/* Quick Reactions */}
+                    <div className="flex justify-between px-3 py-2 border-b border-white/10 mb-1">
+                        {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                            <button 
+                                key={emoji} 
+                                className="text-lg hover:scale-125 transition-transform p-1 cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (socketRef.current && activeService?.id) {
+                                        socketRef.current.emit('react_message', { 
+                                            serviceId: activeService.id, 
+                                            messageId: msgContextMenu.msg.id,
+                                            chatId: msgContextMenu.msg.chatId,
+                                            reaction: emoji
+                                        });
+                                    }
+                                    setMsgContextMenu(null);
+                                }}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+
                     <button 
                         onClick={() => {
                             setReplyingTo(msgContextMenu.msg);
@@ -1502,61 +1529,87 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     </button>
                     <div className="h-px bg-white/10 my-1 mx-2" />
                     
-                    {/* Delete for Everyone (only if from me) */}
-                    {msgContextMenu.msg.fromMe && (
-                        <button 
-                            onClick={() => {
-                                if (socketRef.current && activeService?.id) {
-                                    socketRef.current.emit('delete_message', { 
-                                        serviceId: activeService.id, 
-                                        messageId: msgContextMenu.msg.id,
-                                        chatId: msgContextMenu.msg.chatId,
-                                        everyone: true 
-                                    });
-                                    // Optimistic UI update
-                                    setMessagesByChat(prev => {
-                                        const normId = normalizeId(msgContextMenu.msg.chatId);
-                                        const current = prev[normId] || [];
-                                        return {
-                                            ...prev,
-                                            [normId]: current.filter(m => m.id !== msgContextMenu.msg.id)
-                                        };
-                                    });
-                                }
-                                setMsgContextMenu(null);
-                            }}
-                            className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
-                        >
-                            <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.deleteForEveryone || 'Delete for Everyone'}
-                        </button>
-                    )}
-
-                    {/* Delete for Me */}
+                    {/* Delete Option - Opens Modal */}
                     <button 
                         onClick={() => {
-                            if (socketRef.current && activeService?.id) {
-                                socketRef.current.emit('delete_message', { 
-                                    serviceId: activeService.id, 
-                                    messageId: msgContextMenu.msg.id,
-                                    chatId: msgContextMenu.msg.chatId,
-                                    everyone: false 
-                                });
-                                // Optimistic UI update
-                                setMessagesByChat(prev => {
-                                    const normId = normalizeId(msgContextMenu.msg.chatId);
-                                    const current = prev[normId] || [];
-                                    return {
-                                        ...prev,
-                                        [normId]: current.filter(m => m.id !== msgContextMenu.msg.id)
-                                    };
-                                });
-                            }
+                            setDeleteModal({ show: true, msg: msgContextMenu.msg });
                             setMsgContextMenu(null);
                         }}
                         className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
                     >
-                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.deleteForMe || 'Delete for Me'}
+                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.delete || 'Delete'}
                     </button>
+                </div>
+            )}
+
+            {/* Delete Message Modal */}
+            {deleteModal.show && deleteModal.msg && (
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+                        <h3 className="text-xl font-semibold text-white mb-2">{t.deleteMessage || 'Delete message?'}</h3>
+                        <p className="text-gray-400 text-sm mb-6">
+                            {deleteModal.msg.fromMe 
+                                ? (t.deleteMessageConfirm || 'You can delete this message for yourself or for everyone.')
+                                : (t.deleteMessageConfirmMe || 'This will delete the message from your chat history.')}
+                        </p>
+                        
+                        <div className="flex flex-col gap-3">
+                            {deleteModal.msg.fromMe && (
+                                <button 
+                                    onClick={() => {
+                                        if (socketRef.current && activeService?.id) {
+                                            socketRef.current.emit('delete_message', { 
+                                                serviceId: activeService.id, 
+                                                messageId: deleteModal.msg.id,
+                                                chatId: deleteModal.msg.chatId,
+                                                everyone: true 
+                                            });
+                                            // Optimistic UI update
+                                            setMessagesByChat(prev => {
+                                                const normId = normalizeId(deleteModal.msg.chatId);
+                                                const current = prev[normId] || [];
+                                                return { ...prev, [normId]: current.filter(m => m.id !== deleteModal.msg.id) };
+                                            });
+                                        }
+                                        setDeleteModal({ show: false, msg: null });
+                                    }}
+                                    className="w-full py-3 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-xl font-medium transition-colors border border-neon-blue/20"
+                                >
+                                    {t.deleteForEveryone || 'Delete for everyone'}
+                                </button>
+                            )}
+                            
+                            <button 
+                                onClick={() => {
+                                    if (socketRef.current && activeService?.id) {
+                                        socketRef.current.emit('delete_message', { 
+                                            serviceId: activeService.id, 
+                                            messageId: deleteModal.msg.id,
+                                            chatId: deleteModal.msg.chatId,
+                                            everyone: false 
+                                        });
+                                        // Optimistic UI update
+                                        setMessagesByChat(prev => {
+                                            const normId = normalizeId(deleteModal.msg.chatId);
+                                            const current = prev[normId] || [];
+                                            return { ...prev, [normId]: current.filter(m => m.id !== deleteModal.msg.id) };
+                                        });
+                                    }
+                                    setDeleteModal({ show: false, msg: null });
+                                }}
+                                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors border border-white/5"
+                            >
+                                {t.deleteForMe || 'Delete for me'}
+                            </button>
+
+                            <button 
+                                onClick={() => setDeleteModal({ show: false, msg: null })}
+                                className="w-full py-3 text-gray-400 hover:text-white transition-colors mt-2"
+                            >
+                                {t.cancel || 'Cancel'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
