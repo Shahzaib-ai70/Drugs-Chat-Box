@@ -1218,16 +1218,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 )}
 
                                 {/* Metadata (Time & Ticks) */}
-                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-neon-blue/60' : 'text-gray-500'}`}>
-                                    <span className="text-[10px] font-medium">
+                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-gray-300' : 'text-gray-500'}`}>
+                                    <span className="text-[10px] font-medium opacity-80">
                                         {new Date((m.timestamp || Date.now()) * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </span>
                                     {m.fromMe && (
                                         <span className="ml-0.5">
-                                            {(!m.ack || m.ack <= 0) && <Clock size={13} />}
-                                            {m.ack === 1 && <Check size={14} />}
-                                            {m.ack === 2 && <CheckCheck size={14} />}
-                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />}
+                                            {(!m.ack || m.ack <= 0) && <Clock size={13} className="text-gray-400" />}
+                                            {m.ack === 1 && <Check size={14} className="text-gray-300" />}
+                                            {m.ack === 2 && <CheckCheck size={14} className="text-gray-300" />}
+                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-[#00f3ff] drop-shadow-[0_0_8px_rgba(0,243,255,0.8)]" />}
                                         </span>
                                     )}
                                 </div>
