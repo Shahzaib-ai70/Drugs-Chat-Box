@@ -142,6 +142,8 @@ process.on('message', async (msg) => {
         handleDeleteMessage(data);
     } else if (command === 'react_message') {
         handleReactMessage(data);
+    } else if (command === 'get_chat_media') {
+        handleGetChatMedia(data);
     } else if (command === 'update_contact_name') {
         const { chatId, newName } = data;
         log(`Updating contact name for ${chatId} to ${newName}`);
@@ -159,7 +161,8 @@ process.on('message', async (msg) => {
                             lastName: '',
                             addPhonePrivacyException: false
                         }));
-                        fetchChats(); // Refresh list
+                        // FORCE RE-FETCH TO UPDATE UI
+                        setTimeout(() => fetchChats(), 500); 
                     } catch(e) { log(`TG Contact Update Logic Error: ${e}`); }
                 })();
             } catch(e) { log(`TG Update Contact Error: ${e}`); }
@@ -167,9 +170,107 @@ process.on('message', async (msg) => {
              // WhatsApp: Not fully supported via Web API to sync to phone
              // But we will log the attempt.
              log('WhatsApp Contact Update not fully supported via Web API');
+             // Attempt local update anyway
+             setTimeout(() => fetchAndEmitChats(), 500);
         }
     }
 });
+
+const handleGetChatMedia = async (data) => {
+    const { chatId } = data;
+    log(`Fetching media history for ${chatId}`);
+    
+    let mediaList = [];
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            // Fetch more messages to find media (Limit 100)
+            const messages = await chat.fetchMessages({ limit: 100 });
+            
+            for (const msg of messages) {
+                if (msg.hasMedia) {
+                    try {
+                        // Only download if not too old/large to prevent blocking
+                        // For now, we just map what we have. Real download is expensive on WA Web.
+                        // We will rely on real-time downloads or user clicking "Download".
+                        // BUT user wants to SEE media. We must download thumbnails or content.
+                        
+                        // WA Web JS doesn't always give easy thumbnails for old messages without download.
+                        // We'll try to download SMALL media or just metadata if possible.
+                        // Optimization: Only download images/small videos.
+                        
+                        if (msg.type === 'image' || msg.type === 'video' || msg.type === 'document') {
+                             // We download to show in gallery.
+                             const downloaded = await msg.downloadMedia();
+                             if (downloaded) {
+                                 mediaList.push({
+                                     id: msg.id._serialized,
+                                     mimetype: downloaded.mimetype,
+                                     data: downloaded.data,
+                                     filename: downloaded.filename || 'media',
+                                     timestamp: msg.timestamp
+                                 });
+                             }
+                        }
+                    } catch (e) {
+                         // Skip failed downloads
+                    }
+                }
+            }
+        } catch(e) { log(`WA Media History Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            // Telegram: Use Filters for efficient fetching
+            // Fetch Photos
+            const photos = await sessionState.client.getMessages(chatId, { 
+                limit: 20, 
+                filter: new Api.InputMessagesFilterPhotos() 
+            });
+            
+            // Fetch Videos
+            const videos = await sessionState.client.getMessages(chatId, { 
+                limit: 10, 
+                filter: new Api.InputMessagesFilterVideo() 
+            });
+
+            // Helper to process TG messages
+            const processTgMedia = async (msgs) => {
+                for (const msg of msgs) {
+                     try {
+                         // Telegram media needs downloading to get base64
+                         // We download thumbnails for speed if possible, or full media
+                         // For gallery, we need the image.
+                         const buffer = await sessionState.client.downloadMedia(msg, {});
+                         if (buffer) {
+                             const base64 = buffer.toString('base64');
+                             let mimetype = 'application/octet-stream';
+                             if (msg.media.photo) mimetype = 'image/jpeg';
+                             else if (msg.media.document) mimetype = msg.media.document.mimeType || 'video/mp4'; // Assumptions
+                             
+                             mediaList.push({
+                                 id: msg.id.toString(),
+                                 mimetype,
+                                 data: base64,
+                                 filename: 'media',
+                                 timestamp: msg.date
+                             });
+                         }
+                     } catch (e) {}
+                }
+            };
+
+            await processTgMedia(photos);
+            await processTgMedia(videos);
+            
+            // Sort by date desc
+            mediaList.sort((a, b) => b.timestamp - a.timestamp);
+
+        } catch(e) { log(`TG Media History Error: ${e}`); }
+    }
+    
+    io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
+};
 
 const handleDeleteChat = async (data) => {
     const { chatId } = data;

@@ -4,12 +4,13 @@ import { X, Edit2, Save } from 'lucide-react';
 interface ChatInfoSidebarProps {
     chat: any;
     messages: any[];
+    fetchedMedia?: any[];
     onClose: () => void;
     onUpdateContactName: (chatId: string, newName: string) => void;
     isWhatsApp: boolean;
 }
 
-const ChatInfoSidebar = ({ chat, messages, onClose, onUpdateContactName, isWhatsApp }: ChatInfoSidebarProps) => {
+const ChatInfoSidebar = ({ chat, messages, fetchedMedia = [], onClose, onUpdateContactName, isWhatsApp }: ChatInfoSidebarProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(chat?.name || '');
 
@@ -24,9 +25,30 @@ const ChatInfoSidebar = ({ chat, messages, onClose, onUpdateContactName, isWhats
         setIsEditing(false);
     };
 
-    const mediaMessages = messages.filter(m => 
-        (m.hasMedia || m.type === 'image' || m.type === 'video' || m.type === 'photo') && m.media
-    );
+    // Combine loaded messages with fetched media history
+    // Prioritize fetched media as it has more history
+    // De-duplicate based on ID
+    const allMedia = React.useMemo(() => {
+        const loadedMedia = messages.filter(m => 
+            (m.hasMedia || m.type === 'image' || m.type === 'video' || m.type === 'photo') && m.media
+        ).map(m => ({
+            id: m.id,
+            mimetype: m.media.mimetype,
+            data: m.media.data,
+            timestamp: m.timestamp
+        }));
+
+        // Merge fetched media (which is already formatted)
+        const combined = [...loadedMedia, ...fetchedMedia];
+        
+        // Dedup by ID
+        const seen = new Set();
+        return combined.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        }).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    }, [messages, fetchedMedia]);
 
     // Helper to get display ID (Phone or Username)
     const getDisplayId = () => {
@@ -90,16 +112,16 @@ const ChatInfoSidebar = ({ chat, messages, onClose, onUpdateContactName, isWhats
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-50/30">
                 <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Media</h3>
-                    <span className="text-xs font-bold text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{mediaMessages.length}</span>
+                    <span className="text-xs font-bold text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{allMedia.length}</span>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2">
-                    {mediaMessages.map((msg, i) => {
-                         const mediaSrc = msg.media.data.startsWith('data:') ? msg.media.data : `data:${msg.media.mimetype};base64,${msg.media.data}`;
-                         const isVideo = msg.media.mimetype?.startsWith('video');
+                    {allMedia.map((media, i) => {
+                         const mediaSrc = media.data.startsWith('data:') ? media.data : `data:${media.mimetype};base64,${media.data}`;
+                         const isVideo = media.mimetype?.startsWith('video');
                          
                          return (
-                            <div key={msg.id || i} className="aspect-square bg-gray-200 rounded-lg overflow-hidden relative group cursor-pointer border border-gray-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md">
+                            <div key={media.id || i} className="aspect-square bg-gray-200 rounded-lg overflow-hidden relative group cursor-pointer border border-gray-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md">
                                 {isVideo ? (
                                     <video src={mediaSrc} className="w-full h-full object-cover" />
                                 ) : (
@@ -109,7 +131,7 @@ const ChatInfoSidebar = ({ chat, messages, onClose, onUpdateContactName, isWhats
                             </div>
                          );
                     })}
-                    {mediaMessages.length === 0 && (
+                    {allMedia.length === 0 && (
                         <div className="col-span-3 flex flex-col items-center justify-center py-12 text-gray-400">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                                 <span className="text-2xl opacity-50">🖼️</span>

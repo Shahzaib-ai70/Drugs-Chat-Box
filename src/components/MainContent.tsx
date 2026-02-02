@@ -46,7 +46,36 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const activeChatIdRef = useRef<string | null>(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
 
-  const handleUpdateContactName = (chatId: string, newName: string) => {
+  const [currentChatMedia, setCurrentChatMedia] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!socketRef.current) return;
+
+        socketRef.current.on('chat_media_history', (data: { chatId: string, media: any[] }) => {
+            if (data.chatId === activeChatId) {
+                setCurrentChatMedia(data.media);
+            }
+        });
+
+        return () => {
+            socketRef.current?.off('chat_media_history');
+        };
+    }, [activeChatId]);
+
+    // Handle fetching media when sidebar opens
+    useEffect(() => {
+        if (showContactInfo && activeChatId && socketRef.current && activeService) {
+             socketRef.current.emit('command', {
+                 serviceId: activeService.id,
+                 command: 'get_chat_media',
+                 data: { chatId: activeChatId }
+             });
+        }
+    }, [showContactInfo, activeChatId]);
+
+    // ... existing functions ...
+    
+    const handleUpdateContactName = (chatId: string, newName: string) => {
         if (socketRef.current && activeService?.id) {
             socketRef.current.emit('command', {
                 serviceId: activeService.id,
@@ -1515,6 +1544,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     <ChatInfoSidebar 
                         chat={chats.find(c => c.id === activeChatId)}
                         messages={messagesByChat[normalizeId(activeChatId)] || []}
+                        fetchedMedia={currentChatMedia}
                         onClose={() => setShowContactInfo(false)}
                         onUpdateContactName={handleUpdateContactName}
                         isWhatsApp={isWhatsApp}
