@@ -691,10 +691,26 @@ const initializeWhatsApp = async () => {
                 let i = 0;
                 for (const chat of mappedBasic) { 
                     i++;
-                    if (chat.profilePicUrl) continue;
+                    // Removed cache check to force real-time update
+                    // if (chat.profilePicUrl) continue; 
                     try {
-                        const contact = await client.getContactById(chat.id);
-                        const picUrl = await contact.getProfilePicUrl();
+                        let picUrl = null;
+                        try {
+                            const contact = await client.getContactById(chat.id);
+                            picUrl = await contact.getProfilePicUrl();
+                        } catch(e) {}
+
+                        // Fallback for groups or if contact method failed
+                        if (!picUrl) {
+                            try {
+                                const chatObj = await client.getChatById(chat.id);
+                                // Some library versions use getProfilePicUrl on chat object too
+                                if (chatObj && chatObj.getProfilePicUrl) {
+                                     picUrl = await chatObj.getProfilePicUrl();
+                                }
+                            } catch(e) {}
+                        }
+
                         if (picUrl) {
                             chat.profilePicUrl = picUrl;
                             const stateChat = sessionState.chats.find(c => c.id === chat.id);
@@ -704,7 +720,7 @@ const initializeWhatsApp = async () => {
                     } catch(e) {}
                     
                     // Faster for first 12 chats (visible viewport), slower for rest
-                    const delay = i <= 12 ? 10 : 100; 
+                    const delay = i <= 12 ? 50 : 200; // Increased slight delay to prevent rate limits
                     await new Promise(r => setTimeout(r, delay)); 
                 }
             })();
@@ -984,10 +1000,10 @@ const initializeTelegram = async () => {
                  try {
                     const buffer = await client.downloadProfilePhoto(chat.id);
                     if (buffer && buffer.length > 0) {
-                        const picUrl = buffer.toString('base64');
-                        chat.profilePicUrl = picUrl;
-                        io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
-                    }
+                            const picUrl = 'data:image/jpeg;base64,' + buffer.toString('base64');
+                            chat.profilePicUrl = picUrl;
+                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+                        }
                  } catch(e) {}
                  await new Promise(r => setTimeout(r, 500)); // Throttle more for TG
             }
