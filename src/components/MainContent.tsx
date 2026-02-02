@@ -1477,6 +1477,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     )}
                 </div>
                 </div>
+                </div>
                 </>
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-transparent text-center p-8">
