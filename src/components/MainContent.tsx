@@ -911,13 +911,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {
       return (
-        <div className="flex-1 flex h-full overflow-hidden glass-panel border-l-0 border-r-0">
+        <div className="flex-1 flex h-full overflow-hidden bg-white border-l border-r border-gray-200">
           {/* Left Sidebar - Chat List */}
-          <div className="w-[360px] border-r border-white/5 flex flex-col h-full bg-transparent z-10">
+          <div className="w-[360px] border-r border-gray-200 flex flex-col h-full bg-white z-10">
             {/* Header */}
-            <div className="h-16 flex items-center justify-between px-4 bg-black/20 shrink-0 border-b border-white/5 backdrop-blur-md">
+            <div className="h-16 flex items-center justify-between px-4 bg-gray-50/80 shrink-0 border-b border-gray-200 backdrop-blur-md">
                <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-black/40 overflow-hidden ring-2 ring-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.2)]">
+                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden ring-2 ring-blue-500/10 shadow-sm">
                    <img 
                       src={myProfile?.profilePicUrl || "https://upload.wikimedia.org/wikipedia/commons/9/93/Google_Contacts_icon.svg"} 
                       alt="Profile" 
@@ -928,11 +928,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                    />
                  </div>
                  <div className="flex flex-col">
-                    <span className="font-bold text-white text-sm tracking-wide">{myProfile?.name || "My Chats"}</span>
-                    <span className="text-xs text-neon-blue font-medium drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">{t.online}</span>
+                    <span className="font-bold text-gray-900 text-sm tracking-wide">{myProfile?.name || "My Chats"}</span>
+                    <span className="text-xs text-blue-600 font-medium">{t.online}</span>
                  </div>
                </div>
-               <div className="flex gap-2 text-gray-400">
+               <div className="flex gap-2 text-gray-500">
                  <button 
                     onClick={() => {
                         if (socketRef.current && activeService?.id) {
@@ -941,22 +941,22 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }
                     }}
                     title={t.refresh}
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors hover:text-white"
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors hover:text-blue-600"
                  >
-                    <IoMdRefresh size={20} className={isLoadingChats ? "animate-spin text-neon-blue" : ""} />
+                    <IoMdRefresh size={20} className={isLoadingChats ? "animate-spin text-blue-600" : ""} />
                  </button>
-                 <button className="p-2 hover:bg-white/10 rounded-full transition-colors hover:text-white"><MoreVertical size={20} /></button>
+                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors hover:text-blue-600"><MoreVertical size={20} /></button>
                </div>
             </div>
             
             {/* Search */}
-            <div className="px-4 py-3 shrink-0 bg-transparent">
-              <div className="relative group perspective-500">
+            <div className="px-4 py-3 shrink-0 bg-white">
+              <div className="relative group">
                 <input 
-                  className="w-full h-10 rounded-xl bg-black/40 border border-white/10 px-10 text-sm text-white focus:bg-black/60 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-all duration-300 placeholder-gray-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] group-hover:shadow-[0_0_15px_rgba(0,243,255,0.1)]" 
+                  className="w-full h-10 rounded-xl bg-gray-100 border border-transparent px-10 text-sm text-gray-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 placeholder-gray-500 shadow-sm group-hover:shadow-md" 
                   placeholder={t.search} 
                 />
-                <Search size={16} className="absolute left-3.5 top-3 text-gray-500 group-hover:text-neon-blue transition-colors duration-300" />
+                <Search size={16} className="absolute left-3.5 top-3 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
               </div>
             </div>
 
@@ -966,8 +966,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     onClick={() => setActiveTab('chats')}
                     className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                         activeTab === 'chats' 
-                        ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
-                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-300'
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm' 
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                     }`}
                 >
                     {t.chats || 'Chats'}
@@ -976,8 +976,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     onClick={() => setActiveTab('archived')}
                     className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                         activeTab === 'archived' 
-                        ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.2)]' 
-                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-300'
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm' 
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                     }`}
                 >
                     {t.archived || 'Archived'}
@@ -987,14 +987,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto relative custom-scrollbar">
               {isLoadingChats ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-md z-10">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-md z-10">
                     <div className="relative">
-                        <div className="w-12 h-12 border-4 border-white/10 border-t-neon-blue rounded-full animate-spin shadow-[0_0_20px_rgba(0,243,255,0.5)]"></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-neon-blue rounded-full shadow-[0_0_10px_rgba(0,243,255,0.8)]"></div>
-                        </div>
+                        <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
                     </div>
-                    <div className="mt-4 text-neon-blue text-sm font-bold tracking-widest uppercase drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
+                    <div className="mt-4 text-blue-600 text-sm font-bold tracking-widest uppercase">
                         {loadingStatus ? `${t.syncing}: ${loadingStatus.percent}%` : t.loadingChats}
                     </div>
                 </div>
@@ -1002,8 +999,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 <>
                   {chats.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 p-8">
-                          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                              <MessageCircle size={32} className="text-gray-600" />
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                              <MessageCircle size={32} className="text-gray-400" />
                           </div>
                           <p className="text-sm font-medium">{t.noChats}</p>
                           <p className="text-xs mt-1 opacity-50">{t.refresh}</p>
@@ -1015,8 +1012,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                       onContextMenu={(e) => handleContextMenu(e, c.id, !!c.archived)}
                       className={`w-full px-4 py-3.5 flex items-center gap-4 transition-all duration-300 border-l-[3px] group relative overflow-hidden ${
                         activeChatId === c.id 
-                          ? 'bg-gradient-to-r from-neon-blue/10 to-transparent border-neon-blue shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] translate-x-1' 
-                          : 'bg-[#1a1a2e]/80 border-white/10 hover:bg-[#1a1a2e] hover:border-neon-blue/30 hover:translate-x-1'
+                          ? 'bg-blue-50 border-blue-500 shadow-sm translate-x-1' 
+                          : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-300 hover:translate-x-1'
                       }`}
                       onClick={() => {
                         setActiveChatId(c.id);
@@ -1030,9 +1027,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         }
                       }}
                     >
-                      <div className={`absolute inset-0 bg-gradient-to-r from-neon-blue/5 to-transparent opacity-0 transition-opacity duration-300 ${activeChatId === c.id ? 'opacity-100' : 'group-hover:opacity-100'}`}></div>
+                      <div className={`absolute inset-0 bg-blue-50 opacity-0 transition-opacity duration-300 ${activeChatId === c.id ? 'opacity-100' : 'group-hover:opacity-100'}`}></div>
                       
-                      <div className="w-12 h-12 rounded-full bg-black/40 overflow-hidden shrink-0 border border-white/10 relative z-10 group-hover:border-neon-blue/30 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-200 relative z-10 group-hover:border-blue-300 transition-colors">
                         <img 
                             src={c.profilePicUrl || "https://upload.wikimedia.org/wikipedia/commons/9/93/Google_Contacts_icon.svg"} 
                             className="w-full h-full object-cover" 
@@ -1041,36 +1038,36 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             }}
                         />
                       </div>
-                      <div className="flex-1 text-left min-w-0">
+                      <div className="flex-1 text-left min-w-0 z-10 relative">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-white' : 'font-semibold text-gray-300'}`}>{c.name || t.unknown}</span>
-                          <span className={`text-[11px] ${c.unreadCount > 0 ? 'text-neon-blue font-bold drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]' : 'text-gray-500'}`}>
+                          <span className={`text-sm truncate ${c.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{c.name || t.unknown}</span>
+                          <span className={`text-[11px] ${c.unreadCount > 0 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                             {c.lastTimestamp ? new Date(c.lastTimestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-200 font-medium' : 'text-gray-500'} flex items-center gap-1`}>
+                           <div className={`text-sm truncate flex-1 pr-4 ${c.unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'} flex items-center gap-1`}>
                                {c.lastMessageFromMe && (
                                    <span className="shrink-0">
                                        {c.lastMessageAck === 3 ? (
-                                           <CheckCheck size={14} className="text-neon-blue" />
+                                           <CheckCheck size={14} className="text-blue-500" />
                                        ) : c.lastMessageAck === 2 ? (
                                            <CheckCheck size={14} className="text-gray-400" />
                                        ) : c.lastMessageAck === 1 ? (
                                            <Check size={14} className="text-gray-400" />
                                        ) : (
-                                           <Clock size={14} className="text-gray-500" />
+                                           <Clock size={14} className="text-gray-400" />
                                        )}
                                    </span>
                                )}
                                {typingStatus[c.id] ? (
-                                   <span className="text-neon-blue font-bold animate-pulse">Typing...</span>
+                                   <span className="text-blue-600 font-bold animate-pulse">Typing...</span>
                                ) : (
                                    <span className="truncate">{c.lastMessage}</span>
                                )}
                            </div>
                            {c.unreadCount > 0 && (
-                             <div className="min-w-[18px] h-[18px] px-1.5 bg-neon-purple rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-[0_0_10px_rgba(188,19,254,0.6)] animate-pulse">
+                             <div className="min-w-[18px] h-[18px] px-1.5 bg-blue-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm animate-pulse">
                                {c.unreadCount}
                              </div>
                            )}
@@ -1230,19 +1227,19 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <div 
                                 onDoubleClick={() => setReplyingTo(m)}
                                 onContextMenu={(e) => handleMsgContextMenu(e, m)}
-                                className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-lg relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none backdrop-blur-md border hover:shadow-2xl hover:-translate-y-0.5
+                                className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-sm relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none backdrop-blur-md border hover:shadow-md hover:-translate-y-0.5
                                 ${m.fromMe 
-                                    ? 'bg-gradient-to-br from-[#4a0072]/90 to-[#240046]/95 text-white border-purple-500/30 rounded-tr-none shadow-[0_0_15px_rgba(188,19,254,0.2)]' 
-                                    : 'bg-[#2a2a35]/95 text-white border-white/20 rounded-tl-none hover:bg-[#323242]'
+                                    ? 'bg-blue-600 text-white border-blue-600 rounded-tr-none' 
+                                    : 'bg-white text-gray-800 border-gray-200 rounded-tl-none hover:bg-gray-50'
                                 }`}
                             >
                                 {/* Quoted Message */}
                                 {m.quotedMsg && (
-                                    <div className={`mb-2 p-2 rounded-lg border-l-[4px] text-xs ${m.fromMe ? 'bg-black/20 border-white/50' : 'bg-black/20 border-purple-500'}`}>
-                                        <div className={`font-bold mb-0.5 ${m.fromMe ? 'text-white' : 'text-purple-400'}`}>
+                                    <div className={`mb-2 p-2 rounded-lg border-l-[4px] text-xs ${m.fromMe ? 'bg-black/10 border-white/50' : 'bg-gray-100 border-blue-500'}`}>
+                                        <div className={`font-bold mb-0.5 ${m.fromMe ? 'text-white' : 'text-blue-600'}`}>
                                             {m.quotedMsg.fromMe ? t.you : (m.quotedMsg.author || t.contact)}
                                         </div>
-                                        <div className="truncate text-gray-400 line-clamp-2">
+                                        <div className="truncate text-gray-500 line-clamp-2">
                                             {m.quotedMsg.body}
                                         </div>
                                     </div>
@@ -1250,7 +1247,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
                                 {/* Media Rendering */}
                                 {m.media && (
-                                    <div className="mb-2 rounded-lg overflow-hidden relative border border-white/10">
+                                    <div className="mb-2 rounded-lg overflow-hidden relative border border-gray-200/50">
                                         {m.media.mimetype.startsWith('image/') && (
                                             <div 
                                                 className="cursor-pointer hover:opacity-90 transition-opacity"
@@ -1274,15 +1271,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                             />
                                         )}
                                         {!m.media.mimetype.startsWith('image/') && !m.media.mimetype.startsWith('video/') && (
-                                            <div className="flex items-center gap-2 p-3 bg-black/20 rounded-lg">
-                                                <Download size={20} className="text-gray-400" />
-                                                <span className="text-sm truncate max-w-[200px] text-gray-200">{m.media.filename || t.attachment}</span>
+                                            <div className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg">
+                                                <Download size={20} className="text-gray-500" />
+                                                <span className="text-sm truncate max-w-[200px] text-gray-700">{m.media.filename || t.attachment}</span>
                                             </div>
                                         )}
                                     </div>
                                 )}
                                 {m.hasMedia && !m.media && (
-                                    <div className="mb-2 p-3 bg-white/5 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors border border-white/10"
+                                    <div className="mb-2 p-3 bg-gray-50 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200"
                                          onClick={(e) => {
                                              e.stopPropagation();
                                              if (socketRef.current && activeService?.id) {
@@ -1295,11 +1292,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                              }
                                          }}
                                     >
-                                        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-gray-400">
+                                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
                                              <Download size={20} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-gray-300">{t.mediaOmitted}</span>
+                                            <span className="text-sm font-medium text-gray-700">{t.mediaOmitted}</span>
                                             <span className="text-xs text-gray-500">{t.clickToDownload}</span>
                                         </div>
                                     </div>
@@ -1314,27 +1311,27 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 
                                 {/* Translation Original Text */}
                                 {isTranslated && (
-                                    <div className="mt-1 pt-1 border-t border-white/10 text-xs text-gray-500 italic">
+                                    <div className="mt-1 pt-1 border-t border-white/20 text-xs opacity-70 italic">
                                         {t.original}: {m.body}
                                     </div>
                                 )}
                                 {(m.originalBody || outgoingOriginals[m.id]) && (
-                                    <div className="mt-1 pt-1 border-t border-white/10 text-xs text-gray-500 italic">
+                                    <div className="mt-1 pt-1 border-t border-white/20 text-xs opacity-70 italic">
                                         {t.original}: {m.originalBody || outgoingOriginals[m.id]}
                                     </div>
                                 )}
 
                                 {/* Metadata (Time & Ticks) */}
-                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-gray-300' : 'text-gray-500'}`}>
+                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-blue-100' : 'text-gray-400'}`}>
                                     <span className="text-[10px] font-medium opacity-80">
                                         {new Date((m.timestamp || Date.now()) * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </span>
                                     {m.fromMe && (
                                         <span className="ml-0.5">
-                                            {(!m.ack || m.ack <= 0) && <Clock size={13} className="text-gray-400" />}
-                                            {m.ack === 1 && <Check size={14} className="text-gray-300" />}
-                                            {m.ack === 2 && <CheckCheck size={14} className="text-gray-300" />}
-                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-[#00f3ff] drop-shadow-[0_0_8px_rgba(0,243,255,0.8)]" />}
+                                            {(!m.ack || m.ack <= 0) && <Clock size={13} className="text-blue-200" />}
+                                            {m.ack === 1 && <Check size={14} className="text-blue-200" />}
+                                            {m.ack === 2 && <CheckCheck size={14} className="text-blue-200" />}
+                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-white" />}
                                         </span>
                                     )}
                                 </div>

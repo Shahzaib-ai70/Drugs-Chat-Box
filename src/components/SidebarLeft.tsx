@@ -134,15 +134,15 @@ const SidebarLeft = ({
   };
 
   return (
-    <div className="w-[280px] glass-panel flex flex-col h-full font-sans relative border-r-0">
+    <div className="w-[280px] bg-white/80 backdrop-blur-xl border-r border-gray-200 flex flex-col h-full font-sans relative">
       {/* Tabs */}
       <div className="px-4 pt-4 pb-2">
-        <div className="flex bg-black/30 p-1 rounded-lg border border-white/5">
+        <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
           <button
             className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
               activeTab === 'Normal'
-                ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
             }`}
             onClick={() => setActiveTab('Normal')}
           >
@@ -151,8 +151,8 @@ const SidebarLeft = ({
           <button
             className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
               activeTab === 'Pinned'
-                ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
             }`}
             onClick={() => setActiveTab('Pinned')}
           >
@@ -170,20 +170,19 @@ const SidebarLeft = ({
               key={item.id}
               className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all select-none border border-transparent ${
                 isActive 
-                  ? 'bg-white/10 border-neon-blue/30 shadow-[0_0_15px_rgba(0,243,255,0.1)]' 
-                  : 'hover:bg-white/5 hover:border-white/5'
+                  ? 'bg-blue-50 border-blue-200 shadow-sm' 
+                  : 'hover:bg-gray-100 hover:border-gray-200'
               }`}
               onClick={() => onServiceClick?.(item.id)}
               onContextMenu={(e) => handleContextMenu(e, item.id)}
             >
               <div className="flex items-center gap-3 overflow-hidden">
                 <div 
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform ${isActive ? 'scale-105' : ''} overflow-hidden relative`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform ${isActive ? 'scale-105' : ''} overflow-hidden relative shadow-sm`}
                   style={{ 
-                    backgroundColor: isActive ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.3)',
+                    backgroundColor: isActive ? 'white' : 'rgba(255,255,255,0.8)',
                     color: item.service.color,
-                    boxShadow: isActive ? '0 0 10px ' + item.service.color : 'none',
-                    border: '1px solid rgba(255,255,255,0.1)'
+                    border: '1px solid rgba(0,0,0,0.05)'
                   }}
                 >
                   {serviceProfilePics[item.id] ? (
@@ -199,7 +198,7 @@ const SidebarLeft = ({
                               type="text" 
                               value={tempName} 
                               onChange={e => setTempName(e.target.value)}
-                              className="w-full bg-black/50 text-white text-xs px-1 py-0.5 rounded border border-neon-blue/50 focus:outline-none"
+                              className="w-full bg-white text-gray-900 text-xs px-1 py-0.5 rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
                               autoFocus
                               onClick={e => e.stopPropagation()}
                               onKeyDown={e => {
@@ -207,24 +206,24 @@ const SidebarLeft = ({
                                 if (e.key === 'Escape') cancelEditing(e as any);
                               }}
                           />
-                          <button onClick={(e) => saveName(e, item.id)} className="text-green-400 hover:text-green-300 p-0.5"><Check size={12} /></button>
-                          <button onClick={cancelEditing} className="text-red-400 hover:text-red-300 p-0.5"><X size={12} /></button>
+                          <button onClick={(e) => saveName(e, item.id)} className="text-green-600 hover:text-green-500 p-0.5"><Check size={12} /></button>
+                          <button onClick={cancelEditing} className="text-red-600 hover:text-red-500 p-0.5"><X size={12} /></button>
                       </div>
                   ) : (
                       <>
                           <div className="flex items-center justify-between group/name pr-1">
-                              <span className={`text-sm truncate ${isActive ? 'font-bold text-white tracking-wide' : 'font-medium text-gray-400 group-hover:text-gray-200'}`}>
+                              <span className={`text-sm truncate ${isActive ? 'font-bold text-gray-900 tracking-wide' : 'font-medium text-gray-700 group-hover:text-gray-900'}`}>
                                 {item.customName}
                               </span>
                               <button 
-                                  className={`opacity-0 group-hover/name:opacity-100 text-gray-500 hover:text-neon-blue transition-opacity p-0.5 ml-1`}
+                                  className={`opacity-0 group-hover/name:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity p-0.5 ml-1`}
                                   onClick={(e) => startEditing(e, item.id, item.customName)}
                                   title="Edit Name"
                               >
                                   <Edit2 size={10} />
                               </button>
                           </div>
-                          <span className="text-[10px] text-gray-500 truncate group-hover:text-gray-400 font-mono tracking-tight opacity-80">
+                          <span className="text-[10px] text-gray-500 truncate group-hover:text-gray-600 font-mono tracking-tight opacity-80">
                             {item.accountIdentifier || item.service.name}
                           </span>
                       </>
@@ -235,7 +234,7 @@ const SidebarLeft = ({
               <div className="flex items-center gap-2">
                 {/* Badge */}
                 {unreadCounts[item.id] > 0 && (
-                  <div className="bg-neon-purple text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-[0_0_10px_rgba(188,19,254,0.6)] animate-pulse">
+                  <div className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm animate-pulse">
                       {unreadCounts[item.id]}
                   </div>
                 )}
@@ -243,7 +242,7 @@ const SidebarLeft = ({
                 {isActive && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors" 
+                      className="p-1.5 hover:bg-white/50 rounded-md text-gray-400 hover:text-gray-700 transition-colors" 
                       title={t.refresh}
                       onClick={(e) => {
                           e.stopPropagation();
@@ -252,7 +251,7 @@ const SidebarLeft = ({
                     >
                       <RotateCw size={14} />
                     </button>
-                    <button className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors" title={t.openExternal}>
+                    <button className="p-1.5 hover:bg-white/50 rounded-md text-gray-400 hover:text-gray-700 transition-colors" title={t.openExternal}>
                       <ExternalLink size={14} />
                     </button>
                   </div>
@@ -264,9 +263,9 @@ const SidebarLeft = ({
       </div>
 
       {/* Bottom Actions */}
-      <div className="p-4 border-t border-white/5 bg-black/20 backdrop-blur-sm">
+      <div className="p-4 border-t border-gray-200 bg-gray-50/50 backdrop-blur-sm">
         <button 
-          className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-neon-purple/50 active:scale-[0.98] border border-white/10"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg active:scale-[0.98] border border-transparent"
           onClick={onAddNewClick}
         >
           <Plus size={16} />
@@ -278,23 +277,23 @@ const SidebarLeft = ({
       {contextMenu && (
         <div 
             ref={menuRef}
-            className="fixed z-50 w-48 bg-[#1a1a24] rounded-xl shadow-2xl border border-white/10 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl"
+            className="fixed z-50 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
             style={{ left: contextMenu.x, top: contextMenu.y }}
         >
             <button 
-                className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-white/10 flex items-center gap-2 transition-colors hover:text-white"
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                 onClick={() => {
                     onRefreshService?.(contextMenu.id);
                     setContextMenu(null);
                 }}
             >
-                <RefreshCcw size={14} className="text-gray-400" />
+                <RefreshCcw size={14} className="text-gray-500" />
                 Refresh
             </button>
-            <div className="h-px bg-white/10 my-1"></div>
+            <div className="h-px bg-gray-100 my-1"></div>
 
             <button 
-                className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
                 onClick={() => {
                     onDeleteService?.(contextMenu.id);
                     setContextMenu(null);
