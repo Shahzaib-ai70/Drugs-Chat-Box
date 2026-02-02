@@ -9,6 +9,7 @@ const { Client, LocalAuth, MessageMedia } = pkg;
 import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
+import { CustomFile } from 'telegram/client/uploads/index.js';
 import { Buffer } from 'buffer';
 
 // Environment Variables
