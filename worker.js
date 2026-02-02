@@ -244,16 +244,6 @@ const handleArchiveChat = async (data) => {
         try {
             // Telegram 'archive' is essentially moving to folder 1 or specific archive logic
             // GramJS doesn't have a direct 'archive' helper on Chat object, need to use API
-            const { Api } = pkg; // Wait, pkg is whatsapp-web.js. Need telegram imports.
-            // Actually I imported { TelegramClient } from 'telegram'.
-            // I need { Api } from 'telegram'. Let's check imports.
-            
-            // For now, let's assume standard folder archiving if possible or just update local state if we can't do it easily.
-            // GramJS: client.invoke(new Api.folders.EditPeerFolders({...}))
-            
-            // Since I don't want to break things by guessing imports, I'll update local state first
-            // and try to find the correct gramjs method.
-            // Archive in TG is usually adding to the 'Archived Chats' folder.
             
             // Just update local state for UI responsiveness
              const localChat = sessionState.chats.find(c => c.id === chatId);
@@ -343,36 +333,30 @@ const handleSendMessage = async (data) => {
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
-                const isMedia = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
                 
-                let sendParams;
+                // Ensure filename exists
+                let filename = data.media.filename;
+                if (!filename) {
+                    const ext = data.media.mimetype.split('/')[1] || 'bin';
+                    filename = `file.${ext}`;
+                }
 
-                if (isMedia) {
-                     // For pure media (image/video), just pass the buffer and forceDocument: false
-                     // This allows Telegram to auto-detect and render as native media
-                     sendParams = {
-                        message: body,
-                        file: buffer,
-                        forceDocument: false
-                     };
-                } else {
-                    // For documents, use CustomFile to preserve filename
-                    let filename = data.media.filename;
-                    if (!filename) {
-                        const ext = data.media.mimetype.split('/')[1] || 'bin';
-                        filename = `file.${ext}`;
-                    }
-                    // Use CustomFile to ensure GramJS detects the file type correctly based on extension
-                    const file = new CustomFile(filename, buffer.length, "", buffer);
-                    
-                    sendParams = {
-                        message: body,
-                        file: file,
-                        forceDocument: true,
-                        attributes: [
-                             new Api.DocumentAttributeFilename({ fileName: filename })
-                        ]
-                    };
+                // Use CustomFile for ALL media types to ensure proper metadata/filename
+                const file = new CustomFile(filename, buffer.length, "", buffer);
+                
+                const isImageOrVideo = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
+                
+                const sendParams = {
+                    message: body,
+                    file: file,
+                    forceDocument: !isImageOrVideo // False = Inline Media (Image/Video), True = Document
+                };
+                
+                // Add filename attribute for documents (extra safety)
+                if (!isImageOrVideo) {
+                    sendParams.attributes = [
+                        new Api.DocumentAttributeFilename({ fileName: filename })
+                    ];
                 }
                 
                 result = await sessionState.client.sendMessage(data.chatId, sendParams);
