@@ -1090,24 +1090,24 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             
             {/* 2FA Modal */}
             {is2FARequired && (
-                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-[#1a1a2e]/90 backdrop-blur-xl w-full max-w-md rounded-2xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white/95 backdrop-blur-xl w-full max-w-md rounded-2xl p-6 shadow-2xl border border-gray-200 relative overflow-hidden">
                         {/* Decorative background elements */}
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-blue to-transparent opacity-50"></div>
-                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-neon-blue/20 rounded-full blur-3xl"></div>
-                        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-neon-purple/20 rounded-full blur-3xl"></div>
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
+                        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
 
                         <div className="flex flex-col items-center text-center gap-4 relative z-10">
-                            <div className="w-20 h-20 bg-black/40 rounded-full flex items-center justify-center text-neon-blue mb-2 shadow-[0_0_20px_rgba(0,243,255,0.2)] border border-white/5 ring-1 ring-white/10">
-                                <Lock size={36} className="drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />
+                            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-2 shadow-sm border border-blue-100 ring-1 ring-blue-50">
+                                <Lock size={36} />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-bold text-white tracking-wide drop-shadow-md">{t.twoStepVerification}</h3>
-                                <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                                <h3 className="text-2xl font-bold text-gray-900 tracking-wide">{t.twoStepVerification}</h3>
+                                <p className="text-gray-500 text-sm mt-2 leading-relaxed">
                                     {t.twoStepDescription}
                                 </p>
                                 {passwordHint && (
-                                    <p className="text-sm text-neon-blue mt-3 bg-neon-blue/10 border border-neon-blue/20 px-4 py-1.5 rounded-full inline-block font-medium shadow-[0_0_10px_rgba(0,243,255,0.1)]">
+                                    <p className="text-sm text-blue-600 mt-3 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full inline-block font-medium">
                                         {t.hint}: {passwordHint}
                                     </p>
                                 )}
@@ -1119,7 +1119,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     value={password2FA}
                                     onChange={(e) => setPassword2FA(e.target.value)}
                                     placeholder={t.enterPassword}
-                                    className="w-full h-14 px-6 rounded-xl border border-white/10 bg-black/50 focus:bg-black/70 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 outline-none transition-all text-center text-xl tracking-[0.5em] text-white placeholder-gray-600 shadow-inner"
+                                    className="w-full h-14 px-6 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all text-center text-xl tracking-[0.5em] text-gray-900 placeholder-gray-400 shadow-inner"
                                     autoFocus
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && password2FA) {
@@ -1148,10 +1148,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     }
                                 }}
                                 disabled={!password2FA}
-                                className={`w-full h-12 rounded-xl font-bold text-base transition-all shadow-lg mt-2 flex items-center justify-center gap-2
+                                className={`w-full h-12 rounded-xl font-bold text-base transition-all shadow-md mt-2 flex items-center justify-center gap-2
                                     ${password2FA 
-                                        ? 'bg-neon-blue text-black hover:bg-white hover:shadow-[0_0_20px_rgba(0,243,255,0.5)] active:scale-[0.98]' 
-                                        : 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/5'}`}
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]' 
+                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'}`}
                             >
                                 {t.verifyPassword}
                             </button>
@@ -1165,10 +1165,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 <>
                 <div 
                     onClick={() => setShowContactInfo(prev => !prev)}
-                    className="h-16 bg-[#1a1a2e]/80 border-b border-white/10 flex items-center justify-between px-6 shrink-0 backdrop-blur-xl z-10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] cursor-pointer transition-colors hover:bg-[#1a1a2e]"
+                    className="h-16 bg-white/90 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 backdrop-blur-md z-10 shadow-sm cursor-pointer transition-colors hover:bg-gray-50"
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-gray-400 overflow-hidden ring-2 ring-white/10 shadow-[0_0_15px_rgba(255,255,255,0.1)] group cursor-pointer transition-all hover:ring-neon-blue/50 hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 overflow-hidden ring-2 ring-gray-100 shadow-sm group cursor-pointer transition-all hover:ring-blue-200 hover:shadow-md">
                              {(() => {
                                 const activeChat = chats.find(c => c.id === activeChatId);
                                 return (
@@ -1183,38 +1183,38 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                              })()}
                         </div>
                         <div>
-                            <div className="text-white font-bold text-sm tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
+                            <div className="text-gray-900 font-bold text-sm tracking-wide">
                                 {chats.find(c => c.id === activeChatId)?.name || normalizeId(activeChatId || '')}
                             </div>
                             {typingStatus[activeChatId] ? (
-                                <div className="text-neon-blue text-xs font-medium flex items-center gap-1 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] mt-0.5 animate-pulse">
-                                    <span className="w-1.5 h-1.5 bg-neon-blue rounded-full shadow-[0_0_5px_rgba(0,243,255,1)]"></span>
+                                <div className="text-blue-600 text-xs font-medium flex items-center gap-1 mt-0.5 animate-pulse">
+                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
                                     Typing...
                                 </div>
                             ) : chats.find(c => c.id === activeChatId)?.lastSeen && (
-                                <div className="text-neon-blue text-xs font-medium flex items-center gap-1 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] mt-0.5">
-                                    <span className="w-1.5 h-1.5 bg-neon-blue rounded-full shadow-[0_0_5px_rgba(0,243,255,1)] animate-pulse"></span>
+                                <div className="text-blue-600 text-xs font-medium flex items-center gap-1 mt-0.5">
+                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
                                     {chats.find(c => c.id === activeChatId)?.lastSeen}
                                 </div>
                             )}
                         </div>
                     </div>
                     <div className="flex items-center gap-4 text-gray-400">
-                        <button className="hover:text-neon-blue transition-all hover:scale-110 hover:drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]"><Search size={20} /></button>
-                        <button className="hover:text-neon-blue transition-all hover:scale-110 hover:drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]"><Phone size={20} /></button>
-                        <button className="hover:text-white transition-all hover:scale-110"><MoreVertical size={20} /></button>
+                        <button className="hover:text-blue-600 transition-all hover:scale-110 hover:bg-blue-50 p-2 rounded-full"><Search size={20} /></button>
+                        <button className="hover:text-blue-600 transition-all hover:scale-110 hover:bg-blue-50 p-2 rounded-full"><Phone size={20} /></button>
+                        <button className="hover:text-gray-900 transition-all hover:scale-110 hover:bg-gray-100 p-2 rounded-full"><MoreVertical size={20} /></button>
                     </div>
                 </div>
 
-                <div className="flex flex-1 min-h-0 relative overflow-hidden">
+                <div className="flex flex-1 min-h-0 relative overflow-hidden bg-[#f0f2f5]">
                     <div className="flex-1 flex flex-col min-w-0 relative">
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-transparent to-black/20">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                     {loadingHistory && (
                         <div className="flex justify-center py-4">
                             <div className="relative">
-                                <div className="w-6 h-6 border-2 border-white/10 border-t-neon-blue rounded-full animate-spin shadow-[0_0_10px_rgba(0,243,255,0.5)]"></div>
+                                <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
                             </div>
                         </div>
                     )}
@@ -1227,16 +1227,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             <div 
                                 onDoubleClick={() => setReplyingTo(m)}
                                 onContextMenu={(e) => handleMsgContextMenu(e, m)}
-                                className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-sm relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none backdrop-blur-md border hover:shadow-md hover:-translate-y-0.5
+                                className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-sm relative group cursor-pointer transition-all duration-300 active:scale-[0.98] select-none border hover:shadow-md hover:-translate-y-0.5
                                 ${m.fromMe 
-                                    ? 'bg-blue-600 text-white border-blue-600 rounded-tr-none' 
+                                    ? 'bg-blue-100 text-gray-900 border-blue-200 rounded-tr-none' 
                                     : 'bg-white text-gray-800 border-gray-200 rounded-tl-none hover:bg-gray-50'
                                 }`}
                             >
                                 {/* Quoted Message */}
                                 {m.quotedMsg && (
-                                    <div className={`mb-2 p-2 rounded-lg border-l-[4px] text-xs ${m.fromMe ? 'bg-black/10 border-white/50' : 'bg-gray-100 border-blue-500'}`}>
-                                        <div className={`font-bold mb-0.5 ${m.fromMe ? 'text-white' : 'text-blue-600'}`}>
+                                    <div className={`mb-2 p-2 rounded-lg border-l-[4px] text-xs ${m.fromMe ? 'bg-white/50 border-blue-400' : 'bg-gray-100 border-blue-500'}`}>
+                                        <div className={`font-bold mb-0.5 ${m.fromMe ? 'text-blue-700' : 'text-blue-600'}`}>
                                             {m.quotedMsg.fromMe ? t.you : (m.quotedMsg.author || t.contact)}
                                         </div>
                                         <div className="truncate text-gray-500 line-clamp-2">
@@ -1311,27 +1311,27 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                 
                                 {/* Translation Original Text */}
                                 {isTranslated && (
-                                    <div className="mt-1 pt-1 border-t border-white/20 text-xs opacity-70 italic">
+                                    <div className="mt-1 pt-1 border-t border-gray-300 text-xs opacity-70 italic">
                                         {t.original}: {m.body}
                                     </div>
                                 )}
                                 {(m.originalBody || outgoingOriginals[m.id]) && (
-                                    <div className="mt-1 pt-1 border-t border-white/20 text-xs opacity-70 italic">
+                                    <div className="mt-1 pt-1 border-t border-gray-300 text-xs opacity-70 italic">
                                         {t.original}: {m.originalBody || outgoingOriginals[m.id]}
                                     </div>
                                 )}
 
                                 {/* Metadata (Time & Ticks) */}
-                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                                <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-gray-600' : 'text-gray-400'}`}>
                                     <span className="text-[10px] font-medium opacity-80">
                                         {new Date((m.timestamp || Date.now()) * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </span>
                                     {m.fromMe && (
                                         <span className="ml-0.5">
-                                            {(!m.ack || m.ack <= 0) && <Clock size={13} className="text-blue-200" />}
-                                            {m.ack === 1 && <Check size={14} className="text-blue-200" />}
-                                            {m.ack === 2 && <CheckCheck size={14} className="text-blue-200" />}
-                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-white" />}
+                                            {(!m.ack || m.ack <= 0) && <Clock size={13} className="text-gray-500" />}
+                                            {m.ack === 1 && <Check size={14} className="text-gray-500" />}
+                                            {m.ack === 2 && <CheckCheck size={14} className="text-gray-500" />}
+                                            {m.ack && m.ack >= 3 && <CheckCheck size={14} className="text-blue-600" />}
                                         </span>
                                     )}
                                 </div>
@@ -1343,15 +1343,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-transparent shrink-0 backdrop-blur-sm">
+                <div className="p-4 bg-white/90 shrink-0 backdrop-blur-sm border-t border-gray-200">
                     {replyingTo && (
-                        <div className="flex items-center justify-between bg-[#1a1a2e]/80 border-l-[4px] border-neon-blue rounded-lg p-3 mb-3 shadow-xl animate-in slide-in-from-bottom-2 mx-1 backdrop-blur-md border-t border-r border-b border-white/10 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            <div className="flex-1 min-w-0 px-2 py-1 bg-white/5 rounded relative z-10">
-                                <div className="text-neon-blue text-xs font-bold mb-0.5 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
+                        <div className="flex items-center justify-between bg-gray-50 border-l-[4px] border-blue-500 rounded-lg p-3 mb-3 shadow-sm animate-in slide-in-from-bottom-2 mx-1 backdrop-blur-md border border-gray-200 relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div className="flex-1 min-w-0 px-2 py-1 bg-white rounded relative z-10 border border-gray-100">
+                                <div className="text-blue-600 text-xs font-bold mb-0.5">
                                     {replyingTo.fromMe ? t.you : (replyingTo.author || t.contact)}
                                 </div>
-                                <div className="text-gray-400 text-sm truncate flex items-center gap-1">
+                                <div className="text-gray-500 text-sm truncate flex items-center gap-1">
                                     {replyingTo.media ? (
                                         <>
                                             <Camera size={14} /> 
@@ -1364,19 +1364,19 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             </div>
                             <button 
                                 onClick={() => setReplyingTo(null)}
-                                className="p-2 ml-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors relative z-10"
+                                className="p-2 ml-2 hover:bg-gray-200 rounded-full text-gray-400 hover:text-gray-600 transition-colors relative z-10"
                             >
                                 <X size={18} />
                             </button>
                         </div>
                     )}
-                    <div className="flex items-end gap-2 bg-[#1a1a2e]/60 p-2 rounded-2xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] border border-white/10 backdrop-blur-md transition-all duration-300 focus-within:border-neon-blue/50 focus-within:shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+                    <div className="flex items-end gap-2 bg-gray-50 p-2 rounded-2xl shadow-inner border border-gray-200 transition-all duration-300 focus-within:border-blue-400 focus-within:shadow-md focus-within:bg-white">
                         <div className="flex gap-2 pb-2 pl-2 text-gray-400">
-                            <button className="hover:text-neon-blue transition-all duration-300 p-1.5 hover:bg-white/5 rounded-full hover:drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] hover:scale-110">
+                            <button className="hover:text-blue-600 transition-all duration-300 p-1.5 hover:bg-gray-100 rounded-full hover:scale-110">
                                 <Smile size={22} onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
                             </button>
                             <button 
-                                className="hover:text-neon-blue transition-all duration-300 p-1.5 hover:bg-white/5 rounded-full hover:drop-shadow-[0_0_5px_rgba(0,243,255,0.5)] hover:scale-110"
+                                className="hover:text-blue-600 transition-all duration-300 p-1.5 hover:bg-gray-100 rounded-full hover:scale-110"
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <IoMdAdd size={22} />
@@ -1393,20 +1393,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="flex-1 relative">
 
                              {showEmojiPicker && (
-                                <div className="absolute bottom-14 left-0 z-50 shadow-2xl rounded-xl border border-white/10 bg-[#1a1a2e] overflow-hidden">
-                                    <EmojiPicker theme="dark" onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
+                                <div className="absolute bottom-14 left-0 z-50 shadow-2xl rounded-xl border border-gray-200 bg-white overflow-hidden">
+                                    <EmojiPicker theme="light" onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
                                 </div>
                             )}
                             {pendingAttachments.length > 0 && (
                                 <div className="absolute bottom-16 left-0 right-0 z-40 px-4">
-                                    <div className="bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 p-3 animate-in slide-in-from-bottom-2">
+                                    <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200 p-3 animate-in slide-in-from-bottom-2">
                                         <div className="flex items-start justify-between mb-2">
-                                            <span className="text-xs font-bold text-neon-blue uppercase tracking-wide drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
+                                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
                                                 {pendingAttachments.length} {t.attachment}
                                             </span>
                                             <button 
                                                 onClick={() => setPendingAttachments([])}
-                                                className="p-1 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+                                                className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
                                             >
                                                 <X size={16} />
                                             </button>
@@ -1417,12 +1417,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                                     {att.mimetype.startsWith('image/') ? (
                                                         <img 
                                                             src={`data:${att.mimetype};base64,${att.data}`} 
-                                                            className="h-20 w-20 object-cover rounded-lg border border-white/20"
+                                                            className="h-20 w-20 object-cover rounded-lg border border-gray-200"
                                                             alt="Preview"
                                                         />
                                                     ) : (
-                                                        <div className="h-20 w-20 flex flex-col items-center justify-center bg-white/5 rounded-lg border border-white/10 text-gray-400 text-xs p-1 text-center break-all">
-                                                            <Download size={20} className="mb-1 text-neon-blue" />
+                                                        <div className="h-20 w-20 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200 text-gray-500 text-xs p-1 text-center break-all">
+                                                            <Download size={20} className="mb-1 text-blue-500" />
                                                             <span className="line-clamp-2">{att.filename || t.file}</span>
                                                         </div>
                                                     )}
@@ -1449,7 +1449,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     }
                                 }}
                                 placeholder={t.typeMessage}
-                                className="w-full max-h-[100px] py-2.5 px-2 text-white placeholder-gray-500 bg-transparent resize-none focus:outline-none custom-scrollbar font-medium"
+                                className="w-full max-h-[100px] py-2.5 px-2 text-gray-900 placeholder-gray-400 bg-transparent resize-none focus:outline-none custom-scrollbar font-medium"
                                 rows={1}
                             />
                         </div>
@@ -1458,32 +1458,32 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             {messageInput.trim() || pendingAttachments.length > 0 ? (
                                 <button 
                                     onClick={handleSendMessage}
-                                    className="p-2.5 bg-neon-blue/20 hover:bg-neon-blue/40 text-neon-blue border border-neon-blue/50 rounded-xl transition-all shadow-[0_0_10px_rgba(0,243,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(0,243,255,0.5)]"
+                                    className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl transition-all shadow-sm active:scale-95 hover:shadow-md"
                                 >
                                     <Send size={18} className="ml-0.5" />
                                 </button>
                             ) : (
-                                <button className="p-2.5 text-gray-500 hover:text-neon-purple hover:bg-white/5 rounded-xl transition-colors hover:drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">
+                                <button className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-xl transition-colors">
                                     <Mic size={22} />
                                 </button>
                             )}
                         </div>
                     </div>
                     {isTranslating && (
-                        <div className="text-[10px] text-neon-blue text-center mt-1 animate-pulse">{t.translated}...</div>
+                        <div className="text-[10px] text-blue-600 text-center mt-1 animate-pulse">{t.translated}...</div>
                     )}
                 </div>
                 </div>
                 </div>
                 </>
             ) : (
-                <div className="flex-1 flex flex-col items-center justify-center bg-transparent text-center p-8">
-                    <div className="w-32 h-32 bg-black/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(0,243,255,0.1)] border border-white/5 backdrop-blur-sm animate-pulse">
-                        <Smartphone size={50} className="text-neon-blue drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]" />
+                <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-center p-8">
+                    <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-200 animate-pulse">
+                        <Smartphone size={50} className="text-blue-500" />
                     </div>
-                    <h2 className="text-3xl font-light text-white mb-2 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">UniChat <span className="text-neon-purple font-bold">AI</span> Web</h2>
-                    <p className="text-gray-400 max-w-md mt-4 leading-relaxed">Send and receive messages without keeping your phone online.<br/>Experience the future of communication.</p>
-                    <div className="mt-8 flex items-center gap-2 text-neon-blue/70 text-xs tracking-wider border border-neon-blue/20 px-4 py-2 rounded-full bg-black/20">
+                    <h2 className="text-3xl font-light text-gray-800 mb-2 tracking-widest">UniChat <span className="text-blue-600 font-bold">AI</span> Web</h2>
+                    <p className="text-gray-500 max-w-md mt-4 leading-relaxed">Send and receive messages without keeping your phone online.<br/>Experience the future of communication.</p>
+                    <div className="mt-8 flex items-center gap-2 text-blue-600 text-xs tracking-wider border border-blue-200 px-4 py-2 rounded-full bg-blue-50">
                         <Lock size={12} /> End-to-end encrypted
                     </div>
                 </div>
@@ -1493,7 +1493,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             {inputContextMenu && (
                 <div 
                     ref={inputMenuRef}
-                    className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
+                    className="fixed z-50 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-gray-100"
                     style={{ 
                         top: inputContextMenu.y > window.innerHeight / 2 ? 'auto' : inputContextMenu.y,
                         bottom: inputContextMenu.y > window.innerHeight / 2 ? window.innerHeight - inputContextMenu.y : 'auto',
@@ -1506,9 +1506,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             navigator.clipboard.readText().then(text => setMessageInput(prev => prev + text));
                             setInputContextMenu(null);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-gray-800 flex items-center gap-3 transition-colors group"
                     >
-                        <Copy size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.paste || 'Paste'}
+                        <Copy size={16} className="text-gray-500 group-hover:text-blue-600 transition-colors" /> {t.paste || 'Paste'}
                     </button>
                     <button 
                         onClick={() => {
@@ -1517,28 +1517,28 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             }
                             setInputContextMenu(null);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-gray-800 flex items-center gap-3 transition-colors group"
                     >
-                        <Copy size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.copy || 'Copy'}
+                        <Copy size={16} className="text-gray-500 group-hover:text-blue-600 transition-colors" /> {t.copy || 'Copy'}
                     </button>
                     <button 
                         onClick={() => {
                             setShowEmojiPicker(true);
                             setInputContextMenu(null);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-gray-800 flex items-center gap-3 transition-colors group"
                     >
-                        <Smile size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.emoji || 'Emoji'}
+                        <Smile size={16} className="text-gray-500 group-hover:text-blue-600 transition-colors" /> {t.emoji || 'Emoji'}
                     </button>
-                    <div className="h-px bg-white/10 my-1 mx-2" />
+                    <div className="h-px bg-gray-200 my-1 mx-2" />
                     <button 
                         onClick={() => {
                             setMessageInput('');
                             setInputContextMenu(null);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-red-500/10 text-sm text-red-400 flex items-center gap-3 transition-colors group"
+                        className="w-full text-left px-4 py-3 hover:bg-red-50 text-sm text-red-600 flex items-center gap-3 transition-colors group"
                     >
-                        <Trash2 size={16} className="text-red-400 group-hover:text-red-300 transition-colors" /> {t.clear || 'Clear'}
+                        <Trash2 size={16} className="text-red-500 group-hover:text-red-600 transition-colors" /> {t.clear || 'Clear'}
                     </button>
                 </div>
             )}
@@ -1546,7 +1546,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             {msgContextMenu && (
                 <div 
                     ref={msgMenuRef}
-                    className="fixed z-50 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-white/5"
+                    className="fixed z-50 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200 py-1.5 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 overflow-hidden ring-1 ring-gray-100"
                     style={{ 
                         top: msgContextMenu.y > window.innerHeight / 2 ? 'auto' : msgContextMenu.y,
                         bottom: msgContextMenu.y > window.innerHeight / 2 ? window.innerHeight - msgContextMenu.y : 'auto',
@@ -1555,7 +1555,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     }}
                 >
                     {/* Quick Reactions */}
-                    <div className="flex justify-between px-3 py-2 border-b border-white/10 mb-1">
+                    <div className="flex justify-between px-3 py-2 border-b border-gray-200 mb-1">
                         {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                             <button 
                                 key={emoji} 
@@ -1583,7 +1583,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             setReplyingTo(msgContextMenu.msg);
                             setMsgContextMenu(null);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-200 flex items-center gap-3 transition-colors group"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 text-sm text-gray-800 flex items-center gap-3 transition-colors group"
                     >
                         <CornerUpLeft size={16} className="text-gray-400 group-hover:text-neon-blue transition-colors" /> {t.reply}
                     </button>
