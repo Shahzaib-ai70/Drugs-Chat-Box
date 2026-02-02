@@ -106,7 +106,12 @@ npm install
 
 echo " -> Building frontend..."
 # We use a non-blocking build approach. If it fails, we still start the server.
-npm run build || echo "WARNING: Frontend build failed! Server will run in API-only mode."
+npm run build 
+
+if [ ! -d "dist" ] || [ -z "$(ls -A dist)" ]; then
+    echo "CRITICAL ERROR: Build failed or dist folder is empty. Aborting deployment to prevent blank page."
+    exit 1
+fi
 
 echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering
