@@ -342,10 +342,19 @@ const handleSendMessage = async (data) => {
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
-                result = await sessionState.client.sendMessage(data.chatId, { 
-                    message: body, 
+                const sendParams = {
+                    message: body,
                     file: buffer
-                });
+                };
+                
+                // Add filename attribute if present to prevent "unnamed file"
+                if (data.media.filename) {
+                    sendParams.attributes = [
+                        new Api.DocumentAttributeFilename({ fileName: data.media.filename })
+                    ];
+                }
+                
+                result = await sessionState.client.sendMessage(data.chatId, sendParams);
             } else {
                 result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
