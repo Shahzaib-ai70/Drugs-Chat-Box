@@ -31,5 +31,6 @@ fb_auth
 *.sln
 *.sw?
 *.zip
+!backups/Drugs chat box K.zip
 
 .wwebjs_cache
