@@ -407,6 +407,11 @@ const handleGetChatHistory = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
+             
+             // Get read state from local cache
+             const chatState = sessionState.chats.find(c => c.id === chatId);
+             const readMaxId = chatState ? (chatState.readMaxId || 0) : 0;
+
              // Reverted to simple map without quotedMsg fetching
              const mapped = messages.map(msg => ({
                 id: msg.id.toString(),
@@ -419,7 +424,7 @@ const handleGetChatHistory = async (data) => {
                 hasMedia: !!msg.media,
                 media: null,
                 quotedMsg: null, // Disabled
-                ack: 1
+                ack: (msg.out && msg.id <= readMaxId) ? 3 : 1
              }));
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -966,10 +971,11 @@ const initializeTelegram = async () => {
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
             lastMessageFromMe: d.message?.out || false,
-            lastMessageAck: 1,
+            lastMessageAck: (d.message?.out && d.message?.id <= d.readOutboxMaxId) ? 3 : 1,
             profilePicUrl: '',
             lastSeen: '',
-            archived: d.archived || d.folderId === 1 || false
+            archived: d.archived || d.folderId === 1 || false,
+            readMaxId: d.readOutboxMaxId // Store readMaxId for history checks
         }));
 
         const totalUnread = mappedChats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
@@ -1056,13 +1062,39 @@ const initializeTelegram = async () => {
     }
   }, new NewMessage({}));
 
-  // Listen for Read History Updates (Real-time Unread Sync)
-  client.addEventHandler((update) => {
+  // Listen for Read History Updates (Real-time Unread Sync & Ticks)
+  client.addEventHandler(async (update) => {
       // Check if it's a read history update
-      if (update instanceof Api.UpdateReadHistoryInbox || update instanceof Api.UpdateReadHistoryOutbox) {
-          log('TG Read History Update detected - Syncing...');
+      // UpdateReadHistoryOutbox: They read our messages (Double Tick)
+      if (update instanceof Api.UpdateReadHistoryOutbox) {
+          try {
+            const chatId = update.peer.userId || update.peer.chatId || update.peer.channelId;
+            const maxId = update.maxId;
+            
+            if (chatId) {
+                // Fetch recent messages to update their status locally
+                // We can't easily query "all unread", so we check the last batch
+                const messages = await client.getMessages(chatId, { limit: 20 });
+                
+                messages.forEach(msg => {
+                    if (msg.out && msg.id <= maxId) {
+                        io.to(SERVICE_ID).emit('wa_message_ack', {
+                            chatId: chatId.toString(),
+                            id: msg.id.toString(),
+                            ack: 3 // Read (Double Blue Tick)
+                        });
+                    }
+                });
+            }
+          } catch(e) { log(`Read History Outbox Error: ${e}`); }
+      }
+      
+      // UpdateReadHistoryInbox: We read their messages (Update Unread Count)
+      if (update instanceof Api.UpdateReadHistoryInbox) {
+          log('TG Read History Inbox detected - Syncing...');
           fetchChats();
       }
+      
       // Also catch generic Short Updates which sometimes carry read state
       if (update instanceof Api.UpdateShort) {
            fetchChats();
