@@ -33,6 +33,30 @@ const log = (msg) => {
   try { logFile.write(logMsg + '\n'); } catch(e){}
 };
 
+// --- Contact Overrides Persistence ---
+const OVERRIDES_FILE = `overrides_${SERVICE_ID}.json`;
+let contactOverrides = {};
+
+// Load overrides on startup
+try {
+    if (fs.existsSync(OVERRIDES_FILE)) {
+        contactOverrides = JSON.parse(fs.readFileSync(OVERRIDES_FILE, 'utf8'));
+        log(`Loaded ${Object.keys(contactOverrides).length} contact overrides`);
+    }
+} catch (e) {
+    log(`Error loading overrides: ${e}`);
+}
+
+const saveOverride = (chatId, name) => {
+    contactOverrides[chatId] = name;
+    try {
+        fs.writeFileSync(OVERRIDES_FILE, JSON.stringify(contactOverrides, null, 2));
+    } catch (e) {
+        log(`Error saving override: ${e}`);
+    }
+};
+// -------------------------------------
+
 process.on('uncaughtException', (err) => {
   log('Uncaught Exception: ' + err.toString() + '\n' + err.stack);
 });
@@ -148,6 +172,9 @@ process.on('message', async (msg) => {
         const { chatId, newName } = data;
         log(`Updating contact name for ${chatId} to ${newName}`);
         
+        // Save override locally FIRST for immediate persistence
+        saveOverride(chatId, newName);
+
         if (SERVICE_TYPE === 'telegram' && sessionState.client) {
             try {
                 // Telegram: Update Contact Name
@@ -169,7 +196,7 @@ process.on('message', async (msg) => {
         } else if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
              // WhatsApp: Not fully supported via Web API to sync to phone
              // But we will log the attempt.
-             log('WhatsApp Contact Update not fully supported via Web API');
+             log('WhatsApp Contact Update not fully supported via Web API - Using Local Override');
              // Attempt local update anyway
              setTimeout(() => fetchAndEmitChats(), 500);
         }
@@ -786,7 +813,7 @@ const initializeWhatsApp = async () => {
 
                     return {
                         id: chatId,
-                        name: c.name || c.formattedTitle || c.pushname || (c.contact && (c.contact.name || c.contact.pushname)) || chatId || 'Unknown',
+                        name: contactOverrides[chatId] || c.name || c.formattedTitle || c.pushname || (c.contact && (c.contact.name || c.contact.pushname)) || chatId || 'Unknown',
                         isGroup: !!c.isGroup,
                         unreadCount: (typeof c.unreadCount === 'number') ? c.unreadCount : 0,
                         lastMessage: lastBody,
@@ -1143,7 +1170,7 @@ const initializeTelegram = async () => {
         const dialogs = await client.getDialogs({});
         const mappedChats = dialogs.map(d => ({
             id: d.id.toString(),
-            name: d.title || 'Unknown',
+            name: contactOverrides[d.id.toString()] || d.title || 'Unknown',
             isGroup: d.isGroup,
             unreadCount: d.unreadCount,
             lastMessage: d.message?.text || '',
