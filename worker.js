@@ -10,6 +10,7 @@ import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
 import { CustomFile } from 'telegram/client/uploads.js';
+import { Buffer } from 'buffer';
 
 // Environment Variables
 const PORT = process.env.PORT || 3006;
@@ -343,7 +344,14 @@ const handleSendMessage = async (data) => {
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 const mime = data.media.mimetype || 'application/octet-stream';
-                const filename = data.media.filename || 'media';
+                let filename = data.media.filename || 'media';
+                
+                // Ensure filename has extension for Telegram to recognize type
+                if (!filename.includes('.')) {
+                    const ext = mime.split('/')[1] || 'bin';
+                    filename = `${filename}.${ext}`;
+                }
+
                 const file = new CustomFile(filename, buffer.length, '', buffer);
                 const isImageOrVideo = mime.startsWith('image/') || mime.startsWith('video/');
 
