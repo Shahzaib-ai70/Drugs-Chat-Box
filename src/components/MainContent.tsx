@@ -1811,88 +1811,88 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
     // QR Code Screen - Only show if we actually have a QR code or status says so
     if (qrValue || connectionStatus === 'QR_READY') {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-transparent p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-radial from-neon-purple/5 via-transparent to-transparent opacity-50"></div>
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-radial from-blue-100/50 via-transparent to-transparent opacity-50"></div>
                 
-                <div className="bg-[#1a1a2e]/80 backdrop-blur-xl p-12 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-5xl w-full flex gap-16 items-center border border-white/10 relative z-10">
+                <div className="bg-white/90 backdrop-blur-xl p-12 rounded-3xl shadow-xl max-w-5xl w-full flex gap-16 items-center border border-gray-200 relative z-10">
                     <div className="flex-1">
-                        <h1 className="text-4xl font-light text-white mb-10 tracking-wide drop-shadow-md">
-                            {t.useServiceOnComputer} <span className="text-neon-blue font-bold">Web</span>
+                        <h1 className="text-4xl font-light text-gray-800 mb-10 tracking-wide">
+                            {t.useServiceOnComputer} <span className="text-blue-600 font-bold">Web</span>
                         </h1>
                         {serviceName.toLowerCase().includes('telegram') || activeService?.service?.id?.startsWith('tg') ? (
-                            <ol className="space-y-8 text-gray-300 text-lg">
+                            <ol className="space-y-8 text-gray-600 text-lg">
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">1</span>
-                                    <span className="group-hover:text-white transition-colors">{t.openAppOnPhone}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">1</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.openAppOnPhone}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">2</span>
-                                    <span className="group-hover:text-white transition-colors">{t.goToSettings}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">2</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.goToSettings}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">3</span>
-                                    <span className="group-hover:text-white transition-colors">{t.tapLinkDevice}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">3</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.tapLinkDevice}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">4</span>
-                                    <span className="group-hover:text-white transition-colors">{t.pointPhone}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">4</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.pointPhone}</span>
                                 </li>
                             </ol>
                         ) : (
-                            <ol className="space-y-8 text-gray-300 text-lg">
+                            <ol className="space-y-8 text-gray-600 text-lg">
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">1</span>
-                                    <span className="group-hover:text-white transition-colors">{t.openAppOnPhone}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">1</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.openAppOnPhone}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">2</span>
-                                    <span className="group-hover:text-white transition-colors">{t.goToSettings}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">2</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.goToSettings}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">3</span>
-                                    <span className="group-hover:text-white transition-colors">{t.tapLinkDevice}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">3</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.tapLinkDevice}</span>
                                 </li>
                                 <li className="flex gap-6 items-center group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] group-hover:bg-neon-blue/10 transition-colors">4</span>
-                                    <span className="group-hover:text-white transition-colors">{t.pointPhone}</span>
+                                    <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm group-hover:bg-blue-100 transition-colors">4</span>
+                                    <span className="group-hover:text-gray-900 transition-colors">{t.pointPhone}</span>
                                 </li>
                             </ol>
                         )}
-                        <div className="mt-10 text-neon-blue font-medium cursor-pointer hover:text-white transition-colors flex items-center gap-2 group">
-                            <span className="w-2 h-2 bg-neon-blue rounded-full group-hover:animate-pulse"></span>
+                        <div className="mt-10 text-blue-600 font-medium cursor-pointer hover:text-blue-800 transition-colors flex items-center gap-2 group">
+                            <span className="w-2 h-2 bg-blue-600 rounded-full group-hover:animate-pulse"></span>
                             {t.needHelp}
                         </div>
                     </div>
                     
                     <div className="flex flex-col items-center">
                         <div className="relative group perspective-1000">
-                            <div className="absolute -inset-4 bg-gradient-to-r from-neon-blue to-neon-purple rounded-xl opacity-20 blur-xl group-hover:opacity-40 transition-opacity duration-500 animate-pulse"></div>
-                            <div className="bg-white p-6 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)] transform transition-transform duration-500 group-hover:rotate-y-12 group-hover:rotate-x-12 group-hover:scale-105 relative z-10 border border-white/20 overflow-hidden">
+                            <div className="absolute -inset-4 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-xl group-hover:opacity-40 transition-opacity duration-500 animate-pulse"></div>
+                            <div className="bg-white p-6 rounded-2xl shadow-lg transform transition-transform duration-500 group-hover:rotate-y-12 group-hover:rotate-x-12 group-hover:scale-105 relative z-10 border border-gray-100 overflow-hidden">
                                 {qrValue ? (
                                     <>
                                         <QRCode value={qrValue} size={280} />
-                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neon-blue/20 to-transparent h-[15%] w-full animate-scan pointer-events-none"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/10 to-transparent h-[15%] w-full animate-scan pointer-events-none"></div>
                                     </>
                                 ) : (
-                                    <div className="w-[280px] h-[280px] bg-gray-100 flex items-center justify-center animate-pulse rounded-lg relative overflow-hidden">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+                                    <div className="w-[280px] h-[280px] bg-gray-50 flex items-center justify-center animate-pulse rounded-lg relative overflow-hidden border border-gray-200">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
                                         <div className="text-gray-400 font-medium tracking-widest uppercase text-xs z-10">{t.generatingQR}</div>
                                     </div>
                                 )}
                             </div>
                             {qrValue && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer rounded-2xl z-20">
-                                    <div className="flex flex-col items-center gap-3 text-neon-blue">
-                                        <RefreshCcw size={40} className="animate-spin-slow drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer rounded-2xl z-20">
+                                    <div className="flex flex-col items-center gap-3 text-blue-600">
+                                        <RefreshCcw size={40} className="animate-spin-slow drop-shadow-sm" />
                                         <span className="font-bold tracking-wide text-sm uppercase">{t.clickToReloadQR}</span>
                                     </div>
                                 </div>
                             )}
                         </div>
                         
-                        <div className="mt-8 flex items-center gap-3 bg-white/5 px-6 py-3 rounded-full border border-white/5 hover:bg-white/10 transition-colors">
-                            <div className="flex items-center gap-3 text-gray-300 text-sm">
-                                <input type="checkbox" className="w-4 h-4 rounded border-gray-500 text-neon-blue focus:ring-neon-blue/50 bg-transparent" defaultChecked />
+                        <div className="mt-8 flex items-center gap-3 bg-white px-6 py-3 rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 text-gray-600 text-sm">
+                                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white" defaultChecked />
                                 <label className="font-medium tracking-wide">{t.keepMeSignedIn}</label>
                             </div>
                         </div>
@@ -1904,21 +1904,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     // Connecting / Restoring Session Screen
     return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-transparent p-8 relative overflow-hidden">
-             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-             <div className="absolute inset-0 bg-gradient-radial from-neon-blue/10 via-transparent to-transparent opacity-50 animate-pulse-slow"></div>
+        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-radial from-blue-100/50 via-transparent to-transparent opacity-50"></div>
              <div className="flex flex-col items-center relative z-10">
                  <div className="relative mb-8">
-                     <div className="w-24 h-24 border-4 border-white/10 border-t-neon-blue rounded-full animate-spin shadow-[0_0_30px_rgba(0,243,255,0.4)]"></div>
+                     <div className="w-24 h-24 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin shadow-sm"></div>
                      <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="w-16 h-16 border-4 border-white/5 border-b-neon-purple rounded-full animate-spin-reverse opacity-70"></div>
+                         <div className="w-16 h-16 border-4 border-gray-100 border-b-blue-400 rounded-full animate-spin-reverse opacity-70"></div>
                      </div>
                      <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="w-2 h-2 bg-neon-blue rounded-full shadow-[0_0_15px_rgba(0,243,255,1)] animate-pulse"></div>
+                         <div className="w-2 h-2 bg-blue-600 rounded-full shadow-sm animate-pulse"></div>
                      </div>
                  </div>
-                 <h2 className="text-3xl font-light text-white mb-3 tracking-[0.2em] uppercase drop-shadow-lg">{t.connectingTo} <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">{serviceName}</span></h2>
-                <p className="text-neon-blue text-sm tracking-widest uppercase animate-pulse font-medium">{t.restoringSession}</p>
+                 <h2 className="text-3xl font-light text-gray-800 mb-3 tracking-[0.2em] uppercase">{t.connectingTo} <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800">{serviceName}</span></h2>
+                <p className="text-blue-600 text-sm tracking-widest uppercase animate-pulse font-medium">{t.restoringSession}</p>
             </div>
        </div>
    );
@@ -1926,16 +1925,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
  // Placeholder for other services
  return (
-   <div className="flex-1 flex items-center justify-center bg-[#0a0a0f] text-gray-300 relative overflow-hidden">
-     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+   <div className="flex-1 flex items-center justify-center bg-gray-50 text-gray-500 relative overflow-hidden">
       <div className="text-center relative z-10">
         <div className="group relative w-32 h-32 mx-auto mb-8">
-            <div className="absolute inset-0 bg-neon-blue/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500 opacity-50"></div>
-            <div className="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(255,255,255,0.05)] backdrop-blur-md relative z-10 group-hover:scale-110 transition-transform duration-500">
-                <MessageCircle size={64} className="text-gray-400 group-hover:text-neon-blue transition-colors duration-500 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(0,243,255,0.5)]" />
+            <div className="absolute inset-0 bg-blue-100 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500 opacity-50"></div>
+            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm backdrop-blur-md relative z-10 group-hover:scale-110 transition-transform duration-500">
+                <MessageCircle size={64} className="text-gray-300 group-hover:text-blue-500 transition-colors duration-500" />
             </div>
         </div>
-        <p className="text-2xl font-light tracking-widest text-gray-400 group-hover:text-white transition-colors">{t.selectService}</p>
+        <p className="text-2xl font-light tracking-widest text-gray-400 group-hover:text-gray-600 transition-colors">{t.selectService}</p>
       </div>
     </div>
   );
