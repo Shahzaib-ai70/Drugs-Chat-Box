@@ -366,6 +366,26 @@ const handleSendMessage = async (data) => {
              if (result) {
                  // GramJS message object has id property
                  response = { status: 'success', messageId: result.id.toString() };
+
+                 // Explicitly emit newMessage for real-time "Sent" tick (Single Tick)
+                 // This ensures the clock icon changes to a single tick immediately
+                 try {
+                     const sender = await result.getSender();
+                     const mappedMsg = {
+                        id: result.id.toString(),
+                        chatId: data.chatId,
+                        author: sender ? (sender.username || sender.firstName) : 'Me',
+                        fromMe: true,
+                        body: result.text || '',
+                        timestamp: result.date,
+                        type: 'chat',
+                        hasMedia: !!result.media,
+                        media: null,
+                        quotedMsg: null,
+                        ack: 1 // Sent (Single Tick)
+                     };
+                     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
+                 } catch (e) { log(`Error emitting real-time sent message: ${e}`); }
             }
         } catch(e) { 
             log(`Send Error: ${e}`);
@@ -1073,7 +1093,6 @@ const initializeTelegram = async () => {
             
             if (chatId) {
                 // Fetch recent messages to update their status locally
-                // We can't easily query "all unread", so we check the last batch
                 const messages = await client.getMessages(chatId, { limit: 20 });
                 
                 messages.forEach(msg => {
@@ -1085,6 +1104,9 @@ const initializeTelegram = async () => {
                         });
                     }
                 });
+                
+                // Sync chat list to update readMaxId for persistence
+                fetchChats();
             }
           } catch(e) { log(`Read History Outbox Error: ${e}`); }
       }
