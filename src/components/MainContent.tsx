@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
 import { useLanguage } from '../translations';
-import ContactInfoPanel from './ContactInfoPanel';
 
 interface MainContentProps {
   activeService?: AddedService;
@@ -1477,16 +1476,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="text-[10px] text-neon-blue text-center mt-1 animate-pulse">{t.translated}...</div>
                     )}
                 </div>
-                </div>
-                
-                {showContactInfo && (
-                    <ContactInfoPanel 
-                        chat={chats.find(c => c.id === activeChatId) || null}
-                        messages={messagesByChat[normalizeId(activeChatId || '')] || []}
-                        onClose={() => setShowContactInfo(false)}
-                        activeService={activeService}
-                    />
-                )}
                 </div>
                 </>
             ) : (
