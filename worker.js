@@ -861,7 +861,11 @@ const initializeWhatsApp = async () => {
                 });
                 
                 if (storeMapped.length > 0) {
-                    mappedBasic = storeMapped;
+                    // Apply overrides here because evaluate() couldn't do it in browser context
+                    mappedBasic = storeMapped.map(c => ({
+                        ...c,
+                        name: contactOverrides[c.id] || c.name
+                    }));
                     log(`Store Fallback found ${storeMapped.length} chats`);
                 }
             } catch(e) { 
