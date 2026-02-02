@@ -1370,16 +1370,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             </button>
                         </div>
                     )}
-                    <div className="flex items-end gap-2 bg-gray-50 p-2 rounded-2xl shadow-inner border border-gray-200 transition-all duration-300 focus-within:border-blue-400 focus-within:shadow-md focus-within:bg-white">
-                        <div className="flex gap-2 pb-2 pl-2 text-gray-400">
-                            <button className="hover:text-blue-600 transition-all duration-300 p-1.5 hover:bg-gray-100 rounded-full hover:scale-110">
-                                <Smile size={22} onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
+                    <div className="flex items-end gap-2 bg-[#f0f2f5] px-4 py-2 border-t border-gray-200">
+                        <div className="flex gap-3 pb-3 text-gray-500">
+                            <button className="hover:text-gray-700 transition-colors">
+                                <Smile size={24} onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
                             </button>
                             <button 
-                                className="hover:text-blue-600 transition-all duration-300 p-1.5 hover:bg-gray-100 rounded-full hover:scale-110"
+                                className="hover:text-gray-700 transition-colors"
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                <IoMdAdd size={22} />
+                                <IoMdAdd size={24} />
                             </button>
                             <input 
                                 type="file" 
@@ -1390,8 +1390,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             />
                         </div>
                         
-                        <div className="flex-1 relative">
-
+                        <div className="flex-1 relative bg-white rounded-lg px-2 py-1 shadow-sm">
                              {showEmojiPicker && (
                                 <div className="absolute bottom-14 left-0 z-50 shadow-2xl rounded-xl border border-gray-200 bg-white overflow-hidden">
                                     <EmojiPicker theme="light" onEmojiClick={(emojiData) => setMessageInput(prev => prev + emojiData.emoji)} />
@@ -1450,7 +1449,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSendMessage();
-                                        // Reset height after sending
                                         const target = e.target as HTMLTextAreaElement;
                                         setTimeout(() => {
                                             target.style.height = 'auto';
@@ -1458,22 +1456,22 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                                     }
                                 }}
                                 placeholder={t.typeMessage}
-                                className="w-full py-2.5 px-2 text-gray-900 placeholder-gray-400 bg-transparent resize-none focus:outline-none font-medium overflow-hidden"
+                                className="w-full py-2 px-2 text-gray-900 placeholder-gray-500 bg-white resize-none focus:outline-none font-normal max-h-[120px] overflow-y-auto"
                                 rows={1}
                             />
                         </div>
 
-                        <div className="pb-1 pr-1">
+                        <div className="pb-1 pl-1">
                             {messageInput.trim() || pendingAttachments.length > 0 ? (
                                 <button 
                                     onClick={handleSendMessage}
-                                    className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl transition-all shadow-sm active:scale-95 hover:shadow-md"
+                                    className="p-3 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-full transition-all shadow-sm active:scale-95"
                                 >
-                                    <Send size={18} className="ml-0.5" />
+                                    <Send size={20} className="ml-0.5" />
                                 </button>
                             ) : (
-                                <button className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-xl transition-colors">
-                                    <Mic size={22} />
+                                <button className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors">
+                                    <Mic size={24} />
                                 </button>
                             )}
                         </div>
