@@ -334,39 +334,49 @@ const handleSendMessage = async (data) => {
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 
-                const isImageOrVideo = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
-                
-                if (isImageOrVideo) {
-                    // Send Images/Videos normally (Inline)
-                    // We use the buffer directly. GramJS detects type.
-                    // This ensures it shows as a photo/video, not a file.
-                    result = await sessionState.client.sendMessage(data.chatId, { 
-                        message: body, 
-                        file: buffer,
-                        forceDocument: false 
-                    });
-                } else {
-                    // Send Documents (Preserve Filename)
-                    // Ensure filename exists
-                    let filename = data.media.filename;
-                    if (!filename) {
-                        const ext = data.media.mimetype.split('/')[1] || 'bin';
-                        filename = `file.${ext}`;
-                    }
-
-                    const file = new CustomFile(filename, buffer.length, "", buffer);
-                    
-                    const sendParams = {
-                        message: body,
-                        file: file,
-                        forceDocument: true,
-                        attributes: [
-                            new Api.DocumentAttributeFilename({ fileName: filename })
-                        ]
-                    };
-                    
-                    result = await sessionState.client.sendMessage(data.chatId, sendParams);
+                // Enhanced Image/Video Detection
+                // Check Mimetype OR Filename Extension
+                let isImageOrVideo = false;
+                if (data.media.mimetype) {
+                    isImageOrVideo = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
                 }
+                
+                // Ensure filename exists
+                let filename = data.media.filename;
+                if (!filename) {
+                    const ext = data.media.mimetype.split('/')[1] || 'bin';
+                    filename = `file.${ext}`;
+                }
+
+                // If mimetype check failed (e.g. application/octet-stream), check extension
+                if (!isImageOrVideo && filename) {
+                    const lowerName = filename.toLowerCase();
+                    if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || 
+                        lowerName.endsWith('.png') || lowerName.endsWith('.gif') || 
+                        lowerName.endsWith('.mp4') || lowerName.endsWith('.mov')) {
+                        isImageOrVideo = true;
+                    }
+                }
+
+                // ALWAYS use CustomFile to ensure filename is passed (Fixes "Unnamed" issue)
+                // BUT control forceDocument based on type (Fixes "File vs Image" issue)
+                const file = new CustomFile(filename, buffer.length, "", buffer);
+                
+                const sendParams = {
+                    message: body,
+                    file: file,
+                    forceDocument: !isImageOrVideo // False = Inline Media (Image/Video), True = Document
+                };
+                
+                // Only add attributes if it is strictly a document
+                // Adding attributes to an image might confuse GramJS into thinking it's a file
+                if (!isImageOrVideo) {
+                    sendParams.attributes = [
+                        new Api.DocumentAttributeFilename({ fileName: filename })
+                    ];
+                }
+                
+                result = await sessionState.client.sendMessage(data.chatId, sendParams);
             } else {
                 result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
