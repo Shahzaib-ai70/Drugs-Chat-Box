@@ -334,32 +334,39 @@ const handleSendMessage = async (data) => {
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 
-                // Ensure filename exists
-                let filename = data.media.filename;
-                if (!filename) {
-                    const ext = data.media.mimetype.split('/')[1] || 'bin';
-                    filename = `file.${ext}`;
-                }
-
-                // Use CustomFile for ALL media types to ensure proper metadata/filename
-                const file = new CustomFile(filename, buffer.length, "", buffer);
-                
                 const isImageOrVideo = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
                 
-                const sendParams = {
-                    message: body,
-                    file: file,
-                    forceDocument: !isImageOrVideo // False = Inline Media (Image/Video), True = Document
-                };
-                
-                // Add filename attribute for documents (extra safety)
-                if (!isImageOrVideo) {
-                    sendParams.attributes = [
-                        new Api.DocumentAttributeFilename({ fileName: filename })
-                    ];
+                if (isImageOrVideo) {
+                    // Send Images/Videos normally (Inline)
+                    // We use the buffer directly. GramJS detects type.
+                    // This ensures it shows as a photo/video, not a file.
+                    result = await sessionState.client.sendMessage(data.chatId, { 
+                        message: body, 
+                        file: buffer,
+                        forceDocument: false 
+                    });
+                } else {
+                    // Send Documents (Preserve Filename)
+                    // Ensure filename exists
+                    let filename = data.media.filename;
+                    if (!filename) {
+                        const ext = data.media.mimetype.split('/')[1] || 'bin';
+                        filename = `file.${ext}`;
+                    }
+
+                    const file = new CustomFile(filename, buffer.length, "", buffer);
+                    
+                    const sendParams = {
+                        message: body,
+                        file: file,
+                        forceDocument: true,
+                        attributes: [
+                            new Api.DocumentAttributeFilename({ fileName: filename })
+                        ]
+                    };
+                    
+                    result = await sessionState.client.sendMessage(data.chatId, sendParams);
                 }
-                
-                result = await sessionState.client.sendMessage(data.chatId, sendParams);
             } else {
                 result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
@@ -444,7 +451,7 @@ const handleGetChatHistory = async (data) => {
                 hasMedia: !!msg.media,
                 media: null,
                 quotedMsg: null, // Disabled
-                ack: (msg.out && msg.id <= readMaxId) ? 3 : 1
+                ack: (msg.out && Number(msg.id) <= Number(readMaxId)) ? 3 : 1
              }));
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -991,10 +998,10 @@ const initializeTelegram = async () => {
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
             lastMessageFromMe: d.message?.out || false,
-            // Logic: If message is OUT (from me) AND (id <= readOutboxMaxId OR readOutboxMaxId is undefined/0), check logic.
-            // If readOutboxMaxId is 0, it means nothing read.
-            // If d.message.id <= d.readOutboxMaxId, it is read.
-            lastMessageAck: (d.message?.out && d.readOutboxMaxId && d.message?.id <= d.readOutboxMaxId) ? 3 : 1,
+            // Robust Tick Logic:
+            // Ensure both IDs are treated as Numbers for comparison.
+            // If readOutboxMaxId is present and >= message.id, it is read.
+            lastMessageAck: (d.message?.out && d.readOutboxMaxId && Number(d.message.id) <= Number(d.readOutboxMaxId)) ? 3 : 1,
             profilePicUrl: '',
             lastSeen: '',
             archived: d.archived || d.folderId === 1 || false,
