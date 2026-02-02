@@ -142,6 +142,32 @@ process.on('message', async (msg) => {
         handleDeleteMessage(data);
     } else if (command === 'react_message') {
         handleReactMessage(data);
+    } else if (command === 'update_contact_name') {
+        const { chatId, newName } = data;
+        log(`Updating contact name for ${chatId} to ${newName}`);
+        
+        if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+            try {
+                // Telegram: Update Contact Name
+                // We use AddContact which acts as an upsert/update
+                (async () => {
+                    try {
+                        const entity = await sessionState.client.getInputEntity(chatId);
+                        await sessionState.client.invoke(new Api.contacts.AddContact({
+                            id: entity,
+                            firstName: newName,
+                            lastName: '',
+                            addPhonePrivacyException: false
+                        }));
+                        fetchChats(); // Refresh list
+                    } catch(e) { log(`TG Contact Update Logic Error: ${e}`); }
+                })();
+            } catch(e) { log(`TG Update Contact Error: ${e}`); }
+        } else if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+             // WhatsApp: Not fully supported via Web API to sync to phone
+             // But we will log the attempt.
+             log('WhatsApp Contact Update not fully supported via Web API');
+        }
     }
 });
 
@@ -656,7 +682,8 @@ const initializeWhatsApp = async () => {
                         lastMessageAck: lastAck,
                         profilePicUrl: profilePicUrl,
                         lastSeen: '', // Disabled complex date logic to match Telegram stability
-                        archived: c.archived || false
+                        archived: c.archived || false,
+                        phoneNumber: c.id?.user || '' // Add phone number
                     };
                 } catch (err) {
                     log(`Error mapping chat: ${err}`);
@@ -688,7 +715,8 @@ const initializeWhatsApp = async () => {
                         lastMessage: (c.lastMessage || c.__x_lastMessage || {}).body || '',
                         lastTimestamp: (c.lastMessage || c.__x_lastMessage || {}).timestamp || 0,
                         profilePicUrl: '',
-                        lastSeen: ''
+                        lastSeen: '',
+                        phoneNumber: c.id?.user || (typeof c.id === 'string' ? c.id.split('@')[0] : '') || ''
                     }));
                 });
                 
@@ -1015,7 +1043,9 @@ const initializeTelegram = async () => {
             profilePicUrl: '',
             lastSeen: '',
             archived: d.archived || d.folderId === 1 || false,
-            readMaxId: d.readOutboxMaxId // Store readMaxId for history checks
+            readMaxId: d.readOutboxMaxId, // Store readMaxId for history checks
+            username: d.entity?.username || '',
+            phone: d.entity?.phone || ''
         }));
 
         const totalUnread = mappedChats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);

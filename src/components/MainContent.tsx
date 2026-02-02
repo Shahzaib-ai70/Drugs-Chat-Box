@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
 import { useLanguage } from '../translations';
+import ChatInfoSidebar from './ChatInfoSidebar';
 
 interface MainContentProps {
   activeService?: AddedService;
@@ -43,6 +44,20 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [myProfile, setMyProfile] = useState<{ name: string; id: string; profilePicUrl?: string } | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
+  const [showContactInfo, setShowContactInfo] = useState(false);
+
+  const handleUpdateContactName = (chatId: string, newName: string) => {
+        if (socketRef.current && activeService?.id) {
+            socketRef.current.emit('command', {
+                serviceId: activeService.id,
+                command: 'update_contact_name',
+                data: { chatId, newName }
+            });
+            // Optimistic update
+            setChats(prev => prev.map(c => c.id === chatId ? { ...c, name: newName } : c));
+        }
+  };
+
   const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
   const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
@@ -1496,6 +1511,15 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <div className="text-[10px] text-blue-600 text-center mt-1 animate-pulse">{t.translated}...</div>
                     )}
                 </div>
+                {showContactInfo && activeChatId && (
+                    <ChatInfoSidebar 
+                        chat={chats.find(c => c.id === activeChatId)}
+                        messages={messagesByChat[normalizeId(activeChatId)] || []}
+                        onClose={() => setShowContactInfo(false)}
+                        onUpdateContactName={handleUpdateContactName}
+                        isWhatsApp={isWhatsApp}
+                    />
+                )}
                 </div>
                 </div>
                 </>
