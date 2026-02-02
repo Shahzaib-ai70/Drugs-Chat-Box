@@ -342,13 +342,16 @@ const handleSendMessage = async (data) => {
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
+                const isMedia = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
+                
                 const sendParams = {
                     message: body,
-                    file: buffer
+                    file: buffer,
+                    forceDocument: !isMedia
                 };
                 
-                // Add filename attribute if present to prevent "unnamed file"
-                if (data.media.filename) {
+                // Add filename attribute only for non-media files (documents)
+                if (!isMedia && data.media.filename) {
                     sendParams.attributes = [
                         new Api.DocumentAttributeFilename({ fileName: data.media.filename })
                     ];
