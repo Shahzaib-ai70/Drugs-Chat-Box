@@ -991,7 +991,10 @@ const initializeTelegram = async () => {
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
             lastMessageFromMe: d.message?.out || false,
-            lastMessageAck: (d.message?.out && d.message?.id <= d.readOutboxMaxId) ? 3 : 1,
+            // Logic: If message is OUT (from me) AND (id <= readOutboxMaxId OR readOutboxMaxId is undefined/0), check logic.
+            // If readOutboxMaxId is 0, it means nothing read.
+            // If d.message.id <= d.readOutboxMaxId, it is read.
+            lastMessageAck: (d.message?.out && d.readOutboxMaxId && d.message?.id <= d.readOutboxMaxId) ? 3 : 1,
             profilePicUrl: '',
             lastSeen: '',
             archived: d.archived || d.folderId === 1 || false,
@@ -1105,8 +1108,8 @@ const initializeTelegram = async () => {
                     }
                 });
                 
-                // Sync chat list to update readMaxId for persistence
-                fetchChats();
+                // Sync chat list to update readMaxId for persistence (with delay to ensure state update)
+                setTimeout(() => fetchChats(), 500);
             }
           } catch(e) { log(`Read History Outbox Error: ${e}`); }
       }

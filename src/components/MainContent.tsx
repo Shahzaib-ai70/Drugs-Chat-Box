@@ -784,23 +784,21 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
     // Listen for message status updates (ticks)
     socket.on('wa_message_ack', ({ chatId, id, ack }: { chatId: string, id: string, ack: number }) => {
+        // 1. Update Messages Bubble
         setMessagesByChat(prev => {
             const normId = normalizeId(chatId);
             const current = prev[normId] || [];
             
-            // Check if we have the message with this ID
             const exists = current.some(m => m.id === id);
             
-            // If not found, it might be a race condition where we still have the temp ID
-            // But we can't easily match real ID to temp ID here without more info.
-            // However, usually the callback updates the ID first.
-            
             if (!exists) {
-                console.warn(`Received ack for unknown message ${id} in chat ${chatId}`);
                 return prev;
             }
 
             const updated = current.map(m => {
+                // For Telegram, a Read (3) ack on a newer message implies older ones are read too.
+                // But typically the event is per-message or batch. 
+                // We'll update exact match.
                 if (m.id === id) {
                     return { ...m, ack };
                 }
@@ -808,6 +806,24 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             });
             return { ...prev, [normId]: updated };
         });
+
+        // 2. Update Sidebar Chat List (Real-time tick update on chat bar)
+        setChats(prev => prev.map(c => {
+            if (normalizeId(c.id) === normalizeId(chatId)) {
+                // If the ACK is 'Read' (3), we update the sidebar tick.
+                // Since we don't have exact lastMessageId match easily here without extra state,
+                // we assume if it's a 'Read' ACK for a chat where the last message is from me,
+                // it likely means the last message is read.
+                if (c.lastMessageFromMe && ack >= 3) {
+                    return { ...c, lastMessageAck: 3 };
+                }
+                // If it's a sent ACK (1), and current status is pending (0), update it.
+                if (c.lastMessageFromMe && ack === 1 && (!c.lastMessageAck || c.lastMessageAck === 0)) {
+                    return { ...c, lastMessageAck: 1 };
+                }
+            }
+            return c;
+        }));
     });
 
     socket.on('message_deleted', ({ chatId, messageId }: { chatId: string, messageId: string }) => {
