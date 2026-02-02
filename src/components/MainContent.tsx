@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
 import { useLanguage } from '../translations';
+import ContactInfoPanel from './ContactInfoPanel';
 
 interface MainContentProps {
   activeService?: AddedService;
@@ -1166,7 +1167,10 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             {/* Chat Header */}
             {activeChatId ? (
                 <>
-                <div className="h-16 bg-[#1a1a2e]/80 border-b border-white/10 flex items-center justify-between px-6 shrink-0 backdrop-blur-xl z-10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+                <div 
+                    onClick={() => setShowContactInfo(prev => !prev)}
+                    className="h-16 bg-[#1a1a2e]/80 border-b border-white/10 flex items-center justify-between px-6 shrink-0 backdrop-blur-xl z-10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] cursor-pointer transition-colors hover:bg-[#1a1a2e]"
+                >
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-gray-400 overflow-hidden ring-2 ring-white/10 shadow-[0_0_15px_rgba(255,255,255,0.1)] group cursor-pointer transition-all hover:ring-neon-blue/50 hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]">
                              {(() => {
@@ -1205,6 +1209,9 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         <button className="hover:text-white transition-all hover:scale-110"><MoreVertical size={20} /></button>
                     </div>
                 </div>
+
+                <div className="flex flex-1 min-h-0 relative overflow-hidden">
+                    <div className="flex-1 flex flex-col min-w-0 relative">
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gradient-to-b from-transparent to-black/20">
@@ -1469,6 +1476,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                     {isTranslating && (
                         <div className="text-[10px] text-neon-blue text-center mt-1 animate-pulse">{t.translated}...</div>
                     )}
+                </div>
+                </div>
+                
+                {showContactInfo && (
+                    <ContactInfoPanel 
+                        chat={chats.find(c => c.id === activeChatId) || null}
+                        messages={messagesByChat[normalizeId(activeChatId || '')] || []}
+                        onClose={() => setShowContactInfo(false)}
+                        activeService={activeService}
+                    />
+                )}
                 </div>
                 </>
             ) : (
