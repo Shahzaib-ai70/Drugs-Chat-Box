@@ -9,6 +9,7 @@ const { Client, LocalAuth, MessageMedia } = pkg;
 import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
+import { CustomFile } from 'telegram/client/uploads.js';
 
 // Environment Variables
 const PORT = process.env.PORT || 3006;
@@ -341,8 +342,17 @@ const handleSendMessage = async (data) => {
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
-                // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+                const mime = data.media.mimetype || 'application/octet-stream';
+                const filename = data.media.filename || 'media';
+                const file = new CustomFile(filename, buffer.length, '', buffer);
+                const isImageOrVideo = mime.startsWith('image/') || mime.startsWith('video/');
+
+                // Send as media (photo/video) if possible, otherwise document
+                result = await sessionState.client.sendMessage(data.chatId, { 
+                    message: body, 
+                    file: file,
+                    forceDocument: !isImageOrVideo
+                });
             } else {
                 result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
@@ -972,19 +982,6 @@ const initializeTelegram = async () => {
     const sender = await message.getSender();
     const chatId = message.chatId.toString();
     
-    let media = null;
-    if (message.media) {
-         try {
-             const buffer = await client.downloadMedia(message, {});
-             const base64 = buffer.toString('base64');
-             let mimetype = 'application/octet-stream';
-             if (message.media.photo) mimetype = 'image/jpeg';
-             else if (message.media.document) mimetype = message.media.document.mimeType || 'application/octet-stream';
-             
-             media = { mimetype, data: base64, filename: 'media' };
-         } catch(e) { log(`TG Media Download Error: ${e}`); }
-    }
-
     let quotedMsg = undefined;
     if (message.replyTo) {
          try {
@@ -1009,12 +1006,31 @@ const initializeTelegram = async () => {
         timestamp: message.date,
         type: 'chat',
         hasMedia: !!message.media,
-        media: media,
+        media: null,
         quotedMsg: quotedMsg,
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
     fetchChats();
+
+    // Background Media Download (Real-time receive)
+    if (message.media) {
+        (async () => {
+            try {
+                const buffer = await client.downloadMedia(message, {});
+                const base64 = buffer.toString('base64');
+                let mimetype = 'application/octet-stream';
+                if (message.media.photo) mimetype = 'image/jpeg';
+                else if (message.media.document) mimetype = message.media.document.mimeType || 'application/octet-stream';
+                
+                io.to(SERVICE_ID).emit('media_loaded', {
+                    msgId: mappedMsg.id,
+                    chatId: mappedMsg.chatId,
+                    media: { mimetype, data: base64, filename: 'media' }
+                });
+            } catch(e) { log(`TG Media Download Error: ${e}`); }
+        })();
+    }
   }, new NewMessage({}));
 
   // Listen for Read History Updates (Real-time Unread Sync)
