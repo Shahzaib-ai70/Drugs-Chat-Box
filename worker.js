@@ -185,23 +185,18 @@ const handleGetChatMedia = async (data) => {
     if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
         try {
             const chat = await sessionState.client.getChatById(chatId);
-            // Fetch more messages to find media (Limit 100)
-            const messages = await chat.fetchMessages({ limit: 100 });
+            // Fetch more messages to find media (Limit 500 to go back further)
+            const messages = await chat.fetchMessages({ limit: 500 });
             
-            for (const msg of messages) {
+            let count = 0;
+            // Iterate backwards (newest first)
+            for (let i = messages.length - 1; i >= 0; i--) {
+                const msg = messages[i];
+                if (count >= 20) break; // Limit to 20 media items for performance
+
                 if (msg.hasMedia) {
                     try {
-                        // Only download if not too old/large to prevent blocking
-                        // For now, we just map what we have. Real download is expensive on WA Web.
-                        // We will rely on real-time downloads or user clicking "Download".
-                        // BUT user wants to SEE media. We must download thumbnails or content.
-                        
-                        // WA Web JS doesn't always give easy thumbnails for old messages without download.
-                        // We'll try to download SMALL media or just metadata if possible.
-                        // Optimization: Only download images/small videos.
-                        
-                        if (msg.type === 'image' || msg.type === 'video' || msg.type === 'document') {
-                             // We download to show in gallery.
+                        if (msg.type === 'image' || msg.type === 'video' || msg.type === 'document' || msg.type === 'audio') {
                              const downloaded = await msg.downloadMedia();
                              if (downloaded) {
                                  mediaList.push({
@@ -211,57 +206,73 @@ const handleGetChatMedia = async (data) => {
                                      filename: downloaded.filename || 'media',
                                      timestamp: msg.timestamp
                                  });
+                                 count++;
                              }
                         }
                     } catch (e) {
                          // Skip failed downloads
+                         log(`WA Download Error for ${msg.id._serialized}: ${e}`);
                     }
                 }
             }
         } catch(e) { log(`WA Media History Error: ${e}`); }
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
-            // Telegram: Use Filters for efficient fetching
-            // Fetch Photos
-            const photos = await sessionState.client.getMessages(chatId, { 
-                limit: 20, 
-                filter: new Api.InputMessagesFilterPhotos() 
-            });
+            // Resolve entity first to ensure we target the right chat
+            const entity = await sessionState.client.getInputEntity(chatId);
             
-            // Fetch Videos
-            const videos = await sessionState.client.getMessages(chatId, { 
-                limit: 10, 
-                filter: new Api.InputMessagesFilterVideo() 
-            });
-
             // Helper to process TG messages
-            const processTgMedia = async (msgs) => {
-                for (const msg of msgs) {
-                     try {
-                         // Telegram media needs downloading to get base64
-                         // We download thumbnails for speed if possible, or full media
-                         // For gallery, we need the image.
-                         const buffer = await sessionState.client.downloadMedia(msg, {});
-                         if (buffer) {
-                             const base64 = buffer.toString('base64');
-                             let mimetype = 'application/octet-stream';
-                             if (msg.media.photo) mimetype = 'image/jpeg';
-                             else if (msg.media.document) mimetype = msg.media.document.mimeType || 'video/mp4'; // Assumptions
-                             
-                             mediaList.push({
-                                 id: msg.id.toString(),
-                                 mimetype,
-                                 data: base64,
-                                 filename: 'media',
-                                 timestamp: msg.date
-                             });
-                         }
-                     } catch (e) {}
-                }
+            const processTgMedia = async (filter, limit) => {
+                try {
+                    const msgs = await sessionState.client.getMessages(entity, { 
+                        limit: limit, 
+                        filter: filter
+                    });
+                    
+                    for (const msg of msgs) {
+                         try {
+                             // Only download if we don't have it yet (frontend handles dedupe, but bandwidth matters)
+                             // Download max 1MB for preview or use thumbnail if possible
+                             // For now, download full media to ensure quality as per user request
+                             const buffer = await sessionState.client.downloadMedia(msg, {});
+                             if (buffer) {
+                                 const base64 = buffer.toString('base64');
+                                 let mimetype = 'application/octet-stream';
+                                 
+                                 // Determine mimetype
+                                 if (msg.media) {
+                                     if (msg.media.photo) mimetype = 'image/jpeg';
+                                     else if (msg.media.document) {
+                                         mimetype = msg.media.document.mimeType || 'application/octet-stream';
+                                     }
+                                 }
+
+                                 // Fallback for filename
+                                 let filename = 'media';
+                                 if (msg.media && msg.media.document && msg.media.document.attributes) {
+                                     const attr = msg.media.document.attributes.find(a => a.fileName);
+                                     if (attr) filename = attr.fileName;
+                                 }
+
+                                 mediaList.push({
+                                     id: msg.id.toString(),
+                                     mimetype,
+                                     data: base64,
+                                     filename,
+                                     timestamp: msg.date
+                                 });
+                             }
+                         } catch (e) { log(`TG Msg Download Error: ${e}`); }
+                    }
+                } catch (e) { log(`TG Filter Fetch Error: ${e}`); }
             };
 
-            await processTgMedia(photos);
-            await processTgMedia(videos);
+            // Fetch Photos (Top 20)
+            await processTgMedia(new Api.InputMessagesFilterPhotos(), 20);
+            // Fetch Videos (Top 10)
+            await processTgMedia(new Api.InputMessagesFilterVideo(), 10);
+            // Fetch Documents (Top 10 - often images/videos sent as file)
+            await processTgMedia(new Api.InputMessagesFilterDocument(), 10);
             
             // Sort by date desc
             mediaList.sort((a, b) => b.timestamp - a.timestamp);
@@ -269,6 +280,7 @@ const handleGetChatMedia = async (data) => {
         } catch(e) { log(`TG Media History Error: ${e}`); }
     }
     
+    log(`Emitting ${mediaList.length} media items for ${chatId}`);
     io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
 };
 
