@@ -345,17 +345,34 @@ const handleSendMessage = async (data) => {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 const isMedia = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
                 
-                const sendParams = {
-                    message: body,
-                    file: buffer,
-                    forceDocument: !isMedia
-                };
-                
-                // Add filename attribute only for non-media files (documents)
-                if (!isMedia && data.media.filename) {
-                    sendParams.attributes = [
-                        new Api.DocumentAttributeFilename({ fileName: data.media.filename })
-                    ];
+                let sendParams;
+
+                if (isMedia) {
+                     // For pure media (image/video), just pass the buffer and forceDocument: false
+                     // This allows Telegram to auto-detect and render as native media
+                     sendParams = {
+                        message: body,
+                        file: buffer,
+                        forceDocument: false
+                     };
+                } else {
+                    // For documents, use CustomFile to preserve filename
+                    let filename = data.media.filename;
+                    if (!filename) {
+                        const ext = data.media.mimetype.split('/')[1] || 'bin';
+                        filename = `file.${ext}`;
+                    }
+                    // Use CustomFile to ensure GramJS detects the file type correctly based on extension
+                    const file = new CustomFile(filename, buffer.length, "", buffer);
+                    
+                    sendParams = {
+                        message: body,
+                        file: file,
+                        forceDocument: true,
+                        attributes: [
+                             new Api.DocumentAttributeFilename({ fileName: filename })
+                        ]
+                    };
                 }
                 
                 result = await sessionState.client.sendMessage(data.chatId, sendParams);
