@@ -1440,16 +1440,25 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                             )}
                             <textarea
                                 value={messageInput}
-                                onChange={(e) => setMessageInput(e.target.value)}
+                                onChange={(e) => {
+                                    setMessageInput(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                }}
                                 onContextMenu={handleInputContextMenu}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSendMessage();
+                                        // Reset height after sending
+                                        const target = e.target as HTMLTextAreaElement;
+                                        setTimeout(() => {
+                                            target.style.height = 'auto';
+                                        }, 0);
                                     }
                                 }}
                                 placeholder={t.typeMessage}
-                                className="w-full max-h-[100px] py-2.5 px-2 text-gray-900 placeholder-gray-400 bg-transparent resize-none focus:outline-none custom-scrollbar font-medium"
+                                className="w-full py-2.5 px-2 text-gray-900 placeholder-gray-400 bg-transparent resize-none focus:outline-none font-medium overflow-hidden"
                                 rows={1}
                             />
                         </div>
