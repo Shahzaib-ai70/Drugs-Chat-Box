@@ -1,4 +1,4 @@
-import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy } from 'lucide-react';
+import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
 import { FaWhatsapp, FaFacebookF } from 'react-icons/fa';
@@ -45,6 +45,11 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const activeChatIdRef = useRef<string | null>(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+  useEffect(() => {
+    if (activeService) setMobileView('list');
+  }, [activeService]);
 
   const [currentChatMedia, setCurrentChatMedia] = useState<any[]>([]);
 
@@ -973,7 +978,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
       return (
         <div className="flex-1 flex h-full overflow-hidden bg-white border-l border-r border-gray-200">
           {/* Left Sidebar - Chat List */}
-          <div className="w-[360px] border-r border-gray-200 flex flex-col h-full bg-white z-10">
+          <div className={`w-full md:w-[360px] border-r border-gray-200 flex flex-col h-full bg-white z-10 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-4 bg-gray-50/80 shrink-0 border-b border-gray-200 backdrop-blur-md">
                <div className="flex items-center gap-3">
@@ -1078,6 +1083,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                       onClick={() => {
                         setActiveChatId(c.id);
                         if (onChatSelect) onChatSelect(c.id);
+                        setMobileView('chat');
                         document.title = 'UniChat';
                         setChats(prev => prev.map(chat => chat.id === c.id ? { ...chat, unreadCount: 0 } : chat));
                         
@@ -1142,7 +1148,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
 
           {/* Right Area - Chat Window */}
           <div 
-            className="flex-1 bg-transparent flex flex-col h-full overflow-hidden relative"
+            className={`flex-1 bg-transparent flex-col h-full overflow-hidden relative ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onPaste={handlePaste}
@@ -1225,9 +1231,18 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                 <>
                 <div 
                     onClick={() => setShowContactInfo(prev => !prev)}
-                    className="h-16 bg-white/90 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 backdrop-blur-md z-10 shadow-sm cursor-pointer transition-colors hover:bg-gray-50"
+                    className="h-16 bg-white/90 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shrink-0 backdrop-blur-md z-10 shadow-sm cursor-pointer transition-colors hover:bg-gray-50"
                 >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <button 
+                            className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setMobileView('list');
+                            }}
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
                         <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 overflow-hidden ring-2 ring-gray-100 shadow-sm group cursor-pointer transition-all hover:ring-blue-200 hover:shadow-md">
                              {(() => {
                                 const activeChat = chats.find(c => c.id === activeChatId);

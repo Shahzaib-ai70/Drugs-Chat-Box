@@ -16,16 +16,18 @@ import {
   MessageSquare,
   ChevronRight,
   Check,
-  WifiOff
+  WifiOff,
+  Menu
 } from 'lucide-react';
 import { useLanguage, LANGUAGES } from '../translations';
 
 interface TopBarProps {
   onLogout?: () => void;
   invitationCode?: string | null;
+  onMenuClick?: () => void;
 }
 
-const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
+const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
   const { language, setLanguage, t, theme, setTheme } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -74,6 +76,12 @@ const TopBar = ({ onLogout, invitationCode }: TopBarProps) => {
       
       {/* Logo Area */}
       <div className="flex items-center gap-3 w-auto min-w-[180px] relative z-10">
+        <button 
+            className="md:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg -ml-2 mr-1 transition-colors"
+            onClick={onMenuClick}
+        >
+            <Menu size={24} />
+        </button>
         <div className="w-9 h-9 bg-gradient-to-br from-neon-blue/20 to-neon-purple/20 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-[0_0_15px_rgba(0,243,255,0.3)] border border-white/10 ring-1 ring-white/5 group cursor-pointer hover:scale-105 transition-transform duration-300">
           <MessageSquare size={18} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />
         </div>

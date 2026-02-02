@@ -35,6 +35,7 @@ function App() {
   
   // Translation State
   const [isTranslationPanelOpen, setIsTranslationPanelOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<'current' | 'global'>('global');
 
@@ -262,26 +263,54 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-white text-gray-800 font-sans relative overflow-hidden">
-      <TopBar onLogout={handleLogout} invitationCode={invitationCode} />
+      <TopBar onLogout={handleLogout} invitationCode={invitationCode} onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
       <div className="flex flex-1 overflow-hidden relative z-0">
-        <SidebarLeft 
-          onAddNewClick={() => setIsAddModalOpen(true)} 
-          addedServices={addedServices}
-          activeServiceId={activeServiceId}
-          onServiceClick={setActiveServiceId}
-          onDeleteService={handleDeleteService}
-          onRefreshService={handleRefreshService}
-          onUpdateName={handleUpdateServiceName}
-        />
+        {/* Mobile Drawer for SidebarLeft */}
+        <div 
+            className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+            onClick={() => setIsMobileMenuOpen(false)}
+        >
+            <div 
+                className={`absolute left-0 top-0 bottom-0 w-[280px] bg-white transition-transform duration-300 shadow-2xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} 
+                onClick={e => e.stopPropagation()}
+            >
+                <SidebarLeft 
+                  onAddNewClick={() => { setIsAddModalOpen(true); setIsMobileMenuOpen(false); }} 
+                  addedServices={addedServices}
+                  activeServiceId={activeServiceId}
+                  onServiceClick={(id) => { setActiveServiceId(id); setIsMobileMenuOpen(false); }}
+                  onDeleteService={handleDeleteService}
+                  onRefreshService={handleRefreshService}
+                  onUpdateName={handleUpdateServiceName}
+                />
+            </div>
+        </div>
+
+        {/* Desktop SidebarLeft */}
+        <div className="hidden md:block h-full">
+            <SidebarLeft 
+              onAddNewClick={() => setIsAddModalOpen(true)} 
+              addedServices={addedServices}
+              activeServiceId={activeServiceId}
+              onServiceClick={setActiveServiceId}
+              onDeleteService={handleDeleteService}
+              onRefreshService={handleRefreshService}
+              onUpdateName={handleUpdateServiceName}
+            />
+        </div>
+
         <MainContent 
           activeService={activeService} 
           translationSettings={activeSettings}
           onChatSelect={setActiveChatId}
         />
-        <SidebarRight 
-          onLangClick={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)} 
-          isLangActive={isTranslationPanelOpen}
-        />
+        
+        <div className="hidden md:block h-full">
+            <SidebarRight 
+              onLangClick={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)} 
+              isLangActive={isTranslationPanelOpen}
+            />
+        </div>
         {isTranslationPanelOpen && (
           <TranslationPanel 
             settings={settingsMode === 'current' && activeChatId ? (chatSettings[normalizeId(activeChatId)] || globalSettings) : globalSettings} 
