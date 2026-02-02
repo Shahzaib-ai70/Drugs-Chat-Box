@@ -89,6 +89,11 @@ echo ""
 echo "[3] Building and Starting App (Deep Clean)..."
 cd $APP_DIR || exit 1
 
+echo " -> Pulling latest changes..."
+git stash
+git pull
+
+
 # Stop existing process
 pm2 delete dlchats-app 2>/dev/null
 
