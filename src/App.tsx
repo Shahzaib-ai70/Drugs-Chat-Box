@@ -124,7 +124,6 @@ function App() {
           // Fallback if exact match not found (e.g. legacy IDs), try to guess by name or default to WA
           const def = serviceDef || (
             item.service_id.startsWith('tg') ? AVAILABLE_SERVICES.find(s => s.id === 'tg1') : 
-            item.service_id.startsWith('fb') ? AVAILABLE_SERVICES.find(s => s.id === 'fb') :
             AVAILABLE_SERVICES.find(s => s.id === 'wa1')
           );
           

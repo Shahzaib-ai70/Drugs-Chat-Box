@@ -33,7 +33,6 @@ export const AVAILABLE_SERVICES: ServiceItem[] = [
   { id: 'dc', name: 'Discord', icon: <FaDiscord size={24} />, color: '#5865F2', bgColor: 'bg-indigo-50' },
   { id: 'tn', name: 'Textnow', icon: <span className="font-bold text-xs">Tn</span>, color: '#000000', bgColor: 'bg-gray-100' },
   { id: 'gv', name: 'Google\nvoice', icon: <FaGoogle size={24} />, color: '#4285F4', bgColor: 'bg-blue-50' },
-  { id: 'fbp', name: 'Facebook\n粉丝专页', icon: <FaFacebookF size={24} />, color: '#1877F2', bgColor: 'bg-blue-100' },
   { id: 'idx', name: 'Index', icon: <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px]">in</div>, color: '#1877F2', bgColor: 'bg-blue-50' },
   { id: 'sc', name: 'Snapchat', icon: <FaSnapchatGhost size={24} />, color: '#FFFC00', bgColor: 'bg-yellow-50' },
   { id: 'tf', name: 'Textfree', icon: <span className="font-bold text-xs">Tf</span>, color: '#666', bgColor: 'bg-purple-50' },
