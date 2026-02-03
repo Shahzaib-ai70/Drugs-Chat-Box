@@ -1063,6 +1063,26 @@ const initializeWhatsApp = async () => {
     };
     
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
+    
+    // Optimistic Update for Real-time Unread Count
+    if (!msg.fromMe) {
+        const chatIndex = sessionState.chats.findIndex(c => c.id === chatId);
+        if (chatIndex !== -1) {
+             const chat = sessionState.chats[chatIndex];
+             chat.unreadCount = (chat.unreadCount || 0) + 1;
+             chat.lastMessage = msg.body;
+             chat.lastTimestamp = msg.timestamp;
+             chat.lastMessageFromMe = false;
+             
+             // Re-sort chats
+             sessionState.chats.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+             
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+             io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
+        }
+    }
+
     fetchAndEmitChats();
   });
 
@@ -1254,6 +1274,26 @@ const initializeTelegram = async () => {
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
+
+    // Optimistic Update for Real-time Unread Count
+    if (!message.out) {
+        const chatIndex = sessionState.chats.findIndex(c => c.id === chatId);
+        if (chatIndex !== -1) {
+             const chat = sessionState.chats[chatIndex];
+             chat.unreadCount = (chat.unreadCount || 0) + 1;
+             chat.lastMessage = message.text || '';
+             chat.lastTimestamp = message.date;
+             chat.lastMessageFromMe = false;
+             
+             // Re-sort chats
+             sessionState.chats.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+             io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
+        }
+    }
+
     fetchChats();
 
     // Background Media Download (Real-time receive)
