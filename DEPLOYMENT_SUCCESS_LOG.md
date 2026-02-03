@@ -6,3 +6,8 @@
   - Reduced Master Process memory limit from 8GB to 2GB to prevent OOM.
   - Optimized Facebook Worker Puppeteer args (disabled GPU, extensions, backgrounding, etc.) to reduce RAM usage.
   - Preserved all functionality while reducing footprint.
+
+## 2026-02-03 - Facebook Removal & Final Cleanup
+- **Facebook Removal**: Completely removed all Facebook-related code, files (worker_facebook.js, RemoteBrowserView.tsx), and service options.
+- **VPS Path**: `/var/www/dlchats-app`
+- **Deployment Command**: `cd /var/www/dlchats-app && git pull && ./fix_and_deploy.sh`

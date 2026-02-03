@@ -1,8 +1,6 @@
 import { 
   FaWhatsapp, 
   FaTelegramPlane, 
-  FaFacebookF, 
-  FaFacebookMessenger, 
   FaInstagram, 
   FaLine, 
   FaTwitter, 
@@ -19,8 +17,6 @@ import type { ServiceItem } from '../types';
 export const AVAILABLE_SERVICES: ServiceItem[] = [
   { id: 'wa', name: 'WhatsApp', icon: <FaWhatsapp size={24} />, color: '#25D366', bgColor: 'bg-green-100' },
   { id: 'tg', name: 'Telegram', icon: <FaTelegramPlane size={24} />, color: '#0088cc', bgColor: 'bg-blue-100' },
-  { id: 'fb', name: 'Facebook', icon: <FaFacebookF size={24} />, color: '#1877F2', bgColor: 'bg-blue-100' },
-  { id: 'ms', name: 'Messenger', icon: <FaFacebookMessenger size={24} />, color: '#00B2FF', bgColor: 'bg-blue-50' },
   { id: 'ig', name: 'Instagram', icon: <FaInstagram size={24} />, color: '#E4405F', bgColor: 'bg-pink-100' },
   { id: 'ln', name: 'Line', icon: <FaLine size={24} />, color: '#00C300', bgColor: 'bg-green-50' },
   { id: 'lnw', name: 'Line Work', icon: <FaLine size={24} />, color: '#00C300', bgColor: 'bg-green-50' },
