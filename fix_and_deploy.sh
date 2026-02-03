@@ -118,7 +118,7 @@ echo " -> Starting server with PM2..."
 killall -9 node 2>/dev/null
 # Start the server (Gateway Architecture)
 # We allocate generous RAM for the Master Process
-PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=8192"
+PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=2048"
 
 # 4. Final check for conflicts (Redundant but safe)
 echo ""

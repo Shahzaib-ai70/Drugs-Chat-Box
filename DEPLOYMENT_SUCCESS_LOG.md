@@ -1,9 +1,8 @@
 # VPS Deployment Success Log
 
-## 2026-02-03 - Mobile Responsive Update
-- Implemented "Stack & Slide" architecture for mobile devices.
-- Added Mobile Menu Button in TopBar.
-- Added Mobile Drawer for SidebarLeft.
-- Added Mobile View State in MainContent to toggle between Chat List and Chat Window.
-- Added Back Button in Mobile Chat Window.
-- Fixed responsiveness for small screens (hidden/flex classes).
+## 2026-02-03 - Performance & Mobile Update
+- **Mobile Responsive**: "Stack & Slide" architecture, Mobile Menu, Drawer, View State.
+- **Performance Optimization**: 
+  - Reduced Master Process memory limit from 8GB to 2GB to prevent OOM.
+  - Optimized Facebook Worker Puppeteer args (disabled GPU, extensions, backgrounding, etc.) to reduce RAM usage.
+  - Preserved all functionality while reducing footprint.
