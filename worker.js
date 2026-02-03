@@ -1112,7 +1112,7 @@ const initializeWhatsApp = async () => {
         ack: msg.ack
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-    fetchAndEmitChats();
+    // fetchAndEmitChats(); // Removed to prevent overwriting optimistic updates with stale data
   });
 
   client.on('message_ack', async (msg, ack) => {
@@ -1292,9 +1292,8 @@ const initializeTelegram = async () => {
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
              io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
         }
+        fetchChats(); // Only fetch for incoming messages to ensure sync
     }
-
-    fetchChats();
 
     // Background Media Download (Real-time receive)
     if (message.media) {
