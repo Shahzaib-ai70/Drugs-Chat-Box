@@ -1,8 +1,7 @@
 import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
-import { FaWhatsapp, FaFacebookF } from 'react-icons/fa';
-import RemoteBrowserView from './RemoteBrowserView';
+import { FaWhatsapp } from 'react-icons/fa';
 import type { AddedService } from '../types';
 import type { TranslationSettings } from './TranslationPanel';
 import { useEffect, useRef, useState } from 'react';
@@ -636,30 +635,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         alert(t.whatsappError + ': ' + err);
     });
     
-    socket.on('fb_login_required', () => {
-        console.log('Facebook Login Required');
-        setIsLoginRequired(true);
-        setIsConnected(false);
-        setIsAuthenticating(false);
-        setLoadingStatus(null);
-    });
-
-    socket.on('fb_login_error', ({ message }) => {
-        console.error('Facebook Login Error:', message);
-        alert(t.loginFailed + ': ' + message);
-        setIsAuthenticating(false);
-        setLoadingStatus(null);
-        setIsLoginRequired(true); // Ensure form is visible
-    });
-
-    socket.on('fb_2fa_required', () => {
-        console.log('Facebook 2FA Required');
-        setIs2FARequired(true);
-        setIsAuthenticating(false);
-        setIsConnected(false);
-        setLoadingStatus(null);
-    });
-    
     socket.on('tg_2fa_required', ({ hint }) => {
         console.log('2FA Required, hint:', hint);
         setPasswordHint(hint || 'No hint provided');
@@ -955,23 +930,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
         e.target.value = '';
     }
   };
-
-  const handleFacebookLogin = () => {
-    if (!loginEmail || !loginPassword || !activeService?.id) return;
-    setLoadingStatus({ percent: 10, message: t.loggingIn });
-    socketRef.current?.emit('fb_login_submit', { serviceId: activeService.id, email: loginEmail, password: loginPassword });
-  };
-
-  // Render Remote Browser for Facebook
-    if (activeService?.service.id.startsWith('fb')) {
-        return (
-            <RemoteBrowserView 
-                socket={socketInstance} 
-                serviceId={activeService.id} 
-                translationSettings={translationSettings}
-            />
-        );
-    }
 
   if (isWhatsApp) {
     if (isConnected || isLoadingChats) {
@@ -1846,58 +1804,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
             )}
         </div>
       );
-    }
-
-    // Facebook Login Screen
-    if (isLoginRequired) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-transparent p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-radial from-neon-blue/5 via-transparent to-transparent opacity-50"></div>
-                <div className="bg-[#1a1a2e]/80 backdrop-blur-xl p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-md w-full border border-white/10 relative z-10">
-                    <div className="flex flex-col items-center mb-8">
-                        <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center text-white mb-6 shadow-[0_0_20px_rgba(37,99,235,0.5)] ring-2 ring-white/10">
-                            <FaFacebookF size={40} />
-                        </div>
-                        <h2 className="text-3xl font-bold text-white tracking-wide">{t.loginToFacebook}</h2>
-                        <p className="text-gray-400 text-center mt-3 leading-relaxed">{t.enterCredentials}</p>
-                    </div>
-
-                    <div className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2 ml-1">{t.emailOrPhone}</label>
-                            <input 
-                                type="text" 
-                                value={loginEmail}
-                                onChange={(e) => setLoginEmail(e.target.value)}
-                                className="w-full h-14 px-6 rounded-xl border border-white/10 bg-black/40 text-white placeholder-gray-600 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 outline-none transition-all shadow-inner"
-                                placeholder="email@example.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2 ml-1">{t.password}</label>
-                            <input 
-                                type="password" 
-                                value={loginPassword}
-                                onChange={(e) => setLoginPassword(e.target.value)}
-                                className="w-full h-14 px-6 rounded-xl border border-white/10 bg-black/40 text-white placeholder-gray-600 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 outline-none transition-all shadow-inner"
-                                placeholder="••••••••"
-                                onKeyDown={(e) => e.key === 'Enter' && handleFacebookLogin()}
-                            />
-                        </div>
-                        <button 
-                            onClick={handleFacebookLogin}
-                            disabled={!loginEmail || !loginPassword}
-                            className={`w-full h-14 rounded-xl font-bold text-lg text-white transition-all shadow-lg mt-4
-                                ${loginEmail && loginPassword 
-                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] active:scale-[0.98]' 
-                                    : 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/5'}`}
-                        >
-                            {t.login}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
     }
 
     // QR Code Screen - Only show if we actually have a QR code or status says so

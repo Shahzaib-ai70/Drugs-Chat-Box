@@ -17,11 +17,8 @@ import { SiZalo, SiTinder, SiGooglechat } from 'react-icons/si';
 import type { ServiceItem } from '../types';
 
 export const AVAILABLE_SERVICES: ServiceItem[] = [
-  { id: 'wa1', name: 'Whatsapp\n多功能', icon: <FaWhatsapp size={24} />, color: '#25D366', bgColor: 'bg-green-100' },
-  { id: 'wa2', name: 'Whatsapp', icon: <FaWhatsapp size={24} />, color: '#25D366', bgColor: 'bg-green-100' },
-  { id: 'tg1', name: 'Telegram多\n功能', icon: <FaTelegramPlane size={24} />, color: '#0088cc', bgColor: 'bg-sky-100' },
-  { id: 'tg2', name: 'Telegram Z', icon: <FaTelegramPlane size={24} />, color: '#0088cc', bgColor: 'bg-sky-100' },
-  { id: 'tg3', name: 'Telegram K', icon: <FaTelegramPlane size={24} />, color: '#0088cc', bgColor: 'bg-sky-100' },
+  { id: 'wa', name: 'WhatsApp', icon: <FaWhatsapp size={24} />, color: '#25D366', bgColor: 'bg-green-100' },
+  { id: 'tg', name: 'Telegram', icon: <FaTelegramPlane size={24} />, color: '#0088cc', bgColor: 'bg-blue-100' },
   { id: 'fb', name: 'Facebook', icon: <FaFacebookF size={24} />, color: '#1877F2', bgColor: 'bg-blue-100' },
   { id: 'ms', name: 'Messenger', icon: <FaFacebookMessenger size={24} />, color: '#00B2FF', bgColor: 'bg-blue-50' },
   { id: 'ig', name: 'Instagram', icon: <FaInstagram size={24} />, color: '#E4405F', bgColor: 'bg-pink-100' },

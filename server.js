@@ -134,13 +134,12 @@ const spawnWorker = (service) => {
         log(`Assigned new port ${port} to service ${service.id}`);
     }
 
-    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : service.service_id.startsWith('fb') ? 'facebook' : 'whatsapp';
+    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : 'whatsapp';
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
     // Use fork for IPC communication
-    const workerFile = serviceType === 'facebook' ? 'worker_facebook.js' : 'worker.js';
-    const child = fork(workerFile, [], {
+    const child = fork('worker.js', [], {
         env: { 
             ...process.env, 
             PORT: port, 
@@ -233,8 +232,6 @@ app.post('/api/create_service', (req, res) => {
     let serviceId = id;
     if (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) {
         serviceId = `tg_${id}`;
-    } else if (serviceType === 'facebook' || (serviceType && serviceType.startsWith('fb'))) {
-        serviceId = `fb_${id}`;
     }
 
     try {
@@ -550,37 +547,6 @@ io.on('connection', (socket) => {
         if (worker) worker.process.send({ type: 'command', command: 'react_message', data });
     });
 
-    socket.on('fb_login_submit', (data) => {
-        const { serviceId, email, password } = data;
-        const worker = workers.get(serviceId);
-        if (worker) worker.process.send({ type: 'command', command: 'fb_login_submit', data: { email, password } });
-    });
-
-    socket.on('fb_input_event', (data) => {
-        const { serviceId, event } = data;
-        const worker = workers.get(serviceId);
-        if (worker) worker.process.send({ type: 'command', command: 'fb_input_event', data: event });
-    });
-
-    socket.on('fb_update_translation', (data) => {
-        // data contains autoTranslateIncoming, targetLang, and implicitly the socket context but we need serviceId
-        // The socket is joined to rooms, but for this specific event we need to know WHICH service.
-        // Usually the client emits serviceId with the event.
-        // Update RemoteBrowserView to send serviceId in the payload.
-    });
-
-    // Better implementation: Update the event listener to expect serviceId
-    socket.on('fb_update_translation', (data) => {
-        const { serviceId, ...settings } = data;
-        const worker = workers.get(serviceId);
-        if (worker) worker.process.send({ type: 'command', command: 'fb_update_translation', data: settings });
-    });
-
-    socket.on('fb_2fa_submit', (data) => {
-        const { serviceId, code } = data;
-        const worker = workers.get(serviceId);
-        if (worker) worker.process.send({ type: 'command', command: 'fb_2fa_submit', data: { code } });
-    });
 });
 
 server.listen(PORT, () => {
