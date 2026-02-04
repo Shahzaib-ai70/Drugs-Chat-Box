@@ -305,12 +305,13 @@ function App() {
         </div>
 
         <MainContent 
-                activeService={activeService} 
-                translationSettings={activeSettings}
-                onChatSelect={setActiveChatId}
-                onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
-                isTranslationOpen={isTranslationPanelOpen}
-              />
+        activeService={activeService} 
+        translationSettings={activeSettings}
+        onChatSelect={setActiveChatId}
+        onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
+        isTranslationOpen={isTranslationPanelOpen}
+        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+      />
         
         <div className="hidden md:block h-full">
             <SidebarRight 

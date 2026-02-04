@@ -16,6 +16,7 @@ interface MainContentProps {
   onChatSelect?: (chatId: string | null) => void;
   onToggleTranslation?: () => void;
   isTranslationOpen?: boolean;
+  onOpenMobileMenu?: () => void;
 }
 
 interface PendingOriginal {
@@ -26,7 +27,7 @@ interface PendingOriginal {
     chatId?: string;
 }
 
-const MainContent = ({ activeService, translationSettings, onChatSelect, onToggleTranslation, isTranslationOpen }: MainContentProps) => {
+const MainContent = ({ activeService, translationSettings, onChatSelect, onToggleTranslation, isTranslationOpen, onOpenMobileMenu }: MainContentProps) => {
   const { t } = useLanguage();
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
@@ -942,6 +943,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-4 bg-gray-50/80 shrink-0 border-b border-gray-200 backdrop-blur-md">
                <div className="flex items-center gap-3">
+                 {/* Back to Accounts Button (Mobile Only) */}
+                 <button 
+                    className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                    onClick={onOpenMobileMenu}
+                 >
+                    <ChevronLeft size={24} />
+                 </button>
                  <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden ring-2 ring-blue-500/10 shadow-sm">
                    <img 
                       src={myProfile?.profilePicUrl || "https://upload.wikimedia.org/wikipedia/commons/9/93/Google_Contacts_icon.svg"} 
