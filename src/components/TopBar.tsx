@@ -178,7 +178,7 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, is
 
                         {/* Language Submenu */}
                         {isLangOpen && (
-                            <div className="absolute right-full top-0 mr-2 w-48 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 py-2 overflow-hidden animate-in slide-in-from-right-2 duration-200">
+                            <div className="max-md:relative max-md:w-full max-md:mt-2 max-md:border-t max-md:border-white/10 md:absolute md:right-full md:top-0 md:mr-2 md:w-48 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 md:slide-in-from-right-2 duration-200">
                                 {LANGUAGES.map(lang => (
                                     <button
                                         key={lang.code}

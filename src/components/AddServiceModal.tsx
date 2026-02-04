@@ -9,8 +9,10 @@ import {
 } from 'lucide-react';
 import { AVAILABLE_SERVICES } from '../constants/services';
 import type { ServiceItem } from '../types';
+import { useLanguage } from '../translations';
 
 const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (service: ServiceItem, name: string, quantity: number) => void }) => {
+  const { t } = useLanguage();
   const [appName, setAppName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
@@ -43,7 +45,7 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
             <div className="w-9 h-9 bg-gradient-to-br from-neon-blue/20 to-neon-purple/20 rounded-xl flex items-center justify-center text-white shadow-[0_0_15px_rgba(0,243,255,0.3)] ring-1 ring-white/10 border border-white/5">
               <MessageCircle size={20} fill="currentColor" className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />
             </div>
-            <span className="text-lg font-bold text-white tracking-wide drop-shadow-md">Add Service</span>
+            <span className="text-lg font-bold text-white tracking-wide drop-shadow-md">{t.addService}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-400">
             <button className="hover:bg-white/10 p-2 rounded-full transition-colors hover:text-white"><Minus size={18} /></button>
@@ -67,17 +69,17 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
                 </div>
                 <div className="flex-1 flex flex-col md:flex-row gap-4 w-full">
                     <div className="flex-1">
-                        <label className="block text-[10px] font-bold text-neon-blue/80 uppercase tracking-widest mb-1.5 drop-shadow-[0_0_2px_rgba(0,243,255,0.5)]">Service Name</label>
+                        <label className="block text-[10px] font-bold text-neon-blue/80 uppercase tracking-widest mb-1.5 drop-shadow-[0_0_2px_rgba(0,243,255,0.5)]">{t.serviceName}</label>
                         <input 
                             type="text" 
                             value={appName}
                             onChange={(e) => setAppName(e.target.value)}
-                            placeholder="Select a service below..."
+                            placeholder={t.selectServicePlaceholder}
                             className="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/40 focus:bg-black/60 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 outline-none transition-all text-sm text-white placeholder-gray-600 shadow-inner"
                         />
                     </div>
                     <div className="w-full md:w-24">
-                        <label className="block text-[10px] font-bold text-neon-blue/80 uppercase tracking-widest mb-1.5 drop-shadow-[0_0_2px_rgba(0,243,255,0.5)]">Qty</label>
+                        <label className="block text-[10px] font-bold text-neon-blue/80 uppercase tracking-widest mb-1.5 drop-shadow-[0_0_2px_rgba(0,243,255,0.5)]">{t.qty}</label>
                         <input 
                             type="number" 
                             value={quantity}
@@ -99,7 +101,7 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
               onClick={handleAddClick}
             >
               <Plus size={18} />
-              Add
+              {t.add}
             </button>
           </div>
 

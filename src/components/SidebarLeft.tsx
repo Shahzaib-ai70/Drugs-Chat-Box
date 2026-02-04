@@ -269,7 +269,7 @@ const SidebarLeft = ({
           onClick={onAddNewClick}
         >
           <Plus size={16} />
-          <span>Add Service</span>
+          <span>{t.addNew}</span>
         </button>
       </div>
 

@@ -1,12 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type Language = 'en' | 'zh' | 'es' | 'hi';
+export type Language = 'en' | 'zh';
 
 export const LANGUAGES = [
     { code: 'en', name: 'English' },
-    { code: 'zh', name: '中文' },
-    { code: 'es', name: 'Español' },
-    { code: 'hi', name: 'हिन्दी' }
+    { code: 'zh', name: '中文' }
 ];
 
 type Translations = {
@@ -91,6 +89,11 @@ type Translations = {
         sendReceiveMessages: string;
         encrypted: string;
         selectService: string;
+        addService: string;
+        serviceName: string;
+        selectServicePlaceholder: string;
+        qty: string;
+        add: string;
     }
 };
 
@@ -171,7 +174,12 @@ export const translations: Translations = {
         restoringSession: 'Restoring your session. This may take a few seconds.',
         unichatWeb: 'UniChat for Web',
         sendReceiveMessages: 'Send and receive messages without keeping your phone online.',
-        encrypted: 'End-to-end encrypted'
+        encrypted: 'End-to-end encrypted',
+        addService: 'Add Service',
+        serviceName: 'Service Name',
+        selectServicePlaceholder: 'Select a service below...',
+        qty: 'Qty',
+        add: 'Add'
     },
     zh: {
         settings: '设置',
@@ -230,141 +238,13 @@ export const translations: Translations = {
         unichatWeb: 'UniChat 网页版',
         sendReceiveMessages: '无需保持手机在线即可发送和接收消息。',
         encrypted: '端到端加密',
-        selectService: '选择服务以开始消息传递'
+        selectService: '选择服务以开始消息传递',
+        addService: '添加服务',
+        serviceName: '服务名称',
+        selectServicePlaceholder: '在下方选择服务...',
+        qty: '数量',
+        add: '添加'
     },
-    es: {
-        settings: 'Ajustes',
-        lightMode: 'Modo Claro',
-        darkMode: 'Modo Oscuro',
-        language: 'Idioma',
-        logout: 'Cerrar Sesión',
-        server: 'Servidor',
-        ai: 'IA',
-        image: 'Imagen',
-        profile: 'Perfil',
-        code: 'Código',
-        addNew: 'Añadir Nuevo',
-        typeMessage: 'Escribe un mensaje...',
-        search: 'Buscar...',
-        online: 'En línea',
-        offline: 'Desconectado',
-        connecting: 'Conectando...',
-        noChats: 'No se encontraron chats',
-        selectChat: 'Selecciona un chat para comenzar',
-        dragDrop: 'Arrastra y suelta imágenes aquí',
-        serverStatus: 'Estado del Servidor',
-        allChats: 'Todos los Chats',
-        pinned: 'Fijado',
-        refresh: 'Actualizar',
-        openExternal: 'Abrir Externo',
-        reply: 'Responder',
-        copy: 'Copiar',
-        delete: 'Eliminar',
-        forward: 'Reenviar',
-        star: 'Destacar',
-        original: 'Original',
-        translated: 'Traducido',
-        cancel: 'Cancelar',
-        send: 'Enviar',
-        connectionLost: 'Conexión perdida. Por favor actualice la página.',
-        photo: 'Foto',
-        file: 'Archivo',
-        authenticating: 'Autenticando...',
-        loadingChats: 'Cargando chats...',
-        syncing: 'Sincronizando',
-        unknown: 'Desconocido',
-        loginFailed: 'Inicio de sesión fallido',
-        loggingIn: 'Iniciando sesión...',
-        whatsappError: 'Error de WhatsApp',
-        facebookLoginRequired: 'Se requiere inicio de sesión de Facebook',
-        enterPassword: 'Ingrese su contraseña',
-        verifyPassword: 'Verificar Contraseña',
-        loadingConversation: 'Cargando conversación...',
-        you: 'Tú',
-        contact: 'Contacto',
-        attachment: 'Adjunto',
-        mediaOmitted: 'Medios omitidos',
-        clickToDownload: 'Haga clic para descargar',
-        media: 'Medios'
-    },
-    hi: {
-        settings: 'सेटिंग्स',
-        lightMode: 'लाइट मोड',
-        darkMode: 'डार्क मोड',
-        language: 'भाषा',
-        logout: 'लॉग आउट',
-        server: 'सर्वर',
-        ai: 'एआई',
-        image: 'छवि',
-        profile: 'प्रोफ़ाइल',
-        code: 'कोड',
-        addNew: 'नया जोड़ें',
-        typeMessage: 'संदेश टाइप करें...',
-        search: 'खोजें...',
-        online: 'ऑनलाइन',
-        offline: 'ऑफ़लाइन',
-        connecting: 'कनेक्ट हो रहा है...',
-        noChats: 'कोई चैट नहीं मिली',
-        selectChat: 'संदेश भेजने के लिए चैट चुनें',
-        dragDrop: 'चित्रों को यहाँ खींचें और छोड़ें',
-        serverStatus: 'सर्वर स्थिति',
-        allChats: 'सभी चैट',
-        pinned: 'पिन किया गया',
-        refresh: 'ताज़ा करें',
-        openExternal: 'बाहरी लिंक खोलें',
-        reply: 'उत्तर दें',
-        copy: 'कॉपी करें',
-        delete: 'हटाएं',
-        forward: 'अग्रेषित करें',
-        star: 'तारांकित',
-        original: 'मूल',
-        translated: 'अनुवादित',
-        cancel: 'रद्द करें',
-        send: 'भेजें',
-        connectionLost: 'कनेक्शन टूट गया। कृपया पृष्ठ रीफ्रेश करें।',
-        photo: 'तस्वीर',
-        file: 'फ़ाइल',
-        authenticating: 'प्रमाणीकरण हो रहा है...',
-        loadingChats: 'चैट लोड हो रहे हैं...',
-        syncing: 'सिंक हो रहा है',
-        unknown: 'अज्ञात',
-        loginFailed: 'लॉगिन विफल',
-        loggingIn: 'लॉगिन हो रहा है...',
-        whatsappError: 'व्हाट्सएप त्रुटि',
-        facebookLoginRequired: 'फेसबुक लॉगिन आवश्यक है',
-        enterPassword: 'अपना पासवर्ड दर्ज करें',
-        verifyPassword: 'पासवर्ड सत्यापित करें',
-        loadingConversation: 'बातचीत लोड हो रही है...',
-        you: 'आप',
-        contact: 'संपर्क',
-        attachment: 'संलग्नक',
-        mediaOmitted: 'मीडिया छोड़ दिया गया',
-        clickToDownload: 'डाउनलोड करने के लिए क्लिक करें',
-        media: 'मीडिया',
-        twoStepVerification: 'दो-चरणीय सत्यापन',
-        twoStepDescription: 'आपका खाता एक अतिरिक्त पासवर्ड से सुरक्षित है।',
-        hint: 'संकेत',
-        verifyingPassword: 'पासवर्ड सत्यापित कर रहा है...',
-        loginToFacebook: 'फेसबुक पर लॉगिन करें',
-        enterCredentials: 'संदेश सिंक करने के लिए अपना विवरण दर्ज करें',
-        emailOrPhone: 'ईमेल या फोन',
-        password: 'पासवर्ड',
-        login: 'लॉगिन',
-        useServiceOnComputer: 'अपने कंप्यूटर पर सेवा का उपयोग करें',
-        openAppOnPhone: 'अपने फोन पर ऐप खोलें',
-        goToSettings: 'सेटिंग्स > डिवाइस पर जाएं',
-        tapLinkDevice: 'लिंक डेस्कटॉप डिवाइस पर टैप करें',
-        pointPhone: 'अपने फोन को इस स्क्रीन की ओर इंगित करें',
-        needHelp: 'शुरू करने में सहायता चाहिए?',
-        generatingQR: 'QR जनरेट हो रहा है...',
-        clickToReloadQR: 'QR रीलोड करने के लिए क्लिक करें',
-        keepMeSignedIn: 'मुझे साइन इन रखें',
-        connectingTo: 'से कनेक्ट हो रहा है',
-        restoringSession: 'आपका सत्र बहाल कर रहा है। इसमें कुछ सेकंड लग सकते हैं।',
-        unichatWeb: 'UniChat वेब के लिए',
-        sendReceiveMessages: 'अपने फोन को ऑनलाइन रखे बिना संदेश भेजें और प्राप्त करें।',
-        encrypted: 'एंड-टू-एंड एन्क्रिप्टेड'
-    }
 };
 
 interface LanguageContextType {
