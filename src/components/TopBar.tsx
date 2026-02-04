@@ -93,43 +93,44 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, is
       </div>
 
       {/* Center Actions */}
-      <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm shrink-0 overflow-x-auto max-w-[60vw] md:max-w-none no-scrollbar">
-        <ActionButton 
-            icon={isServerConnected ? <Wifi size={14} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" /> : <WifiOff size={14} className="text-red-500" />} 
-            label={t.server} 
-            active={isServerConnected}
-            className={!isServerConnected ? 'text-red-500 hover:text-red-400 bg-red-900/20 border-red-500/30' : ''}
-            hideLabelOnMobile
-        />
-        <div className="w-px h-4 bg-white/10 mx-1"></div>
-        
-        {invitationCode && (
-           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.1)] shrink-0">
-              <User size={14} />
-              <span className="tracking-wider hidden sm:inline">{t.code}:</span>
-              <span className="tracking-wider">{invitationCode}</span>
-           </div>
-        )}
+      <div className="flex items-center gap-2 shrink-0 max-w-[70vw] md:max-w-none">
+          {/* Status & Info Pill */}
+          <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm overflow-x-auto no-scrollbar">
+            <ActionButton 
+                icon={isServerConnected ? <Wifi size={14} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" /> : <WifiOff size={14} className="text-red-500" />} 
+                label={t.server} 
+                active={isServerConnected}
+                className={!isServerConnected ? 'text-red-500 hover:text-red-400 bg-red-900/20 border-red-500/30' : ''}
+                hideLabelOnMobile
+            />
+            <div className="w-px h-4 bg-white/10 mx-1"></div>
+            
+            {invitationCode && (
+               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.1)] shrink-0">
+                  <User size={14} />
+                  <span className="tracking-wider hidden sm:inline">{t.code}:</span>
+                  <span className="tracking-wider">{invitationCode}</span>
+               </div>
+            )}
 
-        <div className="w-px h-4 bg-white/10 mx-1"></div>
+            <div className="w-px h-4 bg-white/10 mx-1"></div>
 
-        {/* Mobile Translation Toggle */}
-        <button 
-            onClick={onToggleTranslation}
-            className={`md:hidden flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
-                isTranslationOpen
-                    ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30' 
-                    : 'text-gray-400 hover:text-white hover:bg-white/10 hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] border border-transparent'
-            }`}
-        >
-            <Globe size={14} />
-            <span className="hidden sm:inline">{t.language}</span>
-        </button>
+            {/* Mobile Translation Toggle */}
+            <button 
+                onClick={onToggleTranslation}
+                className={`md:hidden flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
+                    isTranslationOpen
+                        ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30' 
+                        : 'text-gray-400 hover:text-white hover:bg-white/10 hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] border border-transparent'
+                }`}
+            >
+                <Globe size={14} />
+                <span className="hidden sm:inline">{t.language}</span>
+            </button>
+          </div>
         
-        <div className="w-px h-4 bg-white/10 mx-1 md:hidden"></div>
-        
-        {/* Settings Dropdown */}
-        <div className="relative" ref={settingsRef}>
+          {/* Settings Pill - Fixed & No Overflow Clipping */}
+          <div className="relative bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm shrink-0" ref={settingsRef}>
             <button 
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
