@@ -262,7 +262,13 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-white text-gray-800 font-sans relative overflow-hidden">
-      <TopBar onLogout={handleLogout} invitationCode={invitationCode} onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+      <TopBar 
+      onLogout={handleLogout} 
+      invitationCode={invitationCode} 
+      onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+      onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
+      isTranslationOpen={isTranslationPanelOpen}
+    />
       <div className="flex flex-1 overflow-hidden relative z-0">
         {/* Mobile Drawer for SidebarLeft */}
         <div 

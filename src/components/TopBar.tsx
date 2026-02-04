@@ -25,9 +25,11 @@ interface TopBarProps {
   onLogout?: () => void;
   invitationCode?: string | null;
   onMenuClick?: () => void;
+  onToggleTranslation?: () => void;
+  isTranslationOpen?: boolean;
 }
 
-const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
+const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, isTranslationOpen }: TopBarProps) => {
   const { language, setLanguage, t, theme, setTheme } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -75,7 +77,7 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-blue to-transparent opacity-50"></div>
       
       {/* Logo Area */}
-      <div className="flex items-center gap-3 w-auto min-w-[180px] relative z-10">
+      <div className="flex items-center gap-3 w-auto relative z-10 shrink-0">
         <button 
             className="md:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg -ml-2 mr-1 transition-colors"
             onClick={onMenuClick}
@@ -85,29 +87,46 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
         <div className="w-9 h-9 bg-gradient-to-br from-neon-blue/20 to-neon-purple/20 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-[0_0_15px_rgba(0,243,255,0.3)] border border-white/10 ring-1 ring-white/5 group cursor-pointer hover:scale-105 transition-transform duration-300">
           <MessageSquare size={18} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" />
         </div>
-        <span className="font-bold text-white text-lg tracking-wide drop-shadow-[0_0_10px_rgba(0,243,255,0.3)]">
+        <span className="font-bold text-white text-lg tracking-wide drop-shadow-[0_0_10px_rgba(0,243,255,0.3)] hidden sm:block">
             Drugs <span className="text-neon-blue">Chat Box</span>
         </span>
       </div>
 
       {/* Center Actions */}
-      <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm">
+      <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm shrink-0 overflow-x-auto max-w-[60vw] md:max-w-none no-scrollbar">
         <ActionButton 
             icon={isServerConnected ? <Wifi size={14} className="text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]" /> : <WifiOff size={14} className="text-red-500" />} 
             label={t.server} 
             active={isServerConnected}
             className={!isServerConnected ? 'text-red-500 hover:text-red-400 bg-red-900/20 border-red-500/30' : ''}
+            hideLabelOnMobile
         />
         <div className="w-px h-4 bg-white/10 mx-1"></div>
         
         {invitationCode && (
-           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.1)]">
+           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 shadow-[0_0_10px_rgba(0,243,255,0.1)] shrink-0">
               <User size={14} />
-              <span className="tracking-wider">{t.code}: {invitationCode}</span>
+              <span className="tracking-wider hidden sm:inline">{t.code}:</span>
+              <span className="tracking-wider">{invitationCode}</span>
            </div>
         )}
 
         <div className="w-px h-4 bg-white/10 mx-1"></div>
+
+        {/* Mobile Translation Toggle */}
+        <button 
+            onClick={onToggleTranslation}
+            className={`md:hidden flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
+                isTranslationOpen
+                    ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/10 hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] border border-transparent'
+            }`}
+        >
+            <Globe size={14} />
+            <span className="hidden sm:inline">{t.language}</span>
+        </button>
+        
+        <div className="w-px h-4 bg-white/10 mx-1 md:hidden"></div>
         
         {/* Settings Dropdown */}
         <div className="relative" ref={settingsRef}>
@@ -120,7 +139,7 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
                 }`}
             >
                 <Settings size={14} />
-                <span className="uppercase tracking-wider">{t.settings}</span>
+                <span className="uppercase tracking-wider hidden sm:inline">{t.settings}</span>
             </button>
 
             {isSettingsOpen && (
@@ -197,7 +216,7 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
       </div>
 
       {/* Window Controls */}
-      <div className="flex items-center gap-3">
+      <div className="hidden md:flex items-center gap-3">
         <button className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]">
             <Bell size={18} />
         </button>
@@ -218,14 +237,14 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick }: TopBarProps) => {
   );
 };
 
-const ActionButton = ({ icon, label, active = false, className = '' }: { icon: React.ReactNode, label: string, active?: boolean, className?: string }) => (
+const ActionButton = ({ icon, label, active = false, className = '', hideLabelOnMobile = false }: { icon: React.ReactNode, label: string, active?: boolean, className?: string, hideLabelOnMobile?: boolean }) => (
     <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
         active 
             ? 'bg-neon-blue/20 text-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.2)] border border-neon-blue/30' 
             : 'text-gray-400 hover:text-white hover:bg-white/10 hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] border border-transparent'
     } ${className}`}>
         <span className="group-hover:scale-110 transition-transform duration-300">{icon}</span>
-        <span className="uppercase tracking-wider">{label}</span>
+        <span className={`uppercase tracking-wider ${hideLabelOnMobile ? 'hidden sm:inline' : ''}`}>{label}</span>
     </button>
 );
 

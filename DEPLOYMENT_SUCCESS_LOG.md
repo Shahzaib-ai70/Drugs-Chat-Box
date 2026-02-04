@@ -1,13 +1,6 @@
-# VPS Deployment Success Log
 
-## 2026-02-03 - Performance & Mobile Update
-- **Mobile Responsive**: "Stack & Slide" architecture, Mobile Menu, Drawer, View State.
-- **Performance Optimization**: 
-  - Reduced Master Process memory limit from 8GB to 2GB to prevent OOM.
-  - Optimized Facebook Worker Puppeteer args (disabled GPU, extensions, backgrounding, etc.) to reduce RAM usage.
-  - Preserved all functionality while reducing footprint.
-
-## 2026-02-03 - Facebook Removal & Final Cleanup
-- **Facebook Removal**: Completely removed all Facebook-related code, files (worker_facebook.js, RemoteBrowserView.tsx), and service options.
+## 2026-02-03 - Critical Fix: Connected Accounts & Cleanup
+- **Fix**: Resolved service ID mismatch in `App.tsx` (updated legacy `tg1`/`wa1` to `tg`/`wa`) to restore missing connected accounts.
+- **Cleanup**: Removed `fb`, `ms` service definitions and unused imports from `services.tsx`.
 - **VPS Path**: `/var/www/dlchats-app`
 - **Deployment Command**: `cd /var/www/dlchats-app && git pull && ./fix_and_deploy.sh`
