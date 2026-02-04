@@ -1,4 +1,4 @@
-import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft } from 'lucide-react';
+import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft, Globe } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -14,6 +14,8 @@ interface MainContentProps {
   activeService?: AddedService;
   translationSettings?: TranslationSettings;
   onChatSelect?: (chatId: string | null) => void;
+  onToggleTranslation?: () => void;
+  isTranslationOpen?: boolean;
 }
 
 interface PendingOriginal {
@@ -24,7 +26,7 @@ interface PendingOriginal {
     chatId?: string;
 }
 
-const MainContent = ({ activeService, translationSettings, onChatSelect }: MainContentProps) => {
+const MainContent = ({ activeService, translationSettings, onChatSelect, onToggleTranslation, isTranslationOpen }: MainContentProps) => {
   const { t } = useLanguage();
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
@@ -1233,6 +1235,18 @@ const MainContent = ({ activeService, translationSettings, onChatSelect }: MainC
                         </div>
                     </div>
                     <div className="flex items-center gap-4 text-gray-400">
+                        {/* Translation Toggle for Mobile Chat View */}
+                        <button 
+                            onClick={onToggleTranslation}
+                            className={`md:hidden p-2 rounded-full transition-all hover:scale-110 ${
+                                isTranslationOpen 
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-200' 
+                                : 'hover:bg-blue-50 hover:text-blue-600'
+                            }`}
+                        >
+                            <Globe size={20} />
+                        </button>
+                        
                         <button className="hover:text-blue-600 transition-all hover:scale-110 hover:bg-blue-50 p-2 rounded-full"><Search size={20} /></button>
                         <button className="hover:text-blue-600 transition-all hover:scale-110 hover:bg-blue-50 p-2 rounded-full"><Phone size={20} /></button>
                         <button className="hover:text-gray-900 transition-all hover:scale-110 hover:bg-gray-100 p-2 rounded-full"><MoreVertical size={20} /></button>
