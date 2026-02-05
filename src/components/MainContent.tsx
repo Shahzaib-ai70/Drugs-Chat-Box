@@ -1831,12 +1831,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     // QR Code Screen - Only show if we actually have a QR code or status says so
     if (qrValue || connectionStatus === 'QR_READY') {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 relative overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-4 md:p-8 relative overflow-y-auto">
                 <div className="absolute inset-0 bg-gradient-radial from-blue-100/50 via-transparent to-transparent opacity-50"></div>
                 
-                <div className="bg-white/90 backdrop-blur-xl p-12 rounded-3xl shadow-xl max-w-5xl w-full flex gap-16 items-center border border-gray-200 relative z-10">
-                    <div className="flex-1">
-                        <h1 className="text-4xl font-light text-gray-800 mb-10 tracking-wide">
+                <div className="bg-white/90 backdrop-blur-xl p-6 md:p-12 rounded-3xl shadow-xl max-w-5xl w-full flex flex-col md:flex-row gap-8 md:gap-16 items-center border border-gray-200 relative z-10 my-auto">
+                    <div className="flex-1 w-full">
+                        <h1 className="text-2xl md:text-4xl font-light text-gray-800 mb-6 md:mb-10 tracking-wide text-center md:text-left">
                             {t.useServiceOnComputer} <span className="text-blue-600 font-bold">Web</span>
                         </h1>
                         {serviceName.toLowerCase().includes('telegram') || activeService?.service?.id?.startsWith('tg') ? (

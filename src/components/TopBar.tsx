@@ -144,8 +144,8 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, is
             </button>
 
             {isSettingsOpen && (
-                <div className="absolute right-0 top-full mt-3 w-64 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-purple via-neon-blue to-neon-purple opacity-50"></div>
+                <div className="absolute right-0 top-full mt-3 w-64 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-purple via-neon-blue to-neon-purple opacity-50 rounded-t-2xl"></div>
                     
                     {/* Theme Toggle */}
                     <button 
