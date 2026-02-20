@@ -490,17 +490,30 @@ io.on('connection', (socket) => {
         log(`Socket ${socket.id} joining service ${serviceId} (passive: ${isPassive})`);
         socket.join(serviceId);
         
+        let worker = workers.get(serviceId);
+        if (!worker) {
+            try {
+                const service = db.prepare('SELECT * FROM user_services WHERE id = ?').get(serviceId);
+                if (service) {
+                    spawnWorker(service);
+                    worker = workers.get(serviceId);
+                } else {
+                    log(`join_service: No DB row found for service ${serviceId}`);
+                }
+            } catch (e) {
+                log(`join_service: Error spawning worker for ${serviceId}: ${e.message}`);
+            }
+        }
+        
         // Request latest state from worker ONLY if not passive
         // Passive listeners (like Sidebar unread counts) don't need to trigger a full state dump
         // BUT they do need the unread count immediately
         if (!isPassive) {
-            const worker = workers.get(serviceId);
             if (worker && worker.process) {
                 worker.process.send({ type: 'command', command: 'request_state' });
             }
         } else {
             // Passive mode: Request ONLY unread count
-            const worker = workers.get(serviceId);
             if (worker && worker.process) {
                 worker.process.send({ type: 'command', command: 'request_unread' });
             }
