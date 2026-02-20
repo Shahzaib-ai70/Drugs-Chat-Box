@@ -125,6 +125,21 @@ const getNextFreePort = (start = 3006) => {
 
 // Helper: Spawn Worker
 const spawnWorker = (service) => {
+    // If we only have an ID (e.g. restart path), refetch full row from DB
+    if (!service.service_id || !service.custom_name) {
+        try {
+            const full = db.prepare('SELECT * FROM user_services WHERE id = ?').get(service.id);
+            if (!full) {
+                log(`spawnWorker: No DB row found for service ${service.id}, skipping spawn`);
+                return;
+            }
+            service = full;
+        } catch (e) {
+            log(`spawnWorker: Failed to refetch service ${service.id}: ${e.message}`);
+            return;
+        }
+    }
+
     if (workers.has(service.id)) return; // Already running
 
     let port = service.port;
@@ -248,18 +263,38 @@ app.post('/api/create_service', (req, res) => {
     }
 });
 
-// Delete Service
 app.post('/api/delete_service', (req, res) => {
     const { id } = req.body;
     try {
+        const serviceRow = db.prepare('SELECT service_id FROM user_services WHERE id = ?').get(id);
+        const serviceId = serviceRow ? serviceRow.service_id : null;
         const worker = workers.get(id);
         if (worker) {
             worker.process.kill();
             workers.delete(id);
         }
         db.prepare('DELETE FROM user_services WHERE id = ?').run(id);
-        // Also delete session files
-        // fs.rmSync(`.wwebjs_auth/session-${id}`, { recursive: true, force: true });
+        if (serviceId) {
+            if (!serviceId.startsWith('tg_') && !serviceId.startsWith('fb_')) {
+                const waAuthPaths = [
+                    path.join(__dirname, '.wwebjs_auth', `session-${serviceId}`),
+                    path.join(__dirname, '.wwebjs_auth', `session-${id}`)
+                ];
+                const waCachePaths = [
+                    path.join(__dirname, '.wwebjs_cache', `session-${serviceId}`),
+                    path.join(__dirname, '.wwebjs_cache', `session-${id}`)
+                ];
+                [...waAuthPaths, ...waCachePaths].forEach(p => {
+                    try { fs.rmSync(p, { recursive: true, force: true }); } catch (e) {}
+                });
+            }
+            const tgSessionFile = path.join(__dirname, `session_telegram_${serviceId}.txt`);
+            const overridesFile = path.join(__dirname, `overrides_${serviceId}.json`);
+            const workerLogFile = path.join(__dirname, `worker_${serviceId}.log`);
+            try { fs.rmSync(tgSessionFile, { recursive: true, force: true }); } catch (e) {}
+            try { fs.rmSync(overridesFile, { recursive: true, force: true }); } catch (e) {}
+            try { fs.rmSync(workerLogFile, { recursive: true, force: true }); } catch (e) {}
+        }
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });

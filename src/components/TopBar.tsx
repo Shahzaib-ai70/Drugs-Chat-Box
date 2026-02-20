@@ -130,7 +130,7 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, is
           </div>
         
           {/* Settings Pill - Fixed & No Overflow Clipping */}
-          <div className="relative bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm shrink-0" ref={settingsRef}>
+          <div className="relative bg-black/40 p-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-sm shrink-0 z-50" ref={settingsRef}>
             <button 
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${

@@ -32,6 +32,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
   const [qrValue, setQrValue] = useState<string>('');
+  const [qrSize, setQrSize] = useState(280);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoginRequired, setIsLoginRequired] = useState(false); // For Facebook Login
@@ -52,6 +53,24 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
   useEffect(() => {
     if (activeService) setMobileView('list');
   }, [activeService]);
+
+  useEffect(() => {
+    const updateQrSize = () => {
+      if (typeof window === 'undefined') return;
+      const width = window.innerWidth;
+      if (width < 400) {
+        setQrSize(220);
+      } else if (width < 640) {
+        setQrSize(260);
+      } else {
+        setQrSize(280);
+      }
+    };
+
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   const [currentChatMedia, setCurrentChatMedia] = useState<any[]>([]);
 
@@ -1887,14 +1906,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                     <div className="flex flex-col items-center">
                         <div className="relative group perspective-1000">
                             <div className="absolute -inset-4 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-xl group-hover:opacity-40 transition-opacity duration-500 animate-pulse"></div>
-                            <div className="bg-white p-6 rounded-2xl shadow-lg transform transition-transform duration-500 group-hover:rotate-y-12 group-hover:rotate-x-12 group-hover:scale-105 relative z-10 border border-gray-100 overflow-hidden">
+                            <div className="bg-white p-6 rounded-2xl shadow-lg transform transition-transform duration-500 group-hover:rotate-y-12 group-hover:rotate-x-12 group-hover:scale-105 relative z-10 border border-gray-100 overflow-hidden flex items-center justify-center">
                                 {qrValue ? (
                                     <>
-                                        <QRCode value={qrValue} size={280} />
+                                        <QRCode value={qrValue} size={qrSize} />
                                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/10 to-transparent h-[15%] w-full animate-scan pointer-events-none"></div>
                                     </>
                                 ) : (
-                                    <div className="w-[280px] h-[280px] bg-gray-50 flex items-center justify-center animate-pulse rounded-lg relative overflow-hidden border border-gray-200">
+                                    <div
+                                        className="bg-gray-50 flex items-center justify-center animate-pulse rounded-lg relative overflow-hidden border border-gray-200"
+                                        style={{ width: qrSize, height: qrSize }}
+                                    >
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
                                         <div className="text-gray-400 font-medium tracking-widest uppercase text-xs z-10">{t.generatingQR}</div>
                                     </div>
