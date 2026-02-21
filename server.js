@@ -125,22 +125,7 @@ const getNextFreePort = (start = 3006) => {
 
 // Helper: Spawn Worker
 const spawnWorker = (service) => {
-    // If we only have an ID (e.g. restart path), refetch full row from DB
-    if (!service.service_id || !service.custom_name) {
-        try {
-            const full = db.prepare('SELECT * FROM user_services WHERE id = ?').get(service.id);
-            if (!full) {
-                log(`spawnWorker: No DB row found for service ${service.id}, skipping spawn`);
-                return;
-            }
-            service = full;
-        } catch (e) {
-            log(`spawnWorker: Failed to refetch service ${service.id}: ${e.message}`);
-            return;
-        }
-    }
-
-    if (workers.has(service.id)) return; // Already running
+    if (workers.has(service.id)) return;
 
     let port = service.port;
     if (!port) {
@@ -149,31 +134,20 @@ const spawnWorker = (service) => {
         log(`Assigned new port ${port} to service ${service.id}`);
     }
 
-    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : 'whatsapp';
+    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : service.service_id.startsWith('fb') ? 'facebook' : 'whatsapp';
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
-    // Use fork for IPC communication
-    const child = fork('worker.js', [], {
-        env: { 
-            ...process.env, 
-            PORT: port, 
-            SERVICE_ID: service.id, 
-            SERVICE_TYPE: serviceType,
-            // Pass Auto Reply Settings
-            AUTO_REPLY_ENABLED: service.auto_reply_enabled || 0,
-            AUTO_REPLY_KEYWORD: service.auto_reply_keyword || 'ping',
-            AUTO_REPLY_RESPONSE: service.auto_reply_response || 'pong'
-        },
+    const workerFile = serviceType === 'facebook' ? 'worker_facebook.js' : 'worker.js';
+    const child = fork(workerFile, [], {
+        env: { ...process.env, PORT: port, SERVICE_ID: service.id, SERVICE_TYPE: serviceType },
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
 
     workers.set(service.id, { process: child, port, startTime: Date.now() });
 
-    // IPC: Listen for events from Worker and relay to Frontend
     child.on('message', (msg) => {
         if (msg.type === 'event') {
-            // log(`Relay event ${msg.event} from ${service.id}`);
             io.to(service.id).emit(msg.event, msg.data);
         } else if (msg.type === 'response') {
             const { requestId, data } = msg;
@@ -185,7 +159,6 @@ const spawnWorker = (service) => {
         } else if (msg.type === 'command' && msg.command === 'update_account_info') {
             const { identifier } = msg.data;
             if (identifier) {
-                // log(`Updating account identifier for ${service.id}: ${identifier}`);
                 try {
                     db.prepare('UPDATE user_services SET account_identifier = ? WHERE id = ?').run(identifier, service.id);
                 } catch (e) {
@@ -198,8 +171,7 @@ const spawnWorker = (service) => {
     child.on('exit', (code) => {
         log(`Worker ${service.id} exited with code ${code}`);
         workers.delete(service.id);
-        // Auto-restart? Yes, for resilience
-        setTimeout(() => spawnWorker({ id: service.id }), 5000); // Pass ID to refetch
+        setTimeout(() => spawnWorker(service), 5000);
     });
 };
 
@@ -241,12 +213,13 @@ app.get('/api/services', (req, res) => {
 
 // Create Service
 app.post('/api/create_service', (req, res) => {
-    const { customName, serviceType, ownerCode } = req.body; // serviceType: 'whatsapp' or 'telegram'
+    const { customName, serviceType, ownerCode } = req.body;
     const id = (Date.now()).toString(36) + Math.random().toString(36).substr(2);
-    // Fix: Check if serviceType starts with 'tg' to support tg1, tg2, etc.
     let serviceId = id;
     if (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) {
         serviceId = `tg_${id}`;
+    } else if (serviceType === 'facebook' || (serviceType && serviceType.startsWith('fb'))) {
+        serviceId = `fb_${id}`;
     }
 
     try {
@@ -266,35 +239,12 @@ app.post('/api/create_service', (req, res) => {
 app.post('/api/delete_service', (req, res) => {
     const { id } = req.body;
     try {
-        const serviceRow = db.prepare('SELECT service_id FROM user_services WHERE id = ?').get(id);
-        const serviceId = serviceRow ? serviceRow.service_id : null;
         const worker = workers.get(id);
         if (worker) {
             worker.process.kill();
             workers.delete(id);
         }
         db.prepare('DELETE FROM user_services WHERE id = ?').run(id);
-        if (serviceId) {
-            if (!serviceId.startsWith('tg_') && !serviceId.startsWith('fb_')) {
-                const waAuthPaths = [
-                    path.join(__dirname, '.wwebjs_auth', `session-${serviceId}`),
-                    path.join(__dirname, '.wwebjs_auth', `session-${id}`)
-                ];
-                const waCachePaths = [
-                    path.join(__dirname, '.wwebjs_cache', `session-${serviceId}`),
-                    path.join(__dirname, '.wwebjs_cache', `session-${id}`)
-                ];
-                [...waAuthPaths, ...waCachePaths].forEach(p => {
-                    try { fs.rmSync(p, { recursive: true, force: true }); } catch (e) {}
-                });
-            }
-            const tgSessionFile = path.join(__dirname, `session_telegram_${serviceId}.txt`);
-            const overridesFile = path.join(__dirname, `overrides_${serviceId}.json`);
-            const workerLogFile = path.join(__dirname, `worker_${serviceId}.log`);
-            try { fs.rmSync(tgSessionFile, { recursive: true, force: true }); } catch (e) {}
-            try { fs.rmSync(overridesFile, { recursive: true, force: true }); } catch (e) {}
-            try { fs.rmSync(workerLogFile, { recursive: true, force: true }); } catch (e) {}
-        }
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
