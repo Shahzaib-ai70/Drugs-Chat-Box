@@ -1411,37 +1411,3 @@ if (SERVICE_TYPE === 'whatsapp') {
 } else {
     initializeTelegram();
 }
-
-// Socket Connection Handler
-io.on('connection', (socket) => {
-  log(`Client connected to worker port ${PORT}`);
-  socket.on('join_service', (id) => {
-      if (id === SERVICE_ID) {
-          socket.join(SERVICE_ID);
-          // Emit current state
-          if (sessionState.qr && sessionState.qr !== 'CONNECTED') socket.emit('qr', sessionState.qr);
-          socket.emit('status', sessionState.status);
-          if (sessionState.chats.length > 0) socket.emit('wa_chats', sessionState.chats);
-      }
-  });
-  
-  socket.on('tg_password', (password) => {
-      if (sessionState.passwordResolver) {
-          sessionState.passwordResolver(password);
-          sessionState.passwordResolver = null;
-      }
-  });
-
-  socket.on('sendMessage', async (data) => {
-      handleSendMessage(data);
-  });
-  
-  // Handle force_sync
-  socket.on('force_sync_chats', () => {
-     handleForceSync();
-  });
-});
-
-server.listen(PORT, () => {
-  log(`Worker running on port ${PORT} (Type: ${SERVICE_TYPE})`);
-});
