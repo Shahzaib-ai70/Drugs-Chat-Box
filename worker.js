@@ -343,6 +343,8 @@ const initializeWhatsApp = async () => {
   
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: SERVICE_ID }),
+    qrMaxRetries: 10,
+    authTimeoutMs: 120000,
     puppeteer: {
       headless: true,
       args: [
