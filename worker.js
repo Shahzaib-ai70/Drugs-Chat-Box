@@ -346,43 +346,12 @@ const initializeWhatsApp = async () => {
     puppeteer: {
       headless: true,
       args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox', 
-        '--disable-dev-shm-usage', 
-        '--disable-accelerated-2d-canvas', 
-        '--no-first-run', 
-        '--no-zygote', 
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-component-extensions-with-background-pages',
-        '--disable-default-apps',
-        '--mute-audio',
-        '--no-default-browser-check',
-        '--autoplay-policy=user-gesture-required',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-client-side-phishing-detection',
-        '--disable-component-update',
-        '--disable-features=TranslateUI,site-per-process,AudioServiceOutOfProcess,IsolateOrigins', 
-        '--disable-hang-monitor',
-        '--disable-ipc-flooding-protection',
-        '--disable-notifications',
-        '--disable-offer-store-unmasked-wallet-cards',
-        '--disable-popup-blocking',
-        '--disable-print-preview',
-        '--disable-prompt-on-repost',
-        '--disable-renderer-backgrounding',
-        '--disable-speech-api',
-        '--disable-sync',
-        '--hide-scrollbars',
-        '--ignore-gpu-blacklist',
-        '--metrics-recording-only',
-        '--no-pings',
-        '--password-store=basic',
-        '--use-gl=swiftshader',
-        '--use-mock-keychain',
-        '--block-new-web-contents'
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
       ]
     }
   });
@@ -692,6 +661,9 @@ const initializeWhatsApp = async () => {
     await client.initialize();
   } catch (err) {
     log(`Init Failed: ${err}`);
+    sessionState.status = 'INIT_FAILED';
+    io.to(SERVICE_ID).emit('status', 'INIT_FAILED');
+    io.to(SERVICE_ID).emit('wa_error', err ? err.toString() : 'Unknown init error');
   }
 };
 
