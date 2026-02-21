@@ -748,6 +748,9 @@ const initializeWhatsApp = async () => {
     log(`QR Code received`);
     sessionState.qr = qr;
     sessionState.status = 'QR_READY';
+    if (process.send) {
+        process.send({ type: 'event', event: 'qr', data: qr, serviceId: SERVICE_ID });
+    }
     io.to(SERVICE_ID).emit('qr', qr);
     io.to(SERVICE_ID).emit('status', 'QR_READY');
   });

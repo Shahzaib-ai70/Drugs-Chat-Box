@@ -148,6 +148,7 @@ const spawnWorker = (service) => {
 
     child.on('message', (msg) => {
         if (msg.type === 'event') {
+            log(`Gateway relay from ${service.id}: ${msg.event}`);
             io.to(service.id).emit(msg.event, msg.data);
         } else if (msg.type === 'response') {
             const { requestId, data } = msg;
