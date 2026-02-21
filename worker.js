@@ -344,9 +344,9 @@ const initializeWhatsApp = async () => {
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: SERVICE_ID }),
     qrMaxRetries: 10,
-    authTimeoutMs: 120000,
-    // Force Windows Chrome-style user agent so WhatsApp serves same layout as desktop
+    authTimeoutMs: 180000,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    restartOnAuthFail: true,
     puppeteer: {
       headless: true,
       args: [
@@ -361,6 +361,10 @@ const initializeWhatsApp = async () => {
   });
 
   sessionState.client = client;
+
+  client.on('loading_screen', (percent, message) => {
+    io.to(SERVICE_ID).emit('wa_loading', { percent, message });
+  });
 
   client.on('qr', (qr) => {
     log(`QR Code received`);
@@ -656,6 +660,12 @@ const initializeWhatsApp = async () => {
     io.to(SERVICE_ID).emit('status', 'AUTHENTICATED');
   });
 
+  client.on('disconnected', (reason) => {
+    sessionState.status = 'DISCONNECTED';
+    io.to(SERVICE_ID).emit('status', 'DISCONNECTED');
+    io.to(SERVICE_ID).emit('wa_error', `Disconnected: ${reason}`);
+  });
+
   client.on('auth_failure', msg => {
     log(`Auth Failure: ${msg}`);
     io.to(SERVICE_ID).emit('auth_failure', msg);
@@ -664,10 +674,15 @@ const initializeWhatsApp = async () => {
   try {
     await client.initialize();
   } catch (err) {
-    log(`Init Failed: ${err}`);
+    const msg = err ? err.toString() : '';
+    log(`Init Failed: ${msg}`);
+    if (msg && msg.toLowerCase().includes('auth timeout')) {
+      io.to(SERVICE_ID).emit('wa_error', 'WhatsApp is taking too long to respond. Please keep this tab open and try again in a minute. If it keeps happening, contact support.');
+      return;
+    }
     sessionState.status = 'INIT_FAILED';
     io.to(SERVICE_ID).emit('status', 'INIT_FAILED');
-    io.to(SERVICE_ID).emit('wa_error', err ? err.toString() : 'Unknown init error');
+    io.to(SERVICE_ID).emit('wa_error', msg || 'Unknown init error');
   }
 };
 
