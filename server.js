@@ -245,6 +245,27 @@ app.post('/api/delete_service', (req, res) => {
             worker.process.kill();
             workers.delete(id);
         }
+        try {
+            const row = db.prepare('SELECT * FROM user_services WHERE id = ?').get(id);
+            const sid = row?.service_id || id;
+            const waAuthPaths = [
+                path.join(__dirname, '.wwebjs_auth', `session-${sid}`),
+                path.join(__dirname, '.wwebjs_auth', `session-${id}`)
+            ];
+            const waCachePaths = [
+                path.join(__dirname, '.wwebjs_cache', `session-${sid}`),
+                path.join(__dirname, '.wwebjs_cache', `session-${id}`)
+            ];
+            [...waAuthPaths, ...waCachePaths].forEach(p => {
+                try {
+                    if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true });
+                } catch (_) {}
+            });
+            const tgSession = path.join(__dirname, `session_telegram_${id}.txt`);
+            try { if (fs.existsSync(tgSession)) fs.rmSync(tgSession, { force: true }); } catch (_) {}
+            const wlog = path.join(__dirname, `worker_${id}.log`);
+            try { if (fs.existsSync(wlog)) fs.rmSync(wlog, { force: true }); } catch (_) {}
+        } catch (_) {}
         db.prepare('DELETE FROM user_services WHERE id = ?').run(id);
         res.json({ success: true });
     } catch (e) {

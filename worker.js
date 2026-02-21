@@ -6,11 +6,9 @@ import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 const { Client, LocalAuth, MessageMedia } = pkg;
-import { TelegramClient, Api } from 'telegram';
+import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
-import { CustomFile } from 'telegram/client/uploads.js';
-import { Buffer } from 'buffer';
 
 // Environment Variables
 const PORT = process.env.PORT || 3006;
@@ -32,30 +30,6 @@ const log = (msg) => {
   console.log(logMsg);
   try { logFile.write(logMsg + '\n'); } catch(e){}
 };
-
-// --- Contact Overrides Persistence ---
-const OVERRIDES_FILE = `overrides_${SERVICE_ID}.json`;
-let contactOverrides = {};
-
-// Load overrides on startup
-try {
-    if (fs.existsSync(OVERRIDES_FILE)) {
-        contactOverrides = JSON.parse(fs.readFileSync(OVERRIDES_FILE, 'utf8'));
-        log(`Loaded ${Object.keys(contactOverrides).length} contact overrides`);
-    }
-} catch (e) {
-    log(`Error loading overrides: ${e}`);
-}
-
-const saveOverride = (chatId, name) => {
-    contactOverrides[chatId] = name;
-    try {
-        fs.writeFileSync(OVERRIDES_FILE, JSON.stringify(contactOverrides, null, 2));
-    } catch (e) {
-        log(`Error saving override: ${e}`);
-    }
-};
-// -------------------------------------
 
 process.on('uncaughtException', (err) => {
   log('Uncaught Exception: ' + err.toString() + '\n' + err.stack);
@@ -103,13 +77,13 @@ process.on('message', async (msg) => {
         io.to(SERVICE_ID).emit('status', sessionState.status);
         if (sessionState.chats.length > 0) {
              io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
     } else if (command === 'request_unread') {
         // Lightweight request for just unread counts (for Sidebar)
         if (sessionState.chats.length > 0) {
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
         }
     } else if (command === 'sendMessage') {
@@ -158,270 +132,8 @@ process.on('message', async (msg) => {
         }
     } else if (command === 'download_media') {
         handleDownloadMedia(data);
-    } else if (command === 'archive_chat') {
-        handleArchiveChat(data);
-    } else if (command === 'delete_chat') {
-        handleDeleteChat(data);
-    } else if (command === 'delete_message') {
-        handleDeleteMessage(data);
-    } else if (command === 'react_message') {
-        handleReactMessage(data);
-    } else if (command === 'get_chat_media') {
-        handleGetChatMedia(data);
-    } else if (command === 'update_contact_name') {
-        const { chatId, newName } = data;
-        log(`Updating contact name for ${chatId} to ${newName}`);
-        
-        // Save override locally FIRST for immediate persistence
-        saveOverride(chatId, newName);
-
-        if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-            try {
-                // Telegram: Update Contact Name
-                // We use AddContact which acts as an upsert/update
-                (async () => {
-                    try {
-                        const entity = await sessionState.client.getInputEntity(chatId);
-                        await sessionState.client.invoke(new Api.contacts.AddContact({
-                            id: entity,
-                            firstName: newName,
-                            lastName: '',
-                            addPhonePrivacyException: false
-                        }));
-                        // FORCE RE-FETCH TO UPDATE UI
-                        setTimeout(() => fetchChats(), 500); 
-                    } catch(e) { log(`TG Contact Update Logic Error: ${e}`); }
-                })();
-            } catch(e) { log(`TG Update Contact Error: ${e}`); }
-        } else if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-             // WhatsApp: Not fully supported via Web API to sync to phone
-             // But we will log the attempt.
-             log('WhatsApp Contact Update not fully supported via Web API - Using Local Override');
-             // Attempt local update anyway
-             setTimeout(() => fetchAndEmitChats(), 500);
-        }
     }
 });
-
-const handleGetChatMedia = async (data) => {
-    const { chatId } = data;
-    log(`Fetching media history for ${chatId}`);
-    
-    let mediaList = [];
-
-    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-        try {
-            const chat = await sessionState.client.getChatById(chatId);
-            // Fetch more messages to find media (Limit 500 to go back further)
-            const messages = await chat.fetchMessages({ limit: 500 });
-            
-            let count = 0;
-            // Iterate backwards (newest first)
-            for (let i = messages.length - 1; i >= 0; i--) {
-                const msg = messages[i];
-                if (count >= 20) break; // Limit to 20 media items for performance
-
-                if (msg.hasMedia) {
-                    try {
-                        if (msg.type === 'image' || msg.type === 'video' || msg.type === 'document' || msg.type === 'audio') {
-                             const downloaded = await msg.downloadMedia();
-                             if (downloaded) {
-                                 mediaList.push({
-                                     id: msg.id._serialized,
-                                     mimetype: downloaded.mimetype,
-                                     data: downloaded.data,
-                                     filename: downloaded.filename || 'media',
-                                     timestamp: msg.timestamp
-                                 });
-                                 count++;
-                             }
-                        }
-                    } catch (e) {
-                         // Skip failed downloads
-                         log(`WA Download Error for ${msg.id._serialized}: ${e}`);
-                    }
-                }
-            }
-        } catch(e) { log(`WA Media History Error: ${e}`); }
-    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-        try {
-            // Resolve entity first to ensure we target the right chat
-            const entity = await sessionState.client.getInputEntity(chatId);
-            
-            // Helper to process TG messages
-            const processTgMedia = async (filter, limit) => {
-                try {
-                    const msgs = await sessionState.client.getMessages(entity, { 
-                        limit: limit, 
-                        filter: filter
-                    });
-                    
-                    for (const msg of msgs) {
-                         try {
-                             // Only download if we don't have it yet (frontend handles dedupe, but bandwidth matters)
-                             // Download max 1MB for preview or use thumbnail if possible
-                             // For now, download full media to ensure quality as per user request
-                             const buffer = await sessionState.client.downloadMedia(msg, {});
-                             if (buffer) {
-                                 const base64 = buffer.toString('base64');
-                                 let mimetype = 'application/octet-stream';
-                                 
-                                 // Determine mimetype
-                                 if (msg.media) {
-                                     if (msg.media.photo) mimetype = 'image/jpeg';
-                                     else if (msg.media.document) {
-                                         mimetype = msg.media.document.mimeType || 'application/octet-stream';
-                                     }
-                                 }
-
-                                 // Fallback for filename
-                                 let filename = 'media';
-                                 if (msg.media && msg.media.document && msg.media.document.attributes) {
-                                     const attr = msg.media.document.attributes.find(a => a.fileName);
-                                     if (attr) filename = attr.fileName;
-                                 }
-
-                                 mediaList.push({
-                                     id: msg.id.toString(),
-                                     mimetype,
-                                     data: base64,
-                                     filename,
-                                     timestamp: msg.date
-                                 });
-                             }
-                         } catch (e) { log(`TG Msg Download Error: ${e}`); }
-                    }
-                } catch (e) { log(`TG Filter Fetch Error: ${e}`); }
-            };
-
-            // Fetch Photos (Top 20)
-            await processTgMedia(new Api.InputMessagesFilterPhotos(), 20);
-            // Fetch Videos (Top 10)
-            await processTgMedia(new Api.InputMessagesFilterVideo(), 10);
-            // Fetch Documents (Top 10 - often images/videos sent as file)
-            await processTgMedia(new Api.InputMessagesFilterDocument(), 10);
-            
-            // Sort by date desc
-            mediaList.sort((a, b) => b.timestamp - a.timestamp);
-
-        } catch(e) { log(`TG Media History Error: ${e}`); }
-    }
-    
-    log(`Emitting ${mediaList.length} media items for ${chatId}`);
-    io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
-};
-
-const handleDeleteChat = async (data) => {
-    const { chatId } = data;
-    log(`Deleting chat ${chatId}`);
-    
-    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-        try {
-            const chat = await sessionState.client.getChatById(chatId);
-            await chat.delete();
-            // Update local state
-            sessionState.chats = sessionState.chats.filter(c => c.id !== chatId);
-            io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-        } catch(e) { log(`Delete Chat Error: ${e}`); }
-    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-        try {
-            await sessionState.client.deleteDialog(chatId);
-            sessionState.chats = sessionState.chats.filter(c => c.id !== chatId);
-            io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-        } catch(e) { log(`TG Delete Chat Error: ${e}`); }
-    }
-};
-
-const handleDeleteMessage = async (data) => {
-    const { chatId, messageId, everyone } = data;
-    log(`Deleting message ${messageId} in ${chatId} (Everyone: ${everyone})`);
-
-    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-        try {
-            const chat = await sessionState.client.getChatById(chatId);
-            // WhatsApp requires the Message object to delete. 
-            // We'll search in recent messages. Increased limit for better findability.
-            const messages = await chat.fetchMessages({ limit: 100 }); 
-            const msg = messages.find(m => m.id._serialized === messageId);
-            
-            if (msg) {
-                await msg.delete(!!everyone);
-                io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
-            } else {
-                log('Message not found for deletion (checked last 100)');
-            }
-        } catch(e) { log(`WA Delete Message Error: ${e}`); }
-    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-        try {
-            const msgIds = [parseInt(messageId)];
-            await sessionState.client.deleteMessages(chatId, msgIds, { revoke: !!everyone });
-            io.to(SERVICE_ID).emit('message_deleted', { chatId, messageId });
-        } catch(e) { log(`TG Delete Message Error: ${e}`); }
-    }
-};
-
-const handleReactMessage = async (data) => {
-    const { chatId, messageId, reaction } = data;
-    log(`Reacting to message ${messageId} in ${chatId} with ${reaction}`);
-
-    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-        try {
-            const chat = await sessionState.client.getChatById(chatId);
-            const messages = await chat.fetchMessages({ limit: 100 });
-            const msg = messages.find(m => m.id._serialized === messageId);
-            
-            if (msg) {
-                await msg.react(reaction);
-            } else {
-                log('Message not found for reaction');
-            }
-        } catch(e) { log(`WA React Error: ${e}`); }
-    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-        try {
-            // GramJS sendReaction
-            await sessionState.client.sendReaction(chatId, parseInt(messageId), reaction);
-        } catch(e) { log(`TG React Error: ${e}`); }
-    }
-};
-
-const handleArchiveChat = async (data) => {
-    const { chatId, archive } = data;
-    log(`Archiving chat ${chatId}: ${archive}`);
-
-    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
-        try {
-            const chat = await sessionState.client.getChatById(chatId);
-            if (archive) {
-                await chat.archive();
-            } else {
-                await chat.unarchive();
-            }
-            // Update local state immediately
-            const localChat = sessionState.chats.find(c => c.id === chatId);
-            if (localChat) {
-                localChat.archived = archive;
-                // Re-emit chats and unread count
-                const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
-                io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-                io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-            }
-        } catch(e) { log(`Archive Error: ${e}`); }
-    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
-        try {
-            // Telegram 'archive' is essentially moving to folder 1 or specific archive logic
-            // GramJS doesn't have a direct 'archive' helper on Chat object, need to use API
-            
-            // Just update local state for UI responsiveness
-             const localChat = sessionState.chats.find(c => c.id === chatId);
-             if (localChat) {
-                 localChat.archived = archive;
-                 const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
-                 io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-                 io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-             }
-        } catch (e) { log(`TG Archive Error: ${e}`); }
-    }
-};
 
 const handleDownloadMedia = async (data) => {
     const { messageId, chatId } = data;
@@ -499,76 +211,14 @@ const handleSendMessage = async (data) => {
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
-                
-                // Enhanced Image/Video Detection
-                // Check Mimetype OR Filename Extension
-                let isImageOrVideo = false;
-                if (data.media.mimetype) {
-                    isImageOrVideo = data.media.mimetype.startsWith('image/') || data.media.mimetype.startsWith('video/');
-                }
-                
-                // Ensure filename exists
-                let filename = data.media.filename;
-                if (!filename) {
-                    const ext = data.media.mimetype.split('/')[1] || 'bin';
-                    filename = `file.${ext}`;
-                }
-
-                // If mimetype check failed (e.g. application/octet-stream), check extension
-                if (!isImageOrVideo && filename) {
-                    const lowerName = filename.toLowerCase();
-                    if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || 
-                        lowerName.endsWith('.png') || lowerName.endsWith('.gif') || 
-                        lowerName.endsWith('.mp4') || lowerName.endsWith('.mov')) {
-                        isImageOrVideo = true;
-                    }
-                }
-
-                // ALWAYS use CustomFile to ensure filename is passed (Fixes "Unnamed" issue)
-                // BUT control forceDocument based on type (Fixes "File vs Image" issue)
-                const file = new CustomFile(filename, buffer.length, "", buffer);
-                
-                const sendParams = {
-                    message: body,
-                    file: file,
-                    forceDocument: !isImageOrVideo // False = Inline Media (Image/Video), True = Document
-                };
-                
-                // Only add attributes if it is strictly a document
-                // Adding attributes to an image might confuse GramJS into thinking it's a file
-                if (!isImageOrVideo) {
-                    sendParams.attributes = [
-                        new Api.DocumentAttributeFilename({ fileName: filename })
-                    ];
-                }
-                
-                result = await sessionState.client.sendMessage(data.chatId, sendParams);
+                // GramJS expects 'file' parameter. Buffer works.
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
             } else {
                 result = await sessionState.client.sendMessage(data.chatId, { message: body });
             }
              if (result) {
                  // GramJS message object has id property
                  response = { status: 'success', messageId: result.id.toString() };
-
-                 // Explicitly emit newMessage for real-time "Sent" tick (Single Tick)
-                 // This ensures the clock icon changes to a single tick immediately
-                 try {
-                     const sender = await result.getSender();
-                     const mappedMsg = {
-                        id: result.id.toString(),
-                        chatId: data.chatId,
-                        author: sender ? (sender.username || sender.firstName) : 'Me',
-                        fromMe: true,
-                        body: result.text || '',
-                        timestamp: result.date,
-                        type: 'chat',
-                        hasMedia: !!result.media,
-                        media: null,
-                        quotedMsg: null,
-                        ack: 1 // Sent (Single Tick)
-                     };
-                     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-                 } catch (e) { log(`Error emitting real-time sent message: ${e}`); }
             }
         } catch(e) { 
             log(`Send Error: ${e}`);
@@ -610,11 +260,6 @@ const handleGetChatHistory = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
-             
-             // Get read state from local cache
-             const chatState = sessionState.chats.find(c => c.id === chatId);
-             const readMaxId = chatState ? (chatState.readMaxId || 0) : 0;
-
              // Reverted to simple map without quotedMsg fetching
              const mapped = messages.map(msg => ({
                 id: msg.id.toString(),
@@ -627,7 +272,7 @@ const handleGetChatHistory = async (data) => {
                 hasMedia: !!msg.media,
                 media: null,
                 quotedMsg: null, // Disabled
-                ack: (msg.out && Number(msg.id) <= Number(readMaxId)) ? 3 : 1
+                ack: 1
              }));
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
@@ -748,21 +393,8 @@ const initializeWhatsApp = async () => {
     log(`QR Code received`);
     sessionState.qr = qr;
     sessionState.status = 'QR_READY';
-    if (process.send) {
-        process.send({ type: 'event', event: 'qr', data: qr, serviceId: SERVICE_ID });
-    }
     io.to(SERVICE_ID).emit('qr', qr);
     io.to(SERVICE_ID).emit('status', 'QR_READY');
-  });
-
-  client.on('message_revoke_everyone', async (after, before) => {
-      if (after) {
-          io.to(SERVICE_ID).emit('message_deleted', { chatId: after.id.remote, messageId: after.id._serialized });
-      }
-  });
-
-  client.on('message_revoke_me', async (msg) => {
-      io.to(SERVICE_ID).emit('message_deleted', { chatId: msg.id.remote, messageId: msg.id._serialized });
   });
 
   const fetchAndEmitChats = async (retryCount = 0) => {
@@ -816,7 +448,7 @@ const initializeWhatsApp = async () => {
 
                     return {
                         id: chatId,
-                        name: contactOverrides[chatId] || c.name || c.formattedTitle || c.pushname || (c.contact && (c.contact.name || c.contact.pushname)) || chatId || 'Unknown',
+                        name: c.name || c.formattedTitle || c.pushname || (c.contact && (c.contact.name || c.contact.pushname)) || chatId || 'Unknown',
                         isGroup: !!c.isGroup,
                         unreadCount: (typeof c.unreadCount === 'number') ? c.unreadCount : 0,
                         lastMessage: lastBody,
@@ -825,8 +457,7 @@ const initializeWhatsApp = async () => {
                         lastMessageAck: lastAck,
                         profilePicUrl: profilePicUrl,
                         lastSeen: '', // Disabled complex date logic to match Telegram stability
-                        archived: c.archived || false,
-                        phoneNumber: c.id?.user || '' // Add phone number
+                        archived: c.archived || false
                     };
                 } catch (err) {
                     log(`Error mapping chat: ${err}`);
@@ -841,10 +472,10 @@ const initializeWhatsApp = async () => {
             try {
                 const storeMapped = await client.pupPage.evaluate(async () => {
                     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-                    // Wait up to 10s for Store to populate (check more frequently initially)
-                    for (let i = 0; i < 50; i++) { // 50 * 200ms = 10s
+                    // Wait up to 3s for Store to populate (check more frequently initially)
+                    for (let i = 0; i < 20; i++) { // 20 * 150ms = 3s
                          if (window.Store && window.Store.Chats && window.Store.Chats.models.length > 0) break;
-                         await sleep(200);
+                         await sleep(150);
                     }
                     
                     if (!window.Store || !window.Store.Chats) return [];
@@ -858,17 +489,12 @@ const initializeWhatsApp = async () => {
                         lastMessage: (c.lastMessage || c.__x_lastMessage || {}).body || '',
                         lastTimestamp: (c.lastMessage || c.__x_lastMessage || {}).timestamp || 0,
                         profilePicUrl: '',
-                        lastSeen: '',
-                        phoneNumber: c.id?.user || (typeof c.id === 'string' ? c.id.split('@')[0] : '') || ''
+                        lastSeen: ''
                     }));
                 });
                 
                 if (storeMapped.length > 0) {
-                    // Apply overrides here because evaluate() couldn't do it in browser context
-                    mappedBasic = storeMapped.map(c => ({
-                        ...c,
-                        name: contactOverrides[c.id] || c.name
-                    }));
+                    mappedBasic = storeMapped;
                     log(`Store Fallback found ${storeMapped.length} chats`);
                 }
             } catch(e) { 
@@ -880,7 +506,7 @@ const initializeWhatsApp = async () => {
         if (mappedBasic.length > 0) {
             mappedBasic.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
             
-            const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+            const totalUnread = mappedBasic.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
 
             sessionState.chats = mappedBasic;
@@ -892,26 +518,10 @@ const initializeWhatsApp = async () => {
                 let i = 0;
                 for (const chat of mappedBasic) { 
                     i++;
-                    // Removed cache check to force real-time update
-                    // if (chat.profilePicUrl) continue; 
+                    if (chat.profilePicUrl) continue;
                     try {
-                        let picUrl = null;
-                        try {
-                            const contact = await client.getContactById(chat.id);
-                            picUrl = await contact.getProfilePicUrl();
-                        } catch(e) {}
-
-                        // Fallback for groups or if contact method failed
-                        if (!picUrl) {
-                            try {
-                                const chatObj = await client.getChatById(chat.id);
-                                // Some library versions use getProfilePicUrl on chat object too
-                                if (chatObj && chatObj.getProfilePicUrl) {
-                                     picUrl = await chatObj.getProfilePicUrl();
-                                }
-                            } catch(e) {}
-                        }
-
+                        const contact = await client.getContactById(chat.id);
+                        const picUrl = await contact.getProfilePicUrl();
                         if (picUrl) {
                             chat.profilePicUrl = picUrl;
                             const stateChat = sessionState.chats.find(c => c.id === chat.id);
@@ -921,7 +531,7 @@ const initializeWhatsApp = async () => {
                     } catch(e) {}
                     
                     // Faster for first 12 chats (visible viewport), slower for rest
-                    const delay = i <= 12 ? 50 : 200; // Increased slight delay to prevent rate limits
+                    const delay = i <= 12 ? 10 : 100; 
                     await new Promise(r => setTimeout(r, delay)); 
                 }
             })();
@@ -933,16 +543,7 @@ const initializeWhatsApp = async () => {
             if (retryCount < 5) { // Try 5 times
                 const delay = (retryCount === 0) ? 500 : (retryCount + 1) * 2000;
                 log(`Retrying in ${delay}ms...`);
-                
-                // If we failed 3 times, try reloading the page to fix internal desync
-                if (retryCount === 2 && client.pupPage) {
-                    log('Repeated failures. Reloading page to fix state...');
-                    await client.pupPage.reload();
-                    // Wait for reload to settle before next retry
-                    setTimeout(() => fetchAndEmitChats(retryCount + 1), 5000);
-                } else {
-                    setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
-                }
+                setTimeout(() => fetchAndEmitChats(retryCount + 1), delay);
             }
         }
 
@@ -963,49 +564,6 @@ const initializeWhatsApp = async () => {
     io.to(SERVICE_ID).emit('status', 'CONNECTED');
     fetchAndEmitChats();
     setTimeout(fetchAndEmitChats, 5000);
-
-    // Unread Count Real-time Injection
-    if (client.pupPage) {
-        (async () => {
-            try {
-                // Typing
-                await client.pupPage.exposeFunction('onTyping', (chatId, isTyping) => {
-                    io.to(SERVICE_ID).emit('chat_typing', { chatId, isTyping, serviceId: SERVICE_ID });
-                });
-
-                // Unread Count
-                let fetchTimeout = null;
-                await client.pupPage.exposeFunction('onUnreadChange', (chatId, count) => {
-                    // Debounce to prevent flooding
-                    if (fetchTimeout) clearTimeout(fetchTimeout);
-                    fetchTimeout = setTimeout(() => {
-                        fetchAndEmitChats();
-                        fetchTimeout = null;
-                    }, 500); 
-                });
-                
-                await client.pupPage.evaluate(() => {
-                    const checkStore = setInterval(() => {
-                        if (window.Store && window.Store.Presence && window.Store.Chats) {
-                            clearInterval(checkStore);
-                            
-                            // Typing Listener
-                            window.Store.Presence.on('change', (presence) => {
-                                 const id = presence.id._serialized || presence.id;
-                                 const isTyping = presence.isTyping;
-                                 window.onTyping(id, !!isTyping);
-                            });
-
-                            // Unread Count Listener
-                            window.Store.Chats.on('change:unreadCount', (chat) => {
-                                window.onUnreadChange(chat.id._serialized, chat.unreadCount);
-                            });
-                        }
-                    }, 2000);
-                });
-            } catch (e) { log(`Injection warning: ${e}`); }
-        })();
-    }
   });
 
   client.on('message', async (msg) => {
@@ -1066,26 +624,6 @@ const initializeWhatsApp = async () => {
     };
     
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-    
-    // Optimistic Update for Real-time Unread Count
-    if (!msg.fromMe) {
-        const chatIndex = sessionState.chats.findIndex(c => c.id === chatId);
-        if (chatIndex !== -1) {
-             const chat = sessionState.chats[chatIndex];
-             chat.unreadCount = (chat.unreadCount || 0) + 1;
-             chat.lastMessage = msg.body;
-             chat.lastTimestamp = msg.timestamp;
-             chat.lastMessageFromMe = false;
-             
-             // Re-sort chats
-             sessionState.chats.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-             
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
-             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-             io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-        }
-    }
-
     fetchAndEmitChats();
   });
 
@@ -1115,7 +653,7 @@ const initializeWhatsApp = async () => {
         ack: msg.ack
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-    // fetchAndEmitChats(); // Removed to prevent overwriting optimistic updates with stale data
+    fetchAndEmitChats();
   });
 
   client.on('message_ack', async (msg, ack) => {
@@ -1197,25 +735,19 @@ const initializeTelegram = async () => {
         const dialogs = await client.getDialogs({});
         const mappedChats = dialogs.map(d => ({
             id: d.id.toString(),
-            name: contactOverrides[d.id.toString()] || d.title || 'Unknown',
+            name: d.title || 'Unknown',
             isGroup: d.isGroup,
             unreadCount: d.unreadCount,
             lastMessage: d.message?.text || '',
             lastTimestamp: d.date,
             lastMessageFromMe: d.message?.out || false,
-            // Robust Tick Logic:
-            // Ensure both IDs are treated as Numbers for comparison.
-            // If readOutboxMaxId is present and >= message.id, it is read.
-            lastMessageAck: (d.message?.out && d.readOutboxMaxId && Number(d.message.id) <= Number(d.readOutboxMaxId)) ? 3 : 1,
+            lastMessageAck: 1,
             profilePicUrl: '',
             lastSeen: '',
-            archived: d.archived || d.folderId === 1 || false,
-            readMaxId: d.readOutboxMaxId, // Store readMaxId for history checks
-            username: d.entity?.username || '',
-            phone: d.entity?.phone || ''
+            archived: d.archived || d.folderId === 1 || false
         }));
 
-        const totalUnread = mappedChats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
+        const totalUnread = mappedChats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
         io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
 
         sessionState.chats = mappedChats;
@@ -1227,10 +759,10 @@ const initializeTelegram = async () => {
                  try {
                     const buffer = await client.downloadProfilePhoto(chat.id);
                     if (buffer && buffer.length > 0) {
-                            const picUrl = 'data:image/jpeg;base64,' + buffer.toString('base64');
-                            chat.profilePicUrl = picUrl;
-                            io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
-                        }
+                        const picUrl = buffer.toString('base64');
+                        chat.profilePicUrl = picUrl;
+                        io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
+                    }
                  } catch(e) {}
                  await new Promise(r => setTimeout(r, 500)); // Throttle more for TG
             }
@@ -1240,14 +772,25 @@ const initializeTelegram = async () => {
         io.to(SERVICE_ID).emit('wa_chats', []);
       }
   };
-  
-  sessionState.fetchFunction = fetchChats;
 
   client.addEventHandler(async (event) => {
     const message = event.message;
     const sender = await message.getSender();
     const chatId = message.chatId.toString();
     
+    let media = null;
+    if (message.media) {
+         try {
+             const buffer = await client.downloadMedia(message, {});
+             const base64 = buffer.toString('base64');
+             let mimetype = 'application/octet-stream';
+             if (message.media.photo) mimetype = 'image/jpeg';
+             else if (message.media.document) mimetype = message.media.document.mimeType || 'application/octet-stream';
+             
+             media = { mimetype, data: base64, filename: 'media' };
+         } catch(e) { log(`TG Media Download Error: ${e}`); }
+    }
+
     let quotedMsg = undefined;
     if (message.replyTo) {
          try {
@@ -1272,108 +815,13 @@ const initializeTelegram = async () => {
         timestamp: message.date,
         type: 'chat',
         hasMedia: !!message.media,
-        media: null,
+        media: media,
         quotedMsg: quotedMsg,
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-
-    // Optimistic Update for Real-time Unread Count
-    if (!message.out) {
-        const chatIndex = sessionState.chats.findIndex(c => c.id === chatId);
-        if (chatIndex !== -1) {
-             const chat = sessionState.chats[chatIndex];
-             chat.unreadCount = (chat.unreadCount || 0) + 1;
-             chat.lastMessage = message.text || '';
-             chat.lastTimestamp = message.date;
-             chat.lastMessageFromMe = false;
-             
-             // Re-sort chats
-             sessionState.chats.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-
-             const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.archived ? 0 : (c.unreadCount || 0)), 0);
-             io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
-             io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
-        }
-        fetchChats(); // Only fetch for incoming messages to ensure sync
-    }
-
-    // Background Media Download (Real-time receive)
-    if (message.media) {
-        (async () => {
-            try {
-                const buffer = await client.downloadMedia(message, {});
-                const base64 = buffer.toString('base64');
-                let mimetype = 'application/octet-stream';
-                if (message.media.photo) mimetype = 'image/jpeg';
-                else if (message.media.document) mimetype = message.media.document.mimeType || 'application/octet-stream';
-                
-                io.to(SERVICE_ID).emit('media_loaded', {
-                    msgId: mappedMsg.id,
-                    chatId: mappedMsg.chatId,
-                    media: { mimetype, data: base64, filename: 'media' }
-                });
-            } catch(e) { log(`TG Media Download Error: ${e}`); }
-        })();
-    }
+    fetchChats();
   }, new NewMessage({}));
-
-  // Listen for Read History Updates (Real-time Unread Sync & Ticks)
-  client.addEventHandler(async (update) => {
-      // Check if it's a read history update
-      // UpdateReadHistoryOutbox: They read our messages (Double Tick)
-      if (update instanceof Api.UpdateReadHistoryOutbox) {
-          try {
-            const chatId = update.peer.userId || update.peer.chatId || update.peer.channelId;
-            const maxId = update.maxId;
-            
-            if (chatId) {
-                // Fetch recent messages to update their status locally
-                const messages = await client.getMessages(chatId, { limit: 20 });
-                
-                messages.forEach(msg => {
-                    if (msg.out && msg.id <= maxId) {
-                        io.to(SERVICE_ID).emit('wa_message_ack', {
-                            chatId: chatId.toString(),
-                            id: msg.id.toString(),
-                            ack: 3 // Read (Double Blue Tick)
-                        });
-                    }
-                });
-                
-                // Sync chat list to update readMaxId for persistence (with delay to ensure state update)
-                setTimeout(() => fetchChats(), 500);
-            }
-          } catch(e) { log(`Read History Outbox Error: ${e}`); }
-      }
-      
-      // UpdateReadHistoryInbox: We read their messages (Update Unread Count)
-      if (update instanceof Api.UpdateReadHistoryInbox) {
-          log('TG Read History Inbox detected - Syncing...');
-          fetchChats();
-      }
-      
-      // Also catch generic Short Updates which sometimes carry read state
-      if (update instanceof Api.UpdateShort) {
-           fetchChats();
-      }
-  });
-
-  // Typing Status Handler
-  client.addEventHandler((update) => {
-    try {
-        const className = update.className;
-        if (className === 'UpdateUserTyping' || className === 'UpdateChatUserTyping') {
-             let chatId = null;
-             if (className === 'UpdateUserTyping') chatId = update.userId;
-             else if (className === 'UpdateChatUserTyping') chatId = update.chatId;
-             
-             if (chatId) {
-                 io.to(SERVICE_ID).emit('chat_typing', { chatId: chatId.toString(), isTyping: true, serviceId: SERVICE_ID });
-             }
-        }
-    } catch (e) { log(`Typing Handler Error: ${e}`); }
-  });
 
   try {
     await client.connect();
@@ -1414,3 +862,37 @@ if (SERVICE_TYPE === 'whatsapp') {
 } else {
     initializeTelegram();
 }
+
+// Socket Connection Handler
+io.on('connection', (socket) => {
+  log(`Client connected to worker port ${PORT}`);
+  socket.on('join_service', (id) => {
+      if (id === SERVICE_ID) {
+          socket.join(SERVICE_ID);
+          // Emit current state
+          if (sessionState.qr && sessionState.qr !== 'CONNECTED') socket.emit('qr', sessionState.qr);
+          socket.emit('status', sessionState.status);
+          if (sessionState.chats.length > 0) socket.emit('wa_chats', sessionState.chats);
+      }
+  });
+  
+  socket.on('tg_password', (password) => {
+      if (sessionState.passwordResolver) {
+          sessionState.passwordResolver(password);
+          sessionState.passwordResolver = null;
+      }
+  });
+
+  socket.on('sendMessage', async (data) => {
+      handleSendMessage(data);
+  });
+  
+  // Handle force_sync
+  socket.on('force_sync_chats', () => {
+     handleForceSync();
+  });
+});
+
+server.listen(PORT, () => {
+  log(`Worker running on port ${PORT} (Type: ${SERVICE_TYPE})`);
+});
