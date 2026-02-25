@@ -1,0 +1,180 @@
+warning: in the working copy of 'src/components/MainContent.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/components/MainContent.tsx b/src/components/MainContent.tsx[m
+[1mindex 5948a4e..eb99c70 100644[m
+[1m--- a/src/components/MainContent.tsx[m
+[1m+++ b/src/components/MainContent.tsx[m
+[36m@@ -500,1515 +500,876 @@[m [mconst MainContent = ({ activeService, translationSettings, onChatSelect, onToggl[m
+   };[m
+ [m
+   useEffect(() => {[m
+[31m-    // Sync read status when opening a chat[m
+[31m-    if (activeChatId && activeService?.id && socketRef.current) {[m
+[31m-        // Emit mark_read to backend[m
+[31m-        socketRef.current.emit('mark_read', { [m
+[31m-            serviceId: activeService.id, [m
+[31m-            chatId: activeChatId [m
+[31m-        });[m
+[31m-[m
+[31m-        // Optimistically clear unread count in UI[m
+[31m-        setChats(prev => {[m
+[31m-            const updated = prev.map(c => {[m
+[31m-                if (normalizeId(c.id) === normalizeId(activeChatId)) {[m
+[31m-                    return { ...c, unreadCount: 0 };[m
+[31m-                }[m
+[31m-                return c;[m
+[31m-            });[m
+[31m-            return sortChats(updated);[m
+[31m-        });[m
+[31m-    }[m
+[31m-  }, [activeChatId, activeService]);[m
+[31m-[m
+[31m-  useEffect(() => {[m
+[31m-    // Clear state immediately when switching services to prevent data leak[m
+[31m-    setChats([]);[m
+[31m-    setMyProfile(null);[m
+[31m-    setMessagesByChat({});[m
+[31m-    setTypingStatus({});[m
+[31m-    setQrValue('');[m
+[31m-    setIsConnected(false);[m
+[31m-    setIsAuthenticating(false);[m
+[31m-    setLoadingStatus(null);[m
+[31m-    setConnectionStatus('CONNECTING');[m
+[31m-[m
+[31m-    // Allow socket connection for WhatsApp, Telegram, AND Facebook[m
+[31m-    // The previous check (!isWhatsApp) excluded Facebook, preventing socket connection[m
+[32m+[m[32m    // Main Socket Connection[m
+     if (!activeService?.id) return;[m
+ [m
+[31m-    // Connect to Gateway (Master Server)[m
+[31m-    const socketUrl = undefined; // Connects to window.location.origin[m
+[31m-      [m
+[31m-    console.log(`Connecting to socket at: ${socketUrl || 'default (Gateway)'}`);[m
+[32m+[m[32m    // Disconnect previous socket if it exists[m
+[32m+[m[32m    if (socketRef.current) {[m
+[32m+[m[32m        socketRef.current.disconnect();[m
+[32m+[m[32m    }[m
+ [m
+[31m-    const socket = io(socketUrl);[m
+[32m+[m[32m    const socket = io(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3005', {[m
+[32m+[m[32m        query: { serviceId: activeService.id },[m
+[32m+[m[32m        reconnection: true,[m
+[32m+[m[32m        reconnectionAttempts: 5,[m
+[32m+[m[32m        reconnectionDelay: 1000,[m
+[32m+[m[32m    });[m
+     socketRef.current = socket;[m
+     setSocketInstance(socket);[m
+ [m
+[31m-    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {[m
+[31m-        Notification.requestPermission();[m
+[31m-    }[m
+[31m-[m
+[31m-    // Handle connection logic[m
+[31m-    const handleJoin = () => {[m
+[31m-        console.log('Joining service room:', activeService.id);[m
+[31m-        socket.emit('join_service', activeService.id);[m
+[32m+[m[32m    const resetState = () => {[m
+[32m+[m[32m        setQrValue('');[m
+[32m+[m[32m        setIsConnected(false);[m
+[32m+[m[32m        setIsAuthenticating(false);[m
+[32m+[m[32m        setConnectionStatus('CONNECTING');[m
+[32m+[m[32m        setChats([]);[m
+[32m+[m[32m        setMessagesByChat({});[m
+[32m+[m[32m        setMyProfile(null);[m
+[32m+[m[32m        setActiveChatId(null);[m
+[32m+[m[32m        setIs2FARequired(false);[m
+[32m+[m[32m        setPasswordHint('');[m
+     };[m
+ [m
+[31m-    if (socket.connected) {[m
+[31m-        handleJoin();[m
+[31m-    } else {[m
+[31m-        socket.on('connect', handleJoin);[m
+[31m-    }[m
+[31m-    [m
+[31m-    setTimeout(() => {[m
+[31m-        if (!qrValue && !isConnected && socketRef.current && activeService?.id) {[m
+[31m-            socketRef.current.emit('force_sync_chats', activeService.id);[m
+[31m-        }[m
+[31m-    }, 5000);[m
+[32m+[m[32m    resetState();[m
+[32m+[m
+[32m+[m[32m    socket.on('connect', () => {[m
+[32m+[m[32m        console.log(`Socket connected for ${activeService.id}`);[m
+[32m+[m[32m        setIsConnected(true);[m
+[32m+[m[32m        socket.emit('request_state', { serviceId: activeService.id });[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    socket.on('disconnect', () => {[m
+[32m+[m[32m        console.log(`Socket disconnected for ${activeService.id}`);[m
+[32m+[m[32m        setIsConnected(false);[m
+[32m+[m[32m        setConnectionStatus('DISCONNECTED');[m
+[32m+[m[32m    });[m
+ [m
+[31m-    socket.on('status', (status) => {[m
+[31m-        console.log('Status update:', status);[m
+[32m+[m[32m    socket.on('status', (status: string) => {[m
+[32m+[m[32m        setLastEventLog(`Status: ${status}`);[m
+         setConnectionStatus(status);[m
+[31m-        [m
+[31m-        // If status indicates we are already connected, update state immediately[m
+[31m-        if (status === 'CONNECTED' || status === 'AUTHENTICATED' || status === 'READY') {[m
+[31m-            setIsConnected(true);[m
+[32m+[m[32m        if (status === 'QR_READY') {[m
+[32m+[m[32m            setIsAuthenticating(false);[m
+[32m+[m[32m        } else if (status === 'AUTHENTICATED' || status === 'READY') {[m
+             setIsAuthenticating(false);[m
+[31m-            setQrValue(''); // Clear QR code if connected[m
+[31m-            // Don't clear chats here, as we might already have them or be about to receive them[m
+[32m+[m[32m            setQrValue('');[m
+[32m+[m[32m        } else if (status === 'INITIALIZING') {[m
+[32m+[m[32m            setIsAuthenticating(true);[m
+[32m+[m[32m        } else if (status === 'TG_2FA_REQUIRED') {[m
+[32m+[m[32m            setIs2FARequired(true);[m
+         }[m
+     });[m
+ [m
+[31m-    socket.on('qr', (qr) => {[m
+[31m-      console.log('Received QR');[m
+[31m-      if (qr === 'CONNECTED') {[m
+[31m-        setIsConnected(true);[m
+[31m-        setIsAuthenticating(false);[m
+[31m-        setQrValue(''); // Clear QR code[m
+[31m-      } else {[m
+[31m-        setQrValue(qr);[m
+[31m-        setSecondsLeft(20);[m
+[31m-        setIsAuthenticating(false);[m
+[31m-        setIsConnected(false); // Ensure we are not showing as connected if we get a QR[m
+[31m-      }[m
+[32m+[m[32m    socket.on('tg_password_hint', (hint: string) => {[m
+[32m+[m[32m        setPasswordHint(hint);[m
+     });[m
+ [m
+[31m-    socket.on('authenticated', () => {[m
+[31m-        console.log('Authenticated');[m
+[31m-        setIsAuthenticating(true);[m
+[31m-        setQrValue(''); // Clear QR code on authentication[m
+[31m-        // Start showing loading state[m
+[31m-        setLoadingStatus({ percent: 0, message: t.authenticating });[m
+[31m-        setIsLoadingChats(true);[m
+[32m+[m[32m    socket.on('qr', (qr: string) => {[m
+[32m+[m[32m        setLastEventLog('QR Received');[m
+[32m+[m[32m        setQrValue(qr);[m
+[32m+[m[32m        setSecondsLeft(20); // Reset timer[m
+     });[m
+ [m
+[31m-    socket.on('ready', () => {[m
+[31m-      console.log('WhatsApp Ready');[m
+[31m-      setIsConnected(true);[m
+[31m-      setIsAuthenticating(false);[m
+[31m-      setQrValue(''); // Clear QR code[m
+[31m-      setIsLoadingChats(true);[m
+[32m+[m[32m    socket.on('wa_loading', (data: { percent: number; message: string }) => {[m
+[32m+[m[32m        setLoadingStatus(data);[m
+     });[m
+[31m-    socket.on('wa_chats', (list) => {[m
+[31m-      setChats(Array.isArray(list) ? sortChats(list) : []);[m
+[31m-      setIsLoadingChats(false);[m
+[31m-      setLoadingStatus(null);[m
+[31m-      // If we receive chats, we are definitely connected[m
+[31m-      setIsConnected(true);[m
+[31m-      setIsAuthenticating(fa
