@@ -32,6 +32,7 @@ fb_auth
 *.sw?
 *.zip
 !backups/Drugs chat box K.zip
+!Zaibi Mian Backup file.zip
 
 .wwebjs_cache
 node.exe
