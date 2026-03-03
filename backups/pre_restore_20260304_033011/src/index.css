@@ -5,6 +5,8 @@
 :root {
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-bg: rgba(255, 255, 255, 0.8);
+  --app-font-size: 16px;
+  --app-font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 html, body, #root {
@@ -16,7 +18,8 @@ html, body, #root {
     radial-gradient(circle at 15% 50%, rgba(188, 19, 254, 0.05), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.05), transparent 25%);
   color: #111827;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: var(--app-font-size);
+  font-family: var(--app-font-family);
 }
 
 /* Custom Scrollbar */

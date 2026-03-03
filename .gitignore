@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Database
-database.db
+database.db*
 
 # Auth Sessions
 .wwebjs_auth
@@ -34,3 +34,4 @@ fb_auth
 !backups/Drugs chat box K.zip
 
 .wwebjs_cache
+node.exe

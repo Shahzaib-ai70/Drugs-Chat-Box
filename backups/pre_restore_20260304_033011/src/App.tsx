@@ -12,6 +12,9 @@ import type { ServiceItem, AddedService } from './types';
 import { AVAILABLE_SERVICES } from './constants/services';
 import './App.css';
 
+type FontSizeOption = 'small' | 'medium' | 'large';
+type FontFamilyOption = 'modern' | 'classic' | 'mono';
+
 function App() {
   // Auth State
   const [invitationCode, setInvitationCode] = useState<string | null>(() => {
@@ -38,6 +41,22 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<'current' | 'global'>('global');
+
+  const [fontSize, setFontSize] = useState<FontSizeOption>(() => {
+    const saved = localStorage.getItem('ui_font_size');
+    if (saved === 'small' || saved === 'large') {
+      return saved;
+    }
+    return 'medium';
+  });
+
+  const [fontFamily, setFontFamily] = useState<FontFamilyOption>(() => {
+    const saved = localStorage.getItem('ui_font_family');
+    if (saved === 'classic' || saved === 'mono') {
+      return saved;
+    }
+    return 'modern';
+  });
 
   const [globalSettings, setGlobalSettings] = useState<TranslationSettings>(() => {
     try {
@@ -68,6 +87,23 @@ function App() {
       return {};
     }
   });
+
+  useEffect(() => {
+    const sizeMap: Record<FontSizeOption, string> = {
+      small: '14px',
+      medium: '16px',
+      large: '18px'
+    };
+    const familyMap: Record<FontFamilyOption, string> = {
+      modern: "Inter, system-ui, -apple-system, sans-serif",
+      classic: "Georgia, 'Times New Roman', serif",
+      mono: "'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    };
+    document.documentElement.style.setProperty('--app-font-size', sizeMap[fontSize]);
+    document.documentElement.style.setProperty('--app-font-family', familyMap[fontFamily]);
+    localStorage.setItem('ui_font_size', fontSize);
+    localStorage.setItem('ui_font_family', fontFamily);
+  }, [fontSize, fontFamily]);
 
   // Persist settings
   useEffect(() => {
@@ -121,10 +157,12 @@ function App() {
         if (!Array.isArray(data)) return;  
         const mappedServices = data.map((item: any) => {
           const serviceDef = AVAILABLE_SERVICES.find(s => s.id === item.service_id);
-          // Fallback if exact match not found (e.g. legacy IDs), try to guess by name or default to WA
           const def = serviceDef || (
-            item.service_id.startsWith('tg') ? AVAILABLE_SERVICES.find(s => s.id === 'tg') : 
-            AVAILABLE_SERVICES.find(s => s.id === 'wa')
+            item.service_id.startsWith('tg')
+              ? AVAILABLE_SERVICES.find(s => s.id === 'tg')
+              : item.service_id.startsWith('tk')
+              ? AVAILABLE_SERVICES.find(s => s.id === 'tk')
+              : AVAILABLE_SERVICES.find(s => s.id === 'wa')
           );
           
           if (!def) return null;
@@ -157,6 +195,16 @@ function App() {
             });
             const data = await res.json();
             
+            if (data && data.success === false) {
+                if (data.error === 'MAX_SERVICES_EXCEEDED') {
+                    alert('You reached the maximum number of accounts allowed for this invitation. Please contact customer service.');
+                    break;
+                } else if (data.error) {
+                    alert('Failed to create service: ' + data.error);
+                    break;
+                }
+            }
+
             if (data.success && data.service) {
                 const newService: AddedService = {
                     id: data.service.id,
@@ -263,12 +311,16 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-white text-gray-800 font-sans relative overflow-hidden">
       <TopBar 
-      onLogout={handleLogout} 
-      invitationCode={invitationCode} 
-      onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-      onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
-      isTranslationOpen={isTranslationPanelOpen}
-    />
+        onLogout={handleLogout} 
+        invitationCode={invitationCode} 
+        onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+        onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
+        isTranslationOpen={isTranslationPanelOpen}
+        fontSize={fontSize}
+        onFontSizeChange={setFontSize}
+        fontFamily={fontFamily}
+        onFontFamilyChange={setFontFamily}
+      />
       <div className="flex flex-1 overflow-hidden relative z-0">
         {/* Mobile Drawer for SidebarLeft */}
         <div 

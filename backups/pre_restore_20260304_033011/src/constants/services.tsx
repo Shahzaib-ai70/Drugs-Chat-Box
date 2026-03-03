@@ -21,7 +21,6 @@ export const AVAILABLE_SERVICES: ServiceItem[] = [
   { id: 'ln', name: 'Line', icon: <FaLine size={24} />, color: '#00C300', bgColor: 'bg-green-50' },
   { id: 'lnw', name: 'Line Work', icon: <FaLine size={24} />, color: '#00C300', bgColor: 'bg-green-50' },
   { id: 'lnb', name: 'Line商用', icon: <FaLine size={24} />, color: '#00C300', bgColor: 'bg-green-50' },
-  { id: 'tk', name: 'Tiktok', icon: <span className="font-bold text-lg">Tk</span>, color: '#000000', bgColor: 'bg-gray-200' },
   { id: 'tw', name: 'Twitter', icon: <FaTwitter size={24} />, color: '#1DA1F2', bgColor: 'bg-sky-50' },
   { id: 'zl', name: 'Zalo', icon: <SiZalo size={24} />, color: '#0068FF', bgColor: 'bg-blue-50' },
   { id: 'gc', name: 'Google\nchat', icon: <SiGooglechat size={24} />, color: '#00AC47', bgColor: 'bg-green-50' },

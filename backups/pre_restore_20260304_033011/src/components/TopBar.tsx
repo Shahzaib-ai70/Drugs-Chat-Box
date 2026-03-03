@@ -27,9 +27,13 @@ interface TopBarProps {
   onMenuClick?: () => void;
   onToggleTranslation?: () => void;
   isTranslationOpen?: boolean;
+  fontSize: 'small' | 'medium' | 'large';
+  onFontSizeChange: (value: 'small' | 'medium' | 'large') => void;
+  fontFamily: 'modern' | 'classic' | 'mono';
+  onFontFamilyChange: (value: 'modern' | 'classic' | 'mono') => void;
 }
 
-const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, isTranslationOpen }: TopBarProps) => {
+const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, isTranslationOpen, fontSize, onFontSizeChange, fontFamily, onFontFamilyChange }: TopBarProps) => {
   const { language, setLanguage, t, theme, setTheme } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -197,6 +201,85 @@ const TopBar = ({ onLogout, invitationCode, onMenuClick, onToggleTranslation, is
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    <div className="h-px bg-white/10 my-1 mx-4"></div>
+
+                    <div className="px-5 py-2 space-y-3">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Font Size</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => onFontSizeChange('small')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              fontSize === 'small'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            onClick={() => onFontSizeChange('medium')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              fontSize === 'medium'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            onClick={() => onFontSizeChange('large')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              fontSize === 'large'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            A
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Font Style</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => onFontFamilyChange('modern')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                              fontFamily === 'modern'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                            style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}
+                          >
+                            Modern
+                          </button>
+                          <button
+                            onClick={() => onFontFamilyChange('classic')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                              fontFamily === 'classic'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                          >
+                            Classic
+                          </button>
+                          <button
+                            onClick={() => onFontFamilyChange('mono')}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                              fontFamily === 'mono'
+                                ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                                : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                            style={{ fontFamily: "'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}
+                          >
+                            Mono
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="h-px bg-white/10 my-1 mx-4"></div>

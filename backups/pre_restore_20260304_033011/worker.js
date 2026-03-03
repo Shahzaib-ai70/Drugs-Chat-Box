@@ -6,7 +6,8 @@ import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 const { Client, LocalAuth, MessageMedia } = pkg;
-import { TelegramClient } from 'telegram';
+import { TelegramClient, sessions } from 'telegram';
+import { Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
 
@@ -16,6 +17,8 @@ const SERVICE_ID = process.env.SERVICE_ID;
 const SERVICE_TYPE = process.env.SERVICE_TYPE || 'whatsapp'; // 'whatsapp' | 'telegram'
 const API_ID = 2040; // Telegram API ID
 const API_HASH = "b18441a1ff607e10a989891a5462e627"; // Telegram API Hash
+
+// (Backup) No OWNER_CODE composite clientId
 
 if (!SERVICE_ID) {
     console.error('SERVICE_ID environment variable is required');
@@ -192,8 +195,16 @@ const handleSendMessage = async (data) => {
         try {
             let sentMsg;
             if (data.media) {
-                const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
-                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+                const isImage = data.media.mimetype && data.media.mimetype.startsWith('image/');
+
+                if (isImage) {
+                    const media = new MessageMedia(data.media.mimetype, data.media.data);
+                    const options = body ? { caption: body } : {};
+                    sentMsg = await sessionState.client.sendMessage(data.chatId, media, options);
+                } else {
+                    const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
+                    sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+                }
             } else {
                 sentMsg = await sessionState.client.sendMessage(data.chatId, body, {}); 
             }
@@ -206,19 +217,33 @@ const handleSendMessage = async (data) => {
         }
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
-            let result;
-            // const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
+            let entity = data.chatId;
+            if (typeof entity === 'string' && /^\d+$/.test(entity)) {
+                try { entity = BigInt(entity); } catch (_) {}
+            }
+            const peer = await sessionState.client.getInputEntity(entity);
 
+            let result;
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
-                // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+                const isImage = data.media.mimetype && data.media.mimetype.startsWith('image/');
+                const fileName = isImage
+                    ? (data.media.mimetype.includes('png') ? 'photo.png' : data.media.mimetype.includes('webp') ? 'photo.webp' : 'photo.jpg')
+                    : (data.media.filename || 'file');
+
+                result = await sessionState.client.sendFile(peer, {
+                    file: buffer,
+                    fileName,
+                    caption: body || '',
+                    forceDocument: !isImage
+                });
             } else {
-                result = await sessionState.client.sendMessage(data.chatId, { message: body });
+                result = await sessionState.client.sendMessage(peer, { message: body });
             }
-             if (result) {
-                 // GramJS message object has id property
-                 response = { status: 'success', messageId: result.id.toString() };
+
+            if (result) {
+                const msgObj = Array.isArray(result) ? result[0] : result;
+                response = { status: 'success', messageId: msgObj.id.toString() };
             }
         } catch(e) { 
             log(`Send Error: ${e}`);
@@ -340,45 +365,25 @@ const syncQueue = new ResourceQueue(1, 500); // Serialize sync operations
 // --- WHATSAPP LOGIC ---
 const initializeWhatsApp = async () => {
   log(`Initializing WhatsApp Worker for ${SERVICE_ID}`);
+ 
   
-  const resolveBrowserPath = () => {
-    const cands = [
-      process.env.CHROME_PATH,
-      'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',
-      'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',
-      'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',
-      'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'
-    ].filter(Boolean);
-    for (const p of cands) {
-      try { if (p && fs.existsSync(p)) return p; } catch(e) {}
-    }
-    return null;
-  };
-  const basePup = {
-    headless: true,
-    ignoreHTTPSErrors: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--ignore-certificate-errors',
-      '--proxy-server=\"direct://\"',
-      '--proxy-bypass-list=*'
-    ]
-  };
-  const execPath = resolveBrowserPath();
-  if (execPath) basePup.executablePath = execPath;
-
-  let client = new Client({
+  const client = new Client({
     authStrategy: new LocalAuth({ clientId: SERVICE_ID }),
-    qrMaxRetries: 10,
-    authTimeoutMs: 180000,
+    qrMaxRetries: 20,
+    authTimeoutMs: 300000,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     restartOnAuthFail: true,
-    puppeteer: basePup
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
+    }
   });
 
   sessionState.client = client;
@@ -554,6 +559,18 @@ const initializeWhatsApp = async () => {
     }
   };
 
+  const scheduleChatRefresh = (() => {
+    let pending = false;
+    return () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        syncQueue.add(async () => { await fetchAndEmitChats(); });
+      }, 2000);
+    };
+  })();
+
   client.on('ready', () => {
     log(`WhatsApp Connected!`);
     sessionState.status = 'CONNECTED';
@@ -698,26 +715,6 @@ const initializeWhatsApp = async () => {
     const msg = err ? err.toString() : '';
     log(`Init Failed: ${msg}`);
     const lower = msg.toLowerCase();
-    if (lower.includes('err_connection_reset') || lower.includes('net::err_connection_reset')) {
-      try {
-        const altExec = resolveBrowserPath();
-        if (altExec && (!client?.options?.puppeteer?.executablePath || client.options.puppeteer.executablePath !== altExec)) {
-          const newOpts = { ...client.options, puppeteer: { ...(client.options.puppeteer || {}), executablePath: altExec, ignoreHTTPSErrors: true } };
-          client = new Client(newOpts);
-          sessionState.client = client;
-          client.on('loading_screen', (percent, message) => io.to(SERVICE_ID).emit('wa_loading', { percent, message }));
-          client.on('qr', (qr) => { sessionState.qr = qr; sessionState.status = 'QR_READY'; io.to(SERVICE_ID).emit('qr', qr); io.to(SERVICE_ID).emit('status', 'QR_READY'); });
-          client.on('ready', () => { sessionState.status = 'CONNECTED'; sessionState.qr = 'CONNECTED'; io.to(SERVICE_ID).emit('ready', 'WhatsApp Client is ready!'); io.to(SERVICE_ID).emit('status', 'CONNECTED'); });
-          client.on('authenticated', () => { sessionState.status = 'AUTHENTICATED'; io.to(SERVICE_ID).emit('status', 'AUTHENTICATED'); });
-          client.on('disconnected', (reason) => { sessionState.status = 'DISCONNECTED'; io.to(SERVICE_ID).emit('status', 'DISCONNECTED'); io.to(SERVICE_ID).emit('wa_error', `Disconnected: ${reason}`); });
-          client.on('auth_failure', msg2 => { io.to(SERVICE_ID).emit('auth_failure', msg2); });
-          await client.initialize();
-          return;
-        }
-      } catch (re) {
-        log(`Retry after connection reset failed: ${re}`);
-      }
-    }
 
     // Explicit auth timeout handling – frontend will show a friendly message
     if (lower.includes('auth timeout')) {
@@ -833,6 +830,18 @@ const initializeTelegram = async () => {
       }
   };
 
+  const scheduleChatRefresh = (() => {
+    let pending = false;
+    return () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        fetchChats();
+      }, 2000);
+    };
+  })();
+
   client.addEventHandler(async (event) => {
     const message = event.message;
     const sender = await message.getSender();
@@ -880,11 +889,33 @@ const initializeTelegram = async () => {
         ack: 1
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
-    fetchChats();
+    const chat = sessionState.chats.find(c => c.id === chatId);
+    if (chat) {
+        chat.lastMessage = mappedMsg.body;
+        chat.lastTimestamp = mappedMsg.timestamp;
+        chat.lastMessageFromMe = mappedMsg.fromMe;
+        chat.lastMessageAck = mappedMsg.ack;
+        if (!mappedMsg.fromMe) chat.unreadCount = (chat.unreadCount || 0) + 1;
+        io.to(SERVICE_ID).emit('wa_chat_update', {
+            id: chatId,
+            lastMessage: chat.lastMessage,
+            lastTimestamp: chat.lastTimestamp,
+            lastMessageFromMe: chat.lastMessageFromMe,
+            lastMessageAck: chat.lastMessageAck,
+            unreadCount: chat.unreadCount,
+            serviceId: SERVICE_ID
+        });
+        const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+    } else {
+        scheduleChatRefresh();
+    }
   }, new NewMessage({}));
 
   try {
     await client.connect();
+    sessionState.status = 'QR_READY';
+    io.to(SERVICE_ID).emit('status', 'QR_READY');
     if (!fs.existsSync(sessionFile)) {
         await client.signInUserWithQrCode({ apiId: API_ID, apiHash: API_HASH }, { 
             qrCode: async (code) => {
@@ -933,6 +964,7 @@ io.on('connection', (socket) => {
           if (sessionState.qr && sessionState.qr !== 'CONNECTED') socket.emit('qr', sessionState.qr);
           socket.emit('status', sessionState.status);
           if (sessionState.chats.length > 0) socket.emit('wa_chats', sessionState.chats);
+          if (sessionState.status === 'INITIALIZING' && (!sessionState.qr || sessionState.qr === '')) socket.emit('status', 'QR_READY');
       }
   });
   

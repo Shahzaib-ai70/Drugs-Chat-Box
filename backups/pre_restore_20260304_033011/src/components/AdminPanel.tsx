@@ -11,6 +11,7 @@ interface UserCode {
     status: string;
     serviceCount: number;
     owner_name?: string;
+    max_services?: number | null;
 }
 
 export default function AdminPanel({ onLogout }: AdminPanelProps) {
@@ -19,6 +20,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     const [generating, setGenerating] = useState(false);
     const [customCode, setCustomCode] = useState('');
     const [ownerName, setOwnerName] = useState('');
+    const [maxServices, setMaxServices] = useState<number | ''>('');
     
     // Editing state
     const [editingCode, setEditingCode] = useState<string | null>(null);
@@ -49,12 +51,13 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             const res = await fetch('/api/admin/generate-code', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customCode, ownerName })
+                body: JSON.stringify({ customCode, ownerName, maxServices: typeof maxServices === 'number' ? maxServices : null })
             });
             const data = await res.json();
             if (data.success) {
                 setCustomCode('');
                 setOwnerName('');
+                setMaxServices('');
                 fetchUsers();
             } else {
                 alert('Error: ' + data.error);
@@ -151,6 +154,18 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                 onChange={e => setOwnerName(e.target.value)}
                                 className="bg-gray-50 border border-gray-200 text-gray-900 px-4 py-3 rounded-xl flex-1 focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder-gray-400"
                             />
+                            <input
+                                type="number"
+                                min={1}
+                                placeholder="Max Accounts"
+                                value={maxServices}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value, 10);
+                                    if (isNaN(val)) setMaxServices('');
+                                    else setMaxServices(val);
+                                }}
+                                className="bg-gray-50 border border-gray-200 text-gray-900 px-4 py-3 rounded-xl w-32 focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder-gray-400"
+                            />
                         </div>
                         <button
                             onClick={generateCode}
@@ -178,6 +193,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                     <th className="px-6 py-4 font-semibold">Owner Name</th>
                                     <th className="px-6 py-4 font-semibold">Created At</th>
                                     <th className="px-6 py-4 font-semibold">Connected Accounts</th>
+                                    <th className="px-6 py-4 font-semibold">Max Accounts</th>
                                     <th className="px-6 py-4 font-semibold">Status</th>
                                     <th className="px-6 py-4 font-semibold text-right">Actions</th>
                                 </tr>
@@ -216,6 +232,11 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                             <td className="px-6 py-4">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.serviceCount > 0 ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                                                     {user.serviceCount} Services
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-3 py-1 rounded-full text-xs font-medium border bg-gray-50 text-gray-700 border-gray-200">
+                                                    {user.max_services && user.max_services > 0 ? `${user.max_services}` : 'Unlimited'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">

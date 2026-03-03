@@ -61,7 +61,8 @@ try {
     code TEXT PRIMARY KEY,
     created_at INTEGER,
     status TEXT DEFAULT 'active',
-    owner_name TEXT
+    owner_name TEXT,
+    max_services INTEGER
   );
 `);
 
@@ -89,7 +90,6 @@ try {
     log(`Migration Error account_identifier: ${e.message}`);
   }
 
-  // Migration: Add status column to invitation_codes if missing
   try {
     const columns = db.prepare('PRAGMA table_info(invitation_codes)').all();
     const hasStatus = columns.some(c => c.name === 'status');
@@ -99,6 +99,17 @@ try {
     }
   } catch (e) {
     log(`Migration Error invitation_codes: ${e.message}`);
+  }
+
+  try {
+    const columns = db.prepare('PRAGMA table_info(invitation_codes)').all();
+    const hasMax = columns.some(c => c.name === 'max_services');
+    if (!hasMax) {
+      log('Migrating DB: Adding max_services column to invitation_codes');
+      db.prepare('ALTER TABLE invitation_codes ADD COLUMN max_services INTEGER').run();
+    }
+  } catch (e) {
+    log(`Migration Error invitation_codes max_services: ${e.message}`);
   }
 } catch (dbError) {
   console.error('FATAL DATABASE ERROR:', dbError);
@@ -134,7 +145,11 @@ const spawnWorker = (service) => {
         log(`Assigned new port ${port} to service ${service.id}`);
     }
 
-    const serviceType = service.service_id.startsWith('tg') ? 'telegram' : service.service_id.startsWith('fb') ? 'facebook' : 'whatsapp';
+    const serviceType = service.service_id.startsWith('tg')
+        ? 'telegram'
+        : service.service_id.startsWith('fb')
+        ? 'facebook'
+        : 'whatsapp';
     
     log(`Spawning worker for ${service.custom_name} (${service.id}) on port ${port}`);
 
@@ -312,7 +327,6 @@ app.post('/api/admin/generate-code', (req, res) => {
     let code = customCode ? customCode.trim() : null;
 
     if (code) {
-        // Check for duplicate
         try {
             const existing = db.prepare('SELECT code FROM invitation_codes WHERE code = ?').get(code);
             if (existing) {
@@ -322,17 +336,14 @@ app.post('/api/admin/generate-code', (req, res) => {
              return res.status(500).json({ success: false, error: 'Database error checking duplicate' });
         }
     } else {
-        // Generate random if no custom code
         code = Math.random().toString(36).substring(2, 10).toUpperCase();
     }
 
     try {
-        // Explicitly set status to active
         db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, status) VALUES (?, ?, ?, ?)').run(code, Date.now(), ownerName, 'active');
         res.json({ success: true, code });
     } catch (e) {
         console.error('Error generating code:', e);
-        // If column status missing, try without it (fallback for old DBs if migration failed)
         try {
              db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
              res.json({ success: true, code });
@@ -565,6 +576,18 @@ io.on('connection', (socket) => {
         const { serviceId } = data;
         const worker = workers.get(serviceId);
         if (worker) worker.process.send({ type: 'command', command: 'react_message', data });
+    });
+
+    socket.on('fb_input_event', (data) => {
+        const { serviceId, event } = data;
+        const worker = workers.get(serviceId);
+        if (worker && worker.process) worker.process.send({ type: 'command', command: 'fb_input_event', data: event });
+    });
+
+    socket.on('fb_update_translation', (data) => {
+        const { serviceId, ...settings } = data;
+        const worker = workers.get(serviceId);
+        if (worker && worker.process) worker.process.send({ type: 'command', command: 'fb_update_translation', data: settings });
     });
 
 });
