@@ -5,6 +5,7 @@ import SidebarRight from './components/SidebarRight';
 import MainContent from './components/MainContent';
 import AddServiceModal from './components/AddServiceModal';
 import TranslationPanel, { type TranslationSettings } from './components/TranslationPanel';
+import ScriptPanel from './components/ScriptPanel';
 import InvitationLogin from './components/InvitationLogin';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
@@ -61,6 +62,7 @@ function App() {
   
   // Translation State
   const [isTranslationPanelOpen, setIsTranslationPanelOpen] = useState(false);
+  const [isScriptPanelOpen, setIsScriptPanelOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<'current' | 'global'>('global');
@@ -409,8 +411,16 @@ function App() {
         
         <div className="hidden md:block h-full">
             <SidebarRight 
-              onLangClick={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)} 
+              onLangClick={() => {
+                  setIsTranslationPanelOpen(!isTranslationPanelOpen);
+                  setIsScriptPanelOpen(false);
+              }} 
               isLangActive={isTranslationPanelOpen}
+              onScriptClick={() => {
+                  setIsScriptPanelOpen(!isScriptPanelOpen);
+                  setIsTranslationPanelOpen(false);
+              }}
+              isScriptActive={isScriptPanelOpen}
             />
         </div>
         {isTranslationPanelOpen && (
@@ -422,6 +432,9 @@ function App() {
             onModeChange={setSettingsMode}
             activeChatId={activeChatId}
           />
+        )}
+        {isScriptPanelOpen && (
+            <ScriptPanel onClose={() => setIsScriptPanelOpen(false)} />
         )}
       </div>
       

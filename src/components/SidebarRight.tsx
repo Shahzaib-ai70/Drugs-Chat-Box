@@ -3,15 +3,18 @@ import {
   Globe, 
   Bookmark, 
   Type, 
-  Server 
+  Server,
+  FileText
 } from 'lucide-react';
 
 interface SidebarRightProps {
   onLangClick?: () => void;
   isLangActive?: boolean;
+  onScriptClick?: () => void;
+  isScriptActive?: boolean;
 }
 
-const SidebarRight = ({ onLangClick, isLangActive }: SidebarRightProps) => {
+const SidebarRight = ({ onLangClick, isLangActive, onScriptClick, isScriptActive }: SidebarRightProps) => {
   return (
     <div className="w-16 bg-white/80 backdrop-blur-md border-l border-gray-200 flex flex-col items-center py-4 gap-4 shrink-0 z-30 shadow-xl">
       <SideTool icon={<MessageSquareQuote size={20} />} label="Reply" active={false} />
@@ -21,6 +24,13 @@ const SidebarRight = ({ onLangClick, isLangActive }: SidebarRightProps) => {
         label="Lang" 
         active={isLangActive} 
         onClick={onLangClick}
+      />
+
+      <SideTool 
+        icon={<FileText size={20} />} 
+        label="Script" 
+        active={isScriptActive} 
+        onClick={onScriptClick}
       />
       
       <SideTool icon={<Bookmark size={20} />} label="Mark" active={false} />
