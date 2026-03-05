@@ -98,35 +98,42 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
               
               const newFolders: Folder[] = [];
 
-              // Iterate through each sheet (Day 1, Day 2, etc.)
+              // Iterate through each sheet
               wb.SheetNames.forEach(sheetName => {
                   const ws = wb.Sheets[sheetName];
                   // Convert sheet to JSON array of arrays (rows)
                   const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
                   
-                  const sheetScripts: Script[] = [];
+                  // Group scripts by "Category" (Column A) -> "Script" (Column B)
+                  // Assuming Column A is the "Phrase/Category" and Column B is the "Script Content"
+                  const categoryMap = new Map<string, Script[]>();
                   
-                  // Flatten all cells in the sheet into scripts
                   data.forEach(row => {
-                      row.forEach(cell => {
-                          if (cell && typeof cell === 'string' && cell.trim()) {
-                              sheetScripts.push({
-                                  id: Math.random().toString(36).substr(2, 9),
-                                  content: cell.trim(),
-                                  createdAt: Date.now()
-                              });
+                      // Row[0] = Category/Phrase (e.g. "Morning Greetings"), Row[1] = Content
+                      const category = (row[0] && typeof row[0] === 'string') ? row[0].trim() : 'General';
+                      const content = (row[1] && typeof row[1] === 'string') ? row[1].trim() : '';
+
+                      if (content) {
+                          if (!categoryMap.has(category)) {
+                              categoryMap.set(category, []);
                           }
-                      });
+                          categoryMap.get(category)?.push({
+                              id: Math.random().toString(36).substr(2, 9),
+                              content: content,
+                              createdAt: Date.now()
+                          });
+                      }
                   });
 
-                  if (sheetScripts.length > 0) {
-                      newFolders.push({
+                  // Create folders from categories
+                  categoryMap.forEach((scripts, category) => {
+                       newFolders.push({
                           id: Math.random().toString(36).substr(2, 9),
-                          name: sheetName,
-                          scripts: sheetScripts,
+                          name: category,
+                          scripts: scripts,
                           isOpen: false
                       });
-                  }
+                  });
               });
 
               setFolders(prev => [...newFolders, ...prev]);
