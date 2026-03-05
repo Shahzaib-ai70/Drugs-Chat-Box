@@ -452,6 +452,8 @@ if (fs.existsSync(distPath)) {
   // SPA Fallback: Serve index.html for any unknown routes
   // Note: Express 5 requires a RegExp for catch-all if * is not supported by the parser
   app.get(/.*/, (req, res) => {
+      // Ensure the HTML shell is never cached so clients always fetch the latest bundle hashes
+      res.set('Cache-Control', 'no-store');
       res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
