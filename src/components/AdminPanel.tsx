@@ -115,7 +115,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             <div className="max-w-6xl mx-auto relative z-10">
                 <header className="flex justify-between items-center mb-8 border-b border-slate-200 pb-6 bg-white/80 backdrop-blur-md rounded-2xl px-8 py-4 shadow-sm">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Admin <span className="text-amber-600">Dashboard</span></h1>
+                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Admin <span className="text-amber-600">daashboard</span></h1>
                         <p className="text-slate-500 text-sm mt-1">Manage invitation codes and monitor usage</p>
                     </div>
                     <button 
