@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Copy, Save, FileText, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Plus, Trash2, Copy, Save, FileText, Check, Upload, Folder, ChevronRight, ChevronDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ScriptPanelProps {
   onClose: () => void;
@@ -11,8 +12,26 @@ interface Script {
   createdAt: number;
 }
 
+interface Folder {
+    id: string;
+    name: string;
+    scripts: Script[];
+    isOpen: boolean;
+}
+
 const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
-  const [scripts, setScripts] = useState<Script[]>(() => {
+  // Main state for folders (imported from Excel)
+  const [folders, setFolders] = useState<Folder[]>(() => {
+    try {
+        const saved = localStorage.getItem('imported_scripts');
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+  });
+
+  // Legacy state for manually added scripts (kept for backward compatibility)
+  const [manualScripts, setManualScripts] = useState<Script[]>(() => {
     try {
       const saved = localStorage.getItem('saved_scripts');
       return saved ? JSON.parse(saved) : [];
@@ -23,12 +42,18 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
   
   const [newScript, setNewScript] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('saved_scripts', JSON.stringify(scripts));
-  }, [scripts]);
+    localStorage.setItem('saved_scripts', JSON.stringify(manualScripts));
+  }, [manualScripts]);
 
-  const handleAddScript = () => {
+  useEffect(() => {
+    localStorage.setItem('imported_scripts', JSON.stringify(folders));
+  }, [folders]);
+
+  const handleAddManualScript = () => {
     if (!newScript.trim()) return;
     
     const script: Script = {
@@ -37,18 +62,85 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
       createdAt: Date.now()
     };
     
-    setScripts(prev => [script, ...prev]);
+    setManualScripts(prev => [script, ...prev]);
     setNewScript('');
   };
 
-  const handleDeleteScript = (id: string) => {
-    setScripts(prev => prev.filter(s => s.id !== id));
+  const handleDeleteManualScript = (id: string) => {
+    setManualScripts(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleDeleteFolder = (id: string) => {
+      setFolders(prev => prev.filter(f => f.id !== id));
+  };
+
+  const toggleFolder = (id: string) => {
+      setFolders(prev => prev.map(f => f.id === id ? { ...f, isOpen: !f.isOpen } : f));
   };
 
   const handleCopy = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsImporting(true);
+      const reader = new FileReader();
+      
+      reader.onload = (evt) => {
+          try {
+              const bstr = evt.target?.result;
+              const wb = XLSX.read(bstr, { type: 'binary' });
+              
+              const newFolders: Folder[] = [];
+
+              // Iterate through each sheet (Day 1, Day 2, etc.)
+              wb.SheetNames.forEach(sheetName => {
+                  const ws = wb.Sheets[sheetName];
+                  // Convert sheet to JSON array of arrays (rows)
+                  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+                  
+                  const sheetScripts: Script[] = [];
+                  
+                  // Flatten all cells in the sheet into scripts
+                  data.forEach(row => {
+                      row.forEach(cell => {
+                          if (cell && typeof cell === 'string' && cell.trim()) {
+                              sheetScripts.push({
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  content: cell.trim(),
+                                  createdAt: Date.now()
+                              });
+                          }
+                      });
+                  });
+
+                  if (sheetScripts.length > 0) {
+                      newFolders.push({
+                          id: Math.random().toString(36).substr(2, 9),
+                          name: sheetName,
+                          scripts: sheetScripts,
+                          isOpen: false
+                      });
+                  }
+              });
+
+              setFolders(prev => [...newFolders, ...prev]);
+              setIsImporting(false);
+          } catch (error) {
+              console.error("Error reading excel:", error);
+              setIsImporting(false);
+              alert("Failed to read Excel file. Please ensure it's a valid .xlsx or .xls file.");
+          }
+      };
+
+      reader.readAsBinaryString(file);
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -74,37 +166,108 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative z-10">
         
-        {/* Add New Script */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500 transition-all">
-            <textarea 
-                value={newScript}
-                onChange={(e) => setNewScript(e.target.value)}
-                placeholder="Type your script here..."
-                className="w-full text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none min-h-[80px] bg-transparent"
+        {/* Import Button */}
+        <div className="flex justify-center">
+            <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".xlsx, .xls"
+                className="hidden"
             />
-            <div className="flex justify-end mt-2">
-                <button 
-                    onClick={handleAddScript}
-                    disabled={!newScript.trim()}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Save size={14} />
-                    Save Script
-                </button>
-            </div>
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50/50 transition-all group font-medium text-sm"
+            >
+                <Upload size={18} className="group-hover:scale-110 transition-transform" />
+                {isImporting ? 'Importing...' : 'Import Excel File'}
+            </button>
         </div>
+
+        {/* Folders List (Imported from Excel) */}
+        {folders.length > 0 && (
+            <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Imported Scripts</h4>
+                {folders.map(folder => (
+                    <div key={folder.id} className="border border-gray-100 rounded-xl bg-white overflow-hidden shadow-sm">
+                        <button 
+                            onClick={() => toggleFolder(folder.id)}
+                            className="w-full flex items-center justify-between p-3 bg-gray-50/50 hover:bg-gray-100 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2 font-medium text-gray-700 text-sm">
+                                <Folder size={16} className="text-amber-500" />
+                                {folder.name}
+                                <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded-full text-gray-600">{folder.scripts.length}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
+                                    className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                                {folder.isOpen ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
+                            </div>
+                        </button>
+                        
+                        {folder.isOpen && (
+                            <div className="p-2 space-y-2 bg-white">
+                                {folder.scripts.map(script => (
+                                    <div key={script.id} className="group flex items-start justify-between gap-2 p-2 rounded-lg hover:bg-amber-50 transition-colors text-sm border border-transparent hover:border-amber-100">
+                                        <p className="text-gray-700 leading-snug flex-1 cursor-pointer" onClick={() => handleCopy(script.content, script.id)}>{script.content}</p>
+                                        <button 
+                                            onClick={() => handleCopy(script.content, script.id)}
+                                            className={`shrink-0 p-1.5 rounded-md transition-all ${
+                                                copiedId === script.id 
+                                                ? 'bg-green-100 text-green-600' 
+                                                : 'text-gray-300 hover:text-amber-600 hover:bg-white'
+                                            }`}
+                                        >
+                                            {copiedId === script.id ? <Check size={14} /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        )}
 
         <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
 
-        {/* Script List */}
+        {/* Manual Script Input */}
         <div className="space-y-3">
-            {scripts.length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
-                    <FileText size={32} className="mx-auto mb-2 opacity-20" />
-                    <p className="text-xs">No scripts saved yet</p>
+             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Manual Scripts</h4>
+             <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500 transition-all">
+                <textarea 
+                    value={newScript}
+                    onChange={(e) => setNewScript(e.target.value)}
+                    placeholder="Type your script here..."
+                    className="w-full text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none min-h-[80px] bg-transparent"
+                />
+                <div className="flex justify-end mt-2">
+                    <button 
+                        onClick={handleAddManualScript}
+                        disabled={!newScript.trim()}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Save size={14} />
+                        Save Script
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {/* Manual Script List */}
+        <div className="space-y-3">
+            {manualScripts.length === 0 ? (
+                <div className="text-center py-4 text-gray-400">
+                    <p className="text-xs">No manual scripts saved</p>
                 </div>
             ) : (
-                scripts.map(script => (
+                manualScripts.map(script => (
                     <div key={script.id} className="group bg-white border border-gray-100 hover:border-amber-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all relative">
                         <p className="text-sm text-gray-700 whitespace-pre-wrap mb-3 leading-relaxed">{script.content}</p>
                         
@@ -114,7 +277,7 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
                             </span>
                             <div className="flex gap-2">
                                 <button 
-                                    onClick={() => handleDeleteScript(script.id)}
+                                    onClick={() => handleDeleteManualScript(script.id)}
                                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Delete"
                                 >
