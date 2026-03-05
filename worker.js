@@ -75,6 +75,7 @@ process.on('message', async (msg) => {
         log('IPC: State requested');
         if (sessionState.qr) io.to(SERVICE_ID).emit('qr', sessionState.qr);
         io.to(SERVICE_ID).emit('status', sessionState.status);
+        if (sessionState.userInfo) io.to(SERVICE_ID).emit('wa_user_info', sessionState.userInfo);
         if (sessionState.chats.length > 0) {
              io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
              const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
@@ -82,6 +83,7 @@ process.on('message', async (msg) => {
         }
     } else if (command === 'request_unread') {
         // Lightweight request for just unread counts (for Sidebar)
+        if (sessionState.userInfo) io.to(SERVICE_ID).emit('wa_user_info', sessionState.userInfo);
         if (sessionState.chats.length > 0) {
              const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
@@ -298,7 +300,8 @@ const sessionState = {
     client: null,
     qr: '',
     status: 'INITIALIZING',
-    chats: []
+    chats: [],
+    userInfo: null
 };
 
 // Resource Queue (Local to this process)
@@ -409,12 +412,14 @@ const initializeWhatsApp = async () => {
             try {
                 if (client.info.wid) myProfilePic = await client.getProfilePicUrl(client.info.wid._serialized);
             } catch (e) {}
-            io.to(SERVICE_ID).emit('wa_user_info', {
+            const userInfo = {
                 name: client.info.pushname,
                 id: client.info.wid._serialized,
                 profilePicUrl: myProfilePic,
                 serviceId: SERVICE_ID
-            });
+            };
+            sessionState.userInfo = userInfo;
+            io.to(SERVICE_ID).emit('wa_user_info', userInfo);
             
             // Send identifier to Master for persistence
             if (client.info.wid && process.send) {
@@ -780,7 +785,9 @@ const initializeTelegram = async () => {
         } catch(e) { log(`TG Profile Pic Error: ${e}`); }
 
         if (me) {
-            io.to(SERVICE_ID).emit('wa_user_info', { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: myProfilePic, serviceId: SERVICE_ID });
+            const userInfo = { name: me.username || me.firstName, id: me.id.toString(), profilePicUrl: myProfilePic, serviceId: SERVICE_ID };
+            sessionState.userInfo = userInfo;
+            io.to(SERVICE_ID).emit('wa_user_info', userInfo);
             
             // Send identifier to Master for persistence
             if (process.send) {
@@ -793,19 +800,26 @@ const initializeTelegram = async () => {
         }
         
         const dialogs = await client.getDialogs({});
-        const mappedChats = dialogs.map(d => ({
-            id: d.id.toString(),
-            name: d.title || 'Unknown',
-            isGroup: d.isGroup,
-            unreadCount: d.unreadCount,
-            lastMessage: d.message?.text || '',
-            lastTimestamp: d.date,
-            lastMessageFromMe: d.message?.out || false,
-            lastMessageAck: 1,
-            profilePicUrl: '',
-            lastSeen: '',
-            archived: d.archived || d.folderId === 1 || false
-        }));
+        const mappedChats = dialogs.map(d => {
+            const chatId = d.id.toString();
+            // Preserve profile pics
+            const existing = sessionState.chats.find(c => c.id === chatId);
+            const profilePicUrl = existing ? existing.profilePicUrl : '';
+
+            return {
+                id: chatId,
+                name: d.title || 'Unknown',
+                isGroup: d.isGroup,
+                unreadCount: d.unreadCount,
+                lastMessage: d.message?.text || '',
+                lastTimestamp: d.date,
+                lastMessageFromMe: d.message?.out || false,
+                lastMessageAck: 1,
+                profilePicUrl: profilePicUrl,
+                lastSeen: '',
+                archived: d.archived || d.folderId === 1 || false
+            };
+        });
 
         const totalUnread = mappedChats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
         io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
@@ -932,6 +946,7 @@ io.on('connection', (socket) => {
           // Emit current state
           if (sessionState.qr && sessionState.qr !== 'CONNECTED') socket.emit('qr', sessionState.qr);
           socket.emit('status', sessionState.status);
+          if (sessionState.userInfo) socket.emit('wa_user_info', sessionState.userInfo);
           if (sessionState.chats.length > 0) socket.emit('wa_chats', sessionState.chats);
       }
   });
