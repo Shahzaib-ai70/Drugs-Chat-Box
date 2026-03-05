@@ -357,7 +357,7 @@ function App() {
   const activeService = addedServices.find(s => s.id === activeServiceId);
 
   return (
-    <div className="flex flex-col h-screen bg-white text-gray-800 font-sans relative overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-white text-gray-800 font-sans relative overflow-hidden supports-[height:100dvh]:h-[100dvh] supports-[height:100svh]:h-[100svh]">
       <TopBar 
       onLogout={handleLogout} 
       invitationCode={invitationCode} 
