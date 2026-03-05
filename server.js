@@ -397,10 +397,16 @@ app.delete('/api/admin/code/:code', (req, res) => {
 
 app.put('/api/admin/code/:code', (req, res) => {
     const { code } = req.params;
-    const { ownerName } = req.body;
+    const { ownerName, maxServices } = req.body;
     try {
         if (ownerName !== undefined && ownerName !== null) {
             db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
+        }
+        if (maxServices !== undefined && maxServices !== null) {
+            const limit = parseInt(maxServices);
+            if (!isNaN(limit) && limit > 0) {
+                db.prepare('UPDATE invitation_codes SET max_services = ? WHERE code = ?').run(limit, code);
+            }
         }
         res.json({ success: true });
     } catch (e) {

@@ -25,6 +25,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     // Editing state
     const [editingCode, setEditingCode] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+    const [editMaxServices, setEditMaxServices] = useState('5');
     const [editLimitOpen, setEditLimitOpen] = useState<string | null>(null);
 
     const fetchUsers = async () => {
@@ -84,6 +85,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     const startEditing = (user: UserCode) => {
         setEditingCode(user.code);
         setEditName(user.owner_name || '');
+        setEditMaxServices(user.max_services ? user.max_services.toString() : '5');
     };
 
     const cancelEditing = () => {
@@ -97,7 +99,10 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             await fetch(`/api/admin/code/${editingCode}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ownerName: editName })
+                body: JSON.stringify({ 
+                    ownerName: editName,
+                    maxServices: parseInt(editMaxServices) || 5
+                })
             });
             setEditingCode(null);
             fetchUsers();
@@ -227,9 +232,22 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                                 {new Date(user.created_at).toLocaleDateString()} <span className="text-slate-300">|</span> {new Date(user.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.serviceCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                                    {user.serviceCount} / {user.max_services || 5} Services
-                                                </span>
+                                                {editingCode === user.code ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input 
+                                                            type="number"
+                                                            value={editMaxServices}
+                                                            onChange={e => setEditMaxServices(e.target.value)}
+                                                            min="1"
+                                                            className="w-16 bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 text-slate-900 text-center"
+                                                        />
+                                                        <span className="text-xs text-slate-400">Max</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.serviceCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                                        {user.serviceCount} / {user.max_services || 5} Services
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs border font-medium ${
