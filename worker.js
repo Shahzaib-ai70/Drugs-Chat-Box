@@ -398,7 +398,7 @@ const handleGetChatHistory = async (data) => {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: limit || 50 });
             
-            // Revert to FAST simple mapping - NO auto-download
+            // 1. FAST EMIT (Immediate UI response with placeholders)
             const mapped = messages.map(msg => ({
                 id: msg.id._serialized,
                 chatId: chatId,
@@ -408,12 +408,38 @@ const handleGetChatHistory = async (data) => {
                 timestamp: msg.timestamp,
                 type: msg.type,
                 hasMedia: msg.hasMedia,
-                media: null, // Don't download, keep it fast
+                media: null, 
                 quotedMsg: null,
                 ack: msg.ack
             }));
 
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
+
+            // 2. BACKGROUND DOWNLOAD (Lazy Load Media)
+            // Process recent media messages in background to update UI one by one
+            const recentMessages = messages.slice(-20).reverse(); // Newest first
+            
+            (async () => {
+                for (const msg of recentMessages) {
+                    if (msg.hasMedia && (msg.type === 'image' || msg.type === 'video')) {
+                        try {
+                            const downloaded = await msg.downloadMedia();
+                            if (downloaded) {
+                                io.to(SERVICE_ID).emit('media_loaded', {
+                                    msgId: msg.id._serialized,
+                                    chatId,
+                                    media: { mimetype: downloaded.mimetype, data: downloaded.data, filename: downloaded.filename }
+                                });
+                            }
+                        } catch (e) {
+                            // log(`Background download failed: ${e}`);
+                        }
+                        // Small delay to prevent CPU spike
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+                }
+            })();
+
         } catch (e) {
             log(`History Error: ${e}`);
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: [] });
@@ -422,7 +448,7 @@ const handleGetChatHistory = async (data) => {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
              
-             // Revert to FAST simple mapping - NO auto-download
+             // 1. FAST EMIT
              const mapped = messages.map(msg => ({
                 id: msg.id.toString(),
                 chatId: chatId,
@@ -432,12 +458,46 @@ const handleGetChatHistory = async (data) => {
                 timestamp: msg.date,
                 type: 'chat',
                 hasMedia: !!msg.media,
-                media: null, // Don't download, keep it fast
+                media: null,
                 quotedMsg: null,
                 ack: 1
              }));
 
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
+
+             // 2. BACKGROUND DOWNLOAD
+             const recentMessages = messages.slice(0, 20); // Telegram returns newest first by default usually? GramJS getMessages usually returns newest first.
+             
+             (async () => {
+                 for (const msg of recentMessages) {
+                    if (msg.media && (msg.media.photo || msg.media.document)) {
+                         try {
+                             let shouldDownload = true;
+                             if (msg.media.document && msg.media.document.size > 5 * 1024 * 1024) shouldDownload = false;
+                             
+                             if (shouldDownload) {
+                                 const buffer = await sessionState.client.downloadMedia(msg, {});
+                                 if (buffer) {
+                                     const base64 = buffer.toString('base64');
+                                     let mimetype = 'application/octet-stream';
+                                     if (msg.media.photo) mimetype = 'image/jpeg';
+                                     else if (msg.media.document) mimetype = msg.media.document.mimeType || 'application/octet-stream';
+                                     
+                                     if (mimetype.startsWith('image') || mimetype.startsWith('video')) {
+                                         io.to(SERVICE_ID).emit('media_loaded', {
+                                            msgId: msg.id.toString(),
+                                            chatId,
+                                            media: { mimetype, data: base64, filename: 'media' }
+                                         });
+                                     }
+                                 }
+                             }
+                         } catch (e) {}
+                         await new Promise(r => setTimeout(r, 50));
+                    }
+                 }
+             })();
+
         } catch (e) {
              log(`TG History Error: ${e}`);
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: [] });
