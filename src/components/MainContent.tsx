@@ -170,34 +170,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  // Handle ESC key to close active chat and overlays
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        // Priority 1: Close Lightbox/Preview/Modals
-        if (previewImage) { setPreviewImage(null); return; }
-        if (lightboxImage) { setLightboxImage(null); return; }
-        if (deleteModal.show) { setDeleteModal({ show: false, msg: null }); return; }
-        if (contextMenu) { setContextMenu(null); return; }
-        if (msgContextMenu) { setMsgContextMenu(null); return; }
-        if (inputContextMenu) { setInputContextMenu(null); return; }
-        if (showEmojiPicker) { setShowEmojiPicker(false); return; }
-        
-        // Priority 2: Close Contact Info
-        if (showContactInfo) { setShowContactInfo(false); return; }
-        
-        // Priority 3: Close Active Chat
-        if (activeChatId) {
-            setActiveChatId(null);
-            setMobileView('list');
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewImage, lightboxImage, deleteModal.show, contextMenu, msgContextMenu, inputContextMenu, showEmojiPicker, showContactInfo, activeChatId]);
-
   const handleMsgContextMenu = (e: React.MouseEvent, msg: any) => {
     e.preventDefault();
     setMsgContextMenu({ x: e.clientX, y: e.clientY, msg });
@@ -344,6 +316,34 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
       return null;
     }
   };
+
+  // Handle ESC key to close active chat and overlays
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Priority 1: Close Lightbox/Preview/Modals
+        if (previewImage) { setPreviewImage(null); return; }
+        if (lightboxImage) { setLightboxImage(null); return; }
+        if (deleteModal.show) { setDeleteModal({ show: false, msg: null }); return; }
+        if (contextMenu) { setContextMenu(null); return; }
+        if (msgContextMenu) { setMsgContextMenu(null); return; }
+        if (inputContextMenu) { setInputContextMenu(null); return; }
+        if (showEmojiPicker) { setShowEmojiPicker(false); return; }
+        
+        // Priority 2: Close Contact Info
+        if (showContactInfo) { setShowContactInfo(false); return; }
+        
+        // Priority 3: Close Active Chat
+        if (activeChatId) {
+            setActiveChatId(null);
+            setMobileView('list');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage, lightboxImage, deleteModal.show, contextMenu, msgContextMenu, inputContextMenu, showEmojiPicker, showContactInfo, activeChatId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
