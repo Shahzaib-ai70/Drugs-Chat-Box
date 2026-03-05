@@ -5,7 +5,7 @@ module.exports = {
     env: {
       NODE_ENV: "production",
       PORT: 3005,
-      DATABASE_DIR: "/var/www/dlchats-app"
+      DATABASE_DIR: "/var/lib/dlchats-app-data"
     },
     watch: false,
     max_memory_restart: '1G',
