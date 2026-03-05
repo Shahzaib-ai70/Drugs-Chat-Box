@@ -104,22 +104,35 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
                   // Convert sheet to JSON array of arrays (rows)
                   const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
                   
-                  // Group scripts by "Category" (Column A) -> "Script" (Column B)
-                  // Assuming Column A is the "Phrase/Category" and Column B is the "Script Content"
+                  // Group scripts by "Category" (Column A or Column B) -> "Script" (Column C)
                   const categoryMap = new Map<string, Script[]>();
                   
                   data.forEach(row => {
-                      // Row[0] = Category/Phrase (e.g. "Morning Greetings"), Row[1] = Content
-                      const category = (row[0] && typeof row[0] === 'string') ? row[0].trim() : 'General';
-                      const content = (row[1] && typeof row[1] === 'string') ? row[1].trim() : '';
+                      // Logic:
+                      // 1. Content is ALWAYS in Column C (Index 2)
+                      // 2. Category is in Column B (Index 1) if present
+                      // 3. If Column B is empty, Category is in Column A (Index 0)
+                      
+                      const colA = (row[0] && typeof row[0] === 'string') ? row[0].trim() : '';
+                      const colB = (row[1] && typeof row[1] === 'string') ? row[1].trim() : '';
+                      const colC = (row[2] && typeof row[2] === 'string') ? row[2].trim() : '';
 
-                      if (content) {
+                      // Determine Category
+                      let category = 'General';
+                      if (colB) {
+                          category = colB;
+                      } else if (colA) {
+                          category = colA;
+                      }
+
+                      // Only add if there is content in Column C
+                      if (colC) {
                           if (!categoryMap.has(category)) {
                               categoryMap.set(category, []);
                           }
                           categoryMap.get(category)?.push({
                               id: Math.random().toString(36).substr(2, 9),
-                              content: content,
+                              content: colC,
                               createdAt: Date.now()
                           });
                       }
