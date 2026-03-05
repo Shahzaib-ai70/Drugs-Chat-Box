@@ -189,48 +189,77 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
         {folders.length > 0 && (
             <div className="space-y-2">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Imported Scripts</h4>
-                {folders.map(folder => (
-                    <div key={folder.id} className="border border-gray-100 rounded-xl bg-white overflow-hidden shadow-sm">
+                <div className="grid grid-cols-2 gap-2">
+                    {folders.map(folder => (
                         <button 
+                            key={folder.id}
                             onClick={() => toggleFolder(folder.id)}
-                            className="w-full flex items-center justify-between p-3 bg-gray-50/50 hover:bg-gray-100 transition-colors text-left"
+                            className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden group ${
+                                folder.isOpen 
+                                ? 'bg-amber-50 border-amber-200 shadow-sm' 
+                                : 'bg-white border-gray-100 hover:border-amber-200 hover:shadow-sm'
+                            }`}
                         >
-                            <div className="flex items-center gap-2 font-medium text-gray-700 text-sm">
-                                <Folder size={16} className="text-amber-500" />
-                                {folder.name}
-                                <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded-full text-gray-600">{folder.scripts.length}</span>
+                            <div className="flex flex-col gap-1 relative z-10">
+                                <span className={`text-xs font-bold ${folder.isOpen ? 'text-amber-700' : 'text-gray-700'}`}>
+                                    {folder.name}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                    {folder.scripts.length} lines
+                                </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-                                    className="p-1 text-gray-300 hover:text-red-500 transition-colors"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                                {folder.isOpen ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
-                            </div>
+                            
+                            {/* Decorative background icon */}
+                            <Folder 
+                                className={`absolute -bottom-2 -right-2 w-12 h-12 transition-colors opacity-10 ${
+                                    folder.isOpen ? 'text-amber-500' : 'text-gray-400 group-hover:text-amber-500'
+                                }`} 
+                            />
+                            
+                            {folder.isOpen && (
+                                <div className="absolute top-2 right-2">
+                                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                                </div>
+                            )}
                         </button>
-                        
-                        {folder.isOpen && (
-                            <div className="p-2 space-y-2 bg-white">
-                                {folder.scripts.map(script => (
-                                    <div key={script.id} className="group flex items-start justify-between gap-2 p-2 rounded-lg hover:bg-amber-50 transition-colors text-sm border border-transparent hover:border-amber-100">
-                                        <p className="text-gray-700 leading-snug flex-1 cursor-pointer" onClick={() => handleCopy(script.content, script.id)}>{script.content}</p>
-                                        <button 
-                                            onClick={() => handleCopy(script.content, script.id)}
-                                            className={`shrink-0 p-1.5 rounded-md transition-all ${
-                                                copiedId === script.id 
-                                                ? 'bg-green-100 text-green-600' 
-                                                : 'text-gray-300 hover:text-amber-600 hover:bg-white'
-                                            }`}
-                                        >
-                                            {copiedId === script.id ? <Check size={14} /> : <Copy size={14} />}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    ))}
+                </div>
+
+                {/* Expanded Folder Content */}
+                {folders.map(folder => (
+                    folder.isOpen && (
+                        <div key={`content-${folder.id}`} className="mt-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                             <div className="flex items-center justify-between px-1 mb-2">
+                                <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
+                                    <Folder size={12} />
+                                    {folder.name}
+                                </span>
+                                <button 
+                                    onClick={() => handleDeleteFolder(folder.id)}
+                                    className="text-[10px] text-red-400 hover:text-red-600 flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded"
+                                >
+                                    <Trash2 size={10} />
+                                    Delete Folder
+                                </button>
+                             </div>
+                             
+                            {folder.scripts.map(script => (
+                                <div key={script.id} className="group flex items-start justify-between gap-2 p-3 bg-white border border-gray-100 rounded-xl hover:border-amber-200 hover:shadow-sm transition-all text-sm">
+                                    <p className="text-gray-700 leading-snug flex-1 cursor-pointer" onClick={() => handleCopy(script.content, script.id)}>{script.content}</p>
+                                    <button 
+                                        onClick={() => handleCopy(script.content, script.id)}
+                                        className={`shrink-0 p-1.5 rounded-md transition-all ${
+                                            copiedId === script.id 
+                                            ? 'bg-green-100 text-green-600' 
+                                            : 'text-gray-300 hover:text-amber-600 hover:bg-amber-50'
+                                        }`}
+                                    >
+                                        {copiedId === script.id ? <Check size={14} /> : <Copy size={14} />}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )
                 ))}
             </div>
         )}
