@@ -124,14 +124,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
         }
   };
 
-  // Load custom names on init
-    useEffect(() => {
-        const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
-        if (Object.keys(savedNames).length > 0 && chats.length > 0) {
-            setChats(prev => prev.map(c => savedNames[c.id] ? { ...c, name: savedNames[c.id] } : c));
-        }
-    }, [chats.length]); // Run when chats are loaded
-
     const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
   const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
@@ -648,7 +640,14 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
       setIsLoadingChats(true);
     });
     socket.on('wa_chats', (list) => {
-      setChats(Array.isArray(list) ? sortChats(list) : []);
+      // Merge with local custom names immediately to prevent flickering/overwriting
+      const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
+      const mergedList = Array.isArray(list) ? list.map((c: any) => ({
+          ...c,
+          name: savedNames[c.id] || c.name
+      })) : [];
+
+      setChats(sortChats(mergedList));
       setIsLoadingChats(false);
       setLoadingStatus(null);
       // If we receive chats, we are definitely connected
@@ -673,10 +672,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     });
     
     socket.on('wa_chat_update', (update) => {
+        const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
         setChats(prev => {
             const updated = prev.map(c => {
                 if (c.id === update.id) {
-                    return { ...c, ...update };
+                    // Preserve custom name if it exists
+                    const effectiveName = savedNames[c.id] || update.name || c.name;
+                    return { ...c, ...update, name: effectiveName };
                 }
                 return c;
             });
