@@ -221,9 +221,23 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
                             }`}
                         >
                             <div className="flex flex-col gap-1 relative z-10">
-                                <span className={`text-xs font-bold ${folder.isOpen ? 'text-amber-700' : 'text-gray-700'}`}>
-                                    {folder.name}
-                                </span>
+                                <div className="flex justify-between items-start">
+                                    <span className={`text-xs font-bold ${folder.isOpen ? 'text-amber-700' : 'text-gray-700'} line-clamp-1`}>
+                                        {folder.name}
+                                    </span>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFolder(folder.id);
+                                        }}
+                                        className={`p-1 -mr-1 -mt-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${
+                                            folder.isOpen ? 'text-amber-400 hover:bg-amber-100' : 'text-gray-300 hover:bg-gray-100 hover:text-red-500'
+                                        }`}
+                                        title="Delete Folder"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
                                 <span className="text-[10px] text-gray-400">
                                     {folder.scripts.length} lines
                                 </span>
@@ -254,13 +268,6 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
                                     <Folder size={12} />
                                     {folder.name}
                                 </span>
-                                <button 
-                                    onClick={() => handleDeleteFolder(folder.id)}
-                                    className="text-[10px] text-red-400 hover:text-red-600 flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded"
-                                >
-                                    <Trash2 size={10} />
-                                    Delete Folder
-                                </button>
                              </div>
                              
                             {folder.scripts.map(script => (
