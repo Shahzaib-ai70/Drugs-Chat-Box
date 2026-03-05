@@ -96,6 +96,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     // Handle fetching media when sidebar opens
     useEffect(() => {
         if (showContactInfo && activeChatId && socketRef.current && activeService) {
+             console.log('Fetching media history for:', activeChatId);
              socketRef.current.emit('command', {
                  serviceId: activeService.id,
                  command: 'get_chat_media',

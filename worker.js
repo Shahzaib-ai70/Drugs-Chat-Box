@@ -149,10 +149,14 @@ const handleGetChatMedia = async (data) => {
         try {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: 100 });
-            // Filter for media, reverse to get newest first, take last 50
-            const mediaMsgs = messages.filter(m => m.hasMedia).reverse().slice(0, 50);
             
-            log(`Found ${mediaMsgs.length} media messages for ${chatId}`);
+            // Filter for IMAGES and VIDEOS only
+            // WhatsApp types: 'image', 'video'
+            const mediaMsgs = messages.filter(m => 
+                m.hasMedia && (m.type === 'image' || m.type === 'video')
+            ).reverse().slice(0, 50);
+            
+            log(`Found ${mediaMsgs.length} image/video messages for ${chatId}`);
 
             const mediaList = [];
             for (const msg of mediaMsgs) {
