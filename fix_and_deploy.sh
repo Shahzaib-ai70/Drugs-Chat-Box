@@ -90,6 +90,12 @@ echo ""
 echo "[3] Building and Starting App (Deep Clean)..."
 cd $APP_DIR || exit 1
 
+# Backup Database if exists
+if [ -f database.db ]; then
+    echo " -> Backing up database.db..."
+    cp database.db database.db.backup_$(date +%s)
+fi
+
 echo " -> Pulling latest changes (force reset to origin/main)..."
 git fetch origin main
 git reset --hard origin/main

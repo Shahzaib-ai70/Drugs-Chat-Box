@@ -4,8 +4,8 @@ module.exports = {
     script: "./server.js",
     env: {
       NODE_ENV: "production",
-      PORT: 3005,
-      DATABASE_DIR: "/var/lib/dlchats-app-data"
+      PORT: 3005
+      // DATABASE_DIR: "/var/lib/dlchats-app-data" // Commented out to use local database.db
     },
     watch: false,
     max_memory_restart: '1G',
