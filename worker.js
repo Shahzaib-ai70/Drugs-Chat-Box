@@ -149,8 +149,10 @@ const handleGetChatMedia = async (data) => {
         try {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: 100 });
-            // Filter for media, reverse to get newest first, take last 20
-            const mediaMsgs = messages.filter(m => m.hasMedia).reverse().slice(0, 20);
+            // Filter for media, reverse to get newest first, take last 50
+            const mediaMsgs = messages.filter(m => m.hasMedia).reverse().slice(0, 50);
+            
+            log(`Found ${mediaMsgs.length} media messages for ${chatId}`);
 
             const mediaList = [];
             for (const msg of mediaMsgs) {
@@ -166,6 +168,8 @@ const handleGetChatMedia = async (data) => {
                     }
                 } catch (e) { log(`Error downloading media for msg ${msg.id._serialized}: ${e}`); }
             }
+            
+            log(`Successfully downloaded ${mediaList.length} media items for ${chatId}`);
 
             io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
         } catch (e) {
@@ -176,7 +180,9 @@ const handleGetChatMedia = async (data) => {
         try {
             // Fetch last 100 messages and filter for media
             const messages = await sessionState.client.getMessages(chatId, { limit: 100 });
-            const mediaMsgs = messages.filter(m => m.media && (m.media.photo || m.media.document)).slice(0, 20);
+            const mediaMsgs = messages.filter(m => m.media && (m.media.photo || m.media.document)).slice(0, 50);
+
+            log(`Found ${mediaMsgs.length} media messages for ${chatId} (Telegram)`);
 
             const mediaList = [];
             for (const msg of mediaMsgs) {
@@ -199,6 +205,9 @@ const handleGetChatMedia = async (data) => {
                      }
                 } catch (e) { log(`TG Media Download Error: ${e}`); }
             }
+            
+             log(`Successfully downloaded ${mediaList.length} media items for ${chatId} (Telegram)`);
+
              io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
         } catch (e) {
              log(`TG Media Fetch Error: ${e}`);

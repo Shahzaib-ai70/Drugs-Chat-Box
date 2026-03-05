@@ -79,6 +79,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
   const [currentChatMedia, setCurrentChatMedia] = useState<any[]>([]);
 
     useEffect(() => {
+        setCurrentChatMedia([]); // Clear media when switching chats
         if (!socketRef.current) return;
 
         socketRef.current.on('chat_media_history', (data: { chatId: string, media: any[] }) => {
@@ -1644,6 +1645,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                         <div className="text-[10px] text-blue-600 text-center mt-1 animate-pulse">{t.translated}...</div>
                     )}
                 </div>
+                </div>
                 {showContactInfo && activeChatId && (
                     <ChatInfoSidebar 
                         chat={chats.find(c => c.id === activeChatId)}
@@ -1654,7 +1656,6 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                         isWhatsApp={isWhatsApp}
                     />
                 )}
-                </div>
                 </div>
                 </>
             ) : (
