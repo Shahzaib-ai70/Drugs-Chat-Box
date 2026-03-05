@@ -268,6 +268,13 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
                                     <Folder size={12} />
                                     {folder.name}
                                 </span>
+                                <button 
+                                    onClick={() => handleDeleteFolder(folder.id)}
+                                    className="text-[10px] text-red-400 hover:text-red-600 flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                >
+                                    <Trash2 size={10} />
+                                    Delete Folder
+                                </button>
                              </div>
                              
                             {folder.scripts.map(script => (
