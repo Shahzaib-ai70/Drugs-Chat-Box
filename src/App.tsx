@@ -11,18 +11,44 @@ import AdminPanel from './components/AdminPanel';
 import type { ServiceItem, AddedService } from './types';
 import { AVAILABLE_SERVICES } from './constants/services';
 import './App.css';
+import { io } from 'socket.io-client';
+
+function getCookie(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+  return null;
+}
+
+function setCookie(name: string, value: string, days = 30) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
+}
 
 function App() {
   // Auth State
   const [invitationCode, setInvitationCode] = useState<string | null>(() => {
-    // Migration: Move local storage to session storage to enforce fresh login on new tabs
-    const local = localStorage.getItem('invitation_code');
-    if (local) {
-      sessionStorage.setItem('invitation_code', local);
-      localStorage.removeItem('invitation_code');
-      return local;
+    // Read from sessionStorage (same-tab), cookie (cross-port), or legacy localStorage
+    const sess = sessionStorage.getItem('invitation_code');
+    if (sess) return sess;
+    const cookie = getCookie('invitation_code');
+    if (cookie) {
+      sessionStorage.setItem('invitation_code', cookie);
+      return cookie;
     }
-    return sessionStorage.getItem('invitation_code');
+    const legacy = localStorage.getItem('invitation_code');
+    if (legacy) {
+      sessionStorage.setItem('invitation_code', legacy);
+      localStorage.removeItem('invitation_code');
+      setCookie('invitation_code', legacy);
+      return legacy;
+    }
+    return null;
   });
   const [isAdmin, setIsAdmin] = useState<boolean>(!!localStorage.getItem('admin_token'));
   
@@ -116,8 +142,23 @@ function App() {
 
     // Use owner_code to match backend expectation
     fetch(`/api/services?owner_code=${invitationCode}`)
-      .then(res => res.json())
+      .then(async res => {
+        if (res.status === 401) {
+          // Code was revoked; logout immediately
+          try {
+            sessionStorage.removeItem('invitation_code');
+            deleteCookie('invitation_code');
+          } catch (_) {}
+          setInvitationCode(null);
+          setAddedServices([]);
+          setActiveServiceId(null);
+          alert('Access revoked by admin. Please contact customer service.');
+          return null;
+        }
+        return res.json();
+      })
       .then(data => {
+        if (!data) return;
         if (!Array.isArray(data)) return;  
         const mappedServices = data.map((item: any) => {
           const serviceDef = AVAILABLE_SERVICES.find(s => s.id === item.service_id);
@@ -141,6 +182,58 @@ function App() {
       .catch(console.error);
   }, [invitationCode]);
 
+  // Listen for admin revocation and logout immediately
+  useEffect(() => {
+    if (!invitationCode) return;
+    const socket = io({ transports: ['websocket'] });
+    const onRevoked = (payload: any) => {
+      const code = payload?.code;
+      if (code && code === invitationCode) {
+        try {
+          sessionStorage.removeItem('invitation_code');
+          deleteCookie('invitation_code');
+        } catch (_) {}
+        setInvitationCode(null);
+        setAddedServices([]);
+        setActiveServiceId(null);
+        alert('Access revoked by admin. Please contact customer service.');
+      }
+    };
+    socket.on('code_revoked', onRevoked);
+    return () => {
+      try { socket.off('code_revoked', onRevoked); socket.close(); } catch (_) {}
+    };
+  }, [invitationCode]);
+
+  // Fallback: periodic server verification in case socket is blocked by network/proxy
+  useEffect(() => {
+    if (!invitationCode) return;
+    let cancelled = false;
+    const verify = async () => {
+      try {
+        const res = await fetch('/api/verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: invitationCode })
+        });
+        const data = await res.json();
+        if (!cancelled && (!data || data.valid === false)) {
+          try {
+            sessionStorage.removeItem('invitation_code');
+            deleteCookie('invitation_code');
+          } catch (_) {}
+          setInvitationCode(null);
+          setAddedServices([]);
+          setActiveServiceId(null);
+          alert('Access revoked by admin. Please contact customer service.');
+        }
+      } catch (_) {}
+    };
+    const id = setInterval(verify, 5000);
+    verify();
+    return () => { cancelled = true; clearInterval(id); };
+  }, [invitationCode]);
+
   const handleAddService = async (service: ServiceItem, name: string, quantity: number) => {
     if (!invitationCode) return;
 
@@ -156,7 +249,6 @@ function App() {
                 })
             });
             const data = await res.json();
-            
             if (data.success && data.service) {
                 const newService: AddedService = {
                     id: data.service.id,
@@ -221,6 +313,7 @@ function App() {
   // Auth Handlers
   const handleInvitationLogin = (code: string) => {
     sessionStorage.setItem('invitation_code', code);
+    setCookie('invitation_code', code);
     setInvitationCode(code);
   };
 
@@ -241,6 +334,7 @@ function App() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('invitation_code');
+    deleteCookie('invitation_code');
     setInvitationCode(null);
     setAddedServices([]);
     setActiveServiceId(null);

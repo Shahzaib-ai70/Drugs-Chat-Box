@@ -61,6 +61,7 @@ npm run build
 # 5. Restart Application
 echo "[5/6] Restarting PM2 process..."
 pm2 delete dlchats-app 2>/dev/null
+sudo mkdir -p /var/lib/dlchats-app
 pm2 start ecosystem.config.cjs
 pm2 save
 

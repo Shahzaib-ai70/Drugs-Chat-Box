@@ -8,6 +8,7 @@ echo "==================================================="
 APP_DIR="/var/www/dlchats-app"
 DOMAIN="app.dlchats.site drugs.dlchats.site"
 PORT=3005
+DATA_DIR="/var/lib/dlchats-app"
 
 # 0.5. AUTOMATIC SWAP FILE CREATION (Prevent OOM)
 echo ""
@@ -113,12 +114,16 @@ if [ ! -d "dist" ] || [ -z "$(ls -A dist)" ]; then
     exit 1
 fi
 
+echo " -> Ensuring persistent data directory at $DATA_DIR..."
+sudo mkdir -p "$DATA_DIR"
+sudo chown -R $(whoami):$(whoami) "$DATA_DIR"
+
 echo " -> Starting server with PM2..."
 # Kill any existing node processes that might be lingering
 killall -9 node 2>/dev/null
 # Start the server (Gateway Architecture)
 # We allocate generous RAM for the Master Process
-PORT=$PORT pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=2048"
+PORT=$PORT DATABASE_DIR="$DATA_DIR" pm2 start server.js --name dlchats-app --update-env --node-args="--max-old-space-size=2048"
 
 # 4. Final check for conflicts (Redundant but safe)
 echo ""

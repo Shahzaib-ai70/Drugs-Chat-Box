@@ -43,7 +43,10 @@ process.on('unhandledRejection', (reason, promise) => {
 // Database Setup
 let db;
 try {
-  db = new Database('database.db', { verbose: log });
+  const dbDir = process.env.DATABASE_DIR ? path.resolve(process.env.DATABASE_DIR) : null;
+  if (dbDir && !fs.existsSync(dbDir)) { try { fs.mkdirSync(dbDir, { recursive: true }); } catch(_) {} }
+  const dbPath = process.env.DATABASE_PATH ? path.resolve(process.env.DATABASE_PATH) : (dbDir ? path.join(dbDir, 'database.db') : 'database.db');
+  db = new Database(dbPath, { verbose: log });
   db.pragma('journal_mode = WAL');
 
   // Initialize Tables
@@ -204,6 +207,16 @@ app.get('/api/services', (req, res) => {
         return res.json([]); // Return empty if no code provided
     }
 
+    // Validate code is present and active; if not, signal client to logout
+    try {
+        const found = db.prepare("SELECT code FROM invitation_codes WHERE code = ? AND (status IS NULL OR status = 'active')").get(ownerCode);
+        if (!found) {
+            return res.status(401).json({ error: 'code_revoked' });
+        }
+    } catch (_) {
+        // If validation fails unexpectedly, fall through to avoid blocking, but log nothing to keep behavior safe
+    }
+
     const list = db.prepare('SELECT * FROM user_services WHERE owner_code = ?').all(ownerCode);
     
     res.json(list.map(s => ({
@@ -327,18 +340,13 @@ app.post('/api/admin/generate-code', (req, res) => {
     }
 
     try {
-        // Explicitly set status to active
         db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, status) VALUES (?, ?, ?, ?)').run(code, Date.now(), ownerName, 'active');
         res.json({ success: true, code });
     } catch (e) {
         console.error('Error generating code:', e);
-        // If column status missing, try without it (fallback for old DBs if migration failed)
-        try {
-             db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName);
-             res.json({ success: true, code });
-        } catch (retryError) {
-             res.status(500).json({ success: false, error: 'Database error' });
-        }
+        try { db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName); return res.json({ success: true, code }); } catch(_) {}
+        try { db.prepare('INSERT INTO invitation_codes (code, created_at) VALUES (?, ?)').run(code, Date.now()); return res.json({ success: true, code }); } catch(_) {}
+        res.status(500).json({ success: false, error: 'Database error' });
     }
 });
 
@@ -346,6 +354,9 @@ app.delete('/api/admin/code/:code', (req, res) => {
     const { code } = req.params;
     try {
         db.prepare('DELETE FROM invitation_codes WHERE code = ?').run(code);
+        try {
+            io.emit('code_revoked', { code });
+        } catch (_) {}
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -356,7 +367,9 @@ app.put('/api/admin/code/:code', (req, res) => {
     const { code } = req.params;
     const { ownerName } = req.body;
     try {
-        db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
+        if (ownerName !== undefined && ownerName !== null) {
+            db.prepare('UPDATE invitation_codes SET owner_name = ? WHERE code = ?').run(ownerName, code);
+        }
         res.json({ success: true });
     } catch (e) {
          res.status(500).json({ success: false, error: e.message });
