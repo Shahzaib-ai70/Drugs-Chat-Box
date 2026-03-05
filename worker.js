@@ -398,19 +398,41 @@ const handleGetChatHistory = async (data) => {
             const chat = await sessionState.client.getChatById(chatId);
             const messages = await chat.fetchMessages({ limit: limit || 50 });
             
-            // Reverted to simple map without quotedMsg fetching
-            const mapped = messages.map(msg => ({
-                id: msg.id._serialized,
-                chatId: chatId,
-                author: msg.author || msg.from,
-                fromMe: msg.fromMe,
-                body: msg.body,
-                timestamp: msg.timestamp,
-                type: msg.type,
-                hasMedia: msg.hasMedia,
-                media: null, 
-                quotedMsg: null, // Disabled
-                ack: msg.ack
+            // Auto-download media for the last 20 messages to keep them "open"
+            // We prioritize recent messages for performance
+            const recentMessages = messages.slice(-20); 
+            
+            const mapped = await Promise.all(messages.map(async (msg) => {
+                let media = null;
+                // Only attempt download for recent messages that are images/videos to save bandwidth/time
+                if (msg.hasMedia && recentMessages.includes(msg) && (msg.type === 'image' || msg.type === 'video')) {
+                    try {
+                        const downloaded = await msg.downloadMedia();
+                        if (downloaded) {
+                            media = { 
+                                mimetype: downloaded.mimetype, 
+                                data: downloaded.data, 
+                                filename: downloaded.filename 
+                            };
+                        }
+                    } catch (e) {
+                        // log(`Auto-download failed for history msg ${msg.id._serialized}: ${e}`);
+                    }
+                }
+
+                return {
+                    id: msg.id._serialized,
+                    chatId: chatId,
+                    author: msg.author || msg.from,
+                    fromMe: msg.fromMe,
+                    body: msg.body,
+                    timestamp: msg.timestamp,
+                    type: msg.type,
+                    hasMedia: msg.hasMedia,
+                    media: media, 
+                    quotedMsg: null, // Disabled
+                    ack: msg.ack
+                };
             }));
 
             io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
@@ -421,20 +443,47 @@ const handleGetChatHistory = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
              const messages = await sessionState.client.getMessages(chatId, { limit: limit || 50 });
-             // Reverted to simple map without quotedMsg fetching
-             const mapped = messages.map(msg => ({
-                id: msg.id.toString(),
-                chatId: chatId,
-                author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
-                fromMe: msg.out,
-                body: msg.text || '',
-                timestamp: msg.date,
-                type: 'chat',
-                hasMedia: !!msg.media,
-                media: null,
-                quotedMsg: null, // Disabled
-                ack: 1
+             
+             // Auto-download for Telegram as well
+             const mapped = await Promise.all(messages.map(async (msg) => {
+                let media = null;
+                if (msg.media && (msg.media.photo || msg.media.document)) {
+                     try {
+                         // Simple check to avoid downloading huge files in history
+                         let shouldDownload = true;
+                         if (msg.media.document && msg.media.document.size > 5 * 1024 * 1024) shouldDownload = false; // Skip > 5MB
+                         
+                         if (shouldDownload) {
+                             const buffer = await sessionState.client.downloadMedia(msg, {});
+                             if (buffer) {
+                                 const base64 = buffer.toString('base64');
+                                 let mimetype = 'application/octet-stream';
+                                 if (msg.media.photo) mimetype = 'image/jpeg';
+                                 else if (msg.media.document) mimetype = msg.media.document.mimeType || 'application/octet-stream';
+                                 
+                                 if (mimetype.startsWith('image') || mimetype.startsWith('video')) {
+                                     media = { mimetype, data: base64, filename: 'media' };
+                                 }
+                             }
+                         }
+                     } catch (e) {}
+                }
+
+                return {
+                    id: msg.id.toString(),
+                    chatId: chatId,
+                    author: msg.sender ? (msg.sender.username || msg.sender.firstName) : 'Unknown',
+                    fromMe: msg.out,
+                    body: msg.text || '',
+                    timestamp: msg.date,
+                    type: 'chat',
+                    hasMedia: !!msg.media,
+                    media: media,
+                    quotedMsg: null, // Disabled
+                    ack: 1
+                };
              }));
+
              io.to(SERVICE_ID).emit('wa_chat_history', { chatId, messages: mapped });
         } catch (e) {
              log(`TG History Error: ${e}`);
