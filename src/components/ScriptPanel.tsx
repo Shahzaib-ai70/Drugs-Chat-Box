@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 
 interface ScriptPanelProps {
   onClose: () => void;
+  userCode: string;
 }
 
 interface Script {
@@ -19,11 +20,14 @@ interface Folder {
     isOpen: boolean;
 }
 
-const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
+const ScriptPanel = ({ onClose, userCode }: ScriptPanelProps) => {
+  const storageKeyImported = `imported_scripts_${userCode}`;
+  const storageKeyManual = `saved_scripts_${userCode}`;
+
   // Main state for folders (imported from Excel)
   const [folders, setFolders] = useState<Folder[]>(() => {
     try {
-        const saved = localStorage.getItem('imported_scripts');
+        const saved = localStorage.getItem(storageKeyImported);
         return saved ? JSON.parse(saved) : [];
     } catch (e) {
         return [];
@@ -33,7 +37,7 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
   // Legacy state for manually added scripts (kept for backward compatibility)
   const [manualScripts, setManualScripts] = useState<Script[]>(() => {
     try {
-      const saved = localStorage.getItem('saved_scripts');
+      const saved = localStorage.getItem(storageKeyManual);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -46,12 +50,12 @@ const ScriptPanel = ({ onClose }: ScriptPanelProps) => {
   const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('saved_scripts', JSON.stringify(manualScripts));
-  }, [manualScripts]);
+    localStorage.setItem(storageKeyManual, JSON.stringify(manualScripts));
+  }, [manualScripts, storageKeyManual]);
 
   useEffect(() => {
-    localStorage.setItem('imported_scripts', JSON.stringify(folders));
-  }, [folders]);
+    localStorage.setItem(storageKeyImported, JSON.stringify(folders));
+  }, [folders, storageKeyImported]);
 
   const handleAddManualScript = () => {
     if (!newScript.trim()) return;

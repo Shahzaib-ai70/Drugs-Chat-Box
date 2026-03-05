@@ -444,7 +444,7 @@ function App() {
           />
         )}
         {isScriptPanelOpen && (
-            <ScriptPanel onClose={() => setIsScriptPanelOpen(false)} />
+            <ScriptPanel onClose={() => setIsScriptPanelOpen(false)} userCode={invitationCode || 'guest'} />
         )}
         {isAiPanelOpen && (
             <AiAssistantPanel onClose={() => setIsAiPanelOpen(false)} />
