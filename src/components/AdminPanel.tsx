@@ -40,6 +40,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         }
     };
 
+    // Force update trigger
     useEffect(() => {
         fetchUsers();
     }, []);
