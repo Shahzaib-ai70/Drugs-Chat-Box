@@ -6,6 +6,7 @@ import MainContent from './components/MainContent';
 import AddServiceModal from './components/AddServiceModal';
 import TranslationPanel, { type TranslationSettings } from './components/TranslationPanel';
 import ScriptPanel from './components/ScriptPanel';
+import AiAssistantPanel from './components/AiAssistantPanel';
 import InvitationLogin from './components/InvitationLogin';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
@@ -63,6 +64,7 @@ function App() {
   // Translation State
   const [isTranslationPanelOpen, setIsTranslationPanelOpen] = useState(false);
   const [isScriptPanelOpen, setIsScriptPanelOpen] = useState(false);
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<'current' | 'global'>('global');
@@ -414,13 +416,21 @@ function App() {
               onLangClick={() => {
                   setIsTranslationPanelOpen(!isTranslationPanelOpen);
                   setIsScriptPanelOpen(false);
+                  setIsAiPanelOpen(false);
               }} 
               isLangActive={isTranslationPanelOpen}
               onScriptClick={() => {
                   setIsScriptPanelOpen(!isScriptPanelOpen);
                   setIsTranslationPanelOpen(false);
+                  setIsAiPanelOpen(false);
               }}
               isScriptActive={isScriptPanelOpen}
+              onAiClick={() => {
+                  setIsAiPanelOpen(!isAiPanelOpen);
+                  setIsTranslationPanelOpen(false);
+                  setIsScriptPanelOpen(false);
+              }}
+              isAiActive={isAiPanelOpen}
             />
         </div>
         {isTranslationPanelOpen && (
@@ -435,6 +445,9 @@ function App() {
         )}
         {isScriptPanelOpen && (
             <ScriptPanel onClose={() => setIsScriptPanelOpen(false)} />
+        )}
+        {isAiPanelOpen && (
+            <AiAssistantPanel onClose={() => setIsAiPanelOpen(false)} />
         )}
       </div>
       

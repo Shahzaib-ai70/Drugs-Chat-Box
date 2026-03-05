@@ -12,9 +12,11 @@ interface SidebarRightProps {
   isLangActive?: boolean;
   onScriptClick?: () => void;
   isScriptActive?: boolean;
+  onAiClick?: () => void;
+  isAiActive?: boolean;
 }
 
-const SidebarRight = ({ onLangClick, isLangActive, onScriptClick, isScriptActive }: SidebarRightProps) => {
+const SidebarRight = ({ onLangClick, isLangActive, onScriptClick, isScriptActive, onAiClick, isAiActive }: SidebarRightProps) => {
   return (
     <div className="w-16 bg-white/80 backdrop-blur-md border-l border-gray-200 flex flex-col items-center py-4 gap-4 shrink-0 z-30 shadow-xl">
       <SideTool icon={<MessageSquareQuote size={20} />} label="Reply" active={false} />
@@ -34,7 +36,14 @@ const SidebarRight = ({ onLangClick, isLangActive, onScriptClick, isScriptActive
       />
       
       <SideTool icon={<Bookmark size={20} />} label="Mark" active={false} />
-      <SideTool icon={<Type size={20} />} label="AI Asst" active={false} />
+      
+      <SideTool 
+        icon={<Type size={20} />} 
+        label="AI Asst" 
+        active={isAiActive} 
+        onClick={onAiClick}
+      />
+      
       <SideTool icon={<Server size={20} />} label="Proxy" active={false} />
     </div>
   );
