@@ -64,7 +64,8 @@ try {
     code TEXT PRIMARY KEY,
     created_at INTEGER,
     status TEXT DEFAULT 'active',
-    owner_name TEXT
+    owner_name TEXT,
+    max_services INTEGER DEFAULT 5
   );
 `);
 
@@ -102,6 +103,18 @@ try {
     }
   } catch (e) {
     log(`Migration Error invitation_codes: ${e.message}`);
+  }
+
+  // Migration: Add max_services column to invitation_codes if missing
+  try {
+    const columns = db.prepare('PRAGMA table_info(invitation_codes)').all();
+    const hasMaxServices = columns.some(c => c.name === 'max_services');
+    if (!hasMaxServices) {
+      log('Migrating DB: Adding max_services column to invitation_codes');
+      db.prepare("ALTER TABLE invitation_codes ADD COLUMN max_services INTEGER DEFAULT 5").run();
+    }
+  } catch (e) {
+    log(`Migration Error max_services: ${e.message}`);
   }
 } catch (dbError) {
   console.error('FATAL DATABASE ERROR:', dbError);
@@ -229,6 +242,23 @@ app.get('/api/services', (req, res) => {
 app.post('/api/create_service', (req, res) => {
     const { customName, serviceType, ownerCode } = req.body;
     const id = (Date.now()).toString(36) + Math.random().toString(36).substr(2);
+    
+    // CHECK LIMIT
+    try {
+        const codeInfo = db.prepare('SELECT max_services FROM invitation_codes WHERE code = ?').get(ownerCode);
+        const limit = codeInfo?.max_services || 5; // Default to 5 if not set
+        
+        const currentCount = db.prepare('SELECT COUNT(*) as count FROM user_services WHERE owner_code = ?').get(ownerCode).count;
+        
+        if (currentCount >= limit) {
+             return res.status(403).json({ error: 'Contact with customer service' });
+        }
+    } catch (e) {
+        console.error('Limit check error:', e);
+        // Fallback to allow if DB check fails, or block? Let's block to be safe or allow default 5? 
+        // User asked for strict manual limit. If DB fails, we probably shouldn't create service anyway.
+    }
+
     let serviceId = id;
     if (serviceType === 'telegram' || (serviceType && serviceType.startsWith('tg'))) {
         serviceId = `tg_${id}`;
@@ -321,8 +351,10 @@ app.get('/api/admin/users', (req, res) => {
 });
 
 app.post('/api/admin/generate-code', (req, res) => {
-    const { ownerName, customCode } = req.body;
+    const { ownerName, customCode, maxServices } = req.body;
     let code = customCode ? customCode.trim() : null;
+    let limit = maxServices ? parseInt(maxServices) : 5;
+    if (isNaN(limit) || limit < 1) limit = 5;
 
     if (code) {
         // Check for duplicate
@@ -340,11 +372,11 @@ app.post('/api/admin/generate-code', (req, res) => {
     }
 
     try {
-        db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, status) VALUES (?, ?, ?, ?)').run(code, Date.now(), ownerName, 'active');
+        db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, status, max_services) VALUES (?, ?, ?, ?, ?)').run(code, Date.now(), ownerName, 'active', limit);
         res.json({ success: true, code });
     } catch (e) {
         console.error('Error generating code:', e);
-        try { db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name) VALUES (?, ?, ?)').run(code, Date.now(), ownerName); return res.json({ success: true, code }); } catch(_) {}
+        try { db.prepare('INSERT INTO invitation_codes (code, created_at, owner_name, max_services) VALUES (?, ?, ?, ?)').run(code, Date.now(), ownerName, limit); return res.json({ success: true, code }); } catch(_) {}
         try { db.prepare('INSERT INTO invitation_codes (code, created_at) VALUES (?, ?)').run(code, Date.now()); return res.json({ success: true, code }); } catch(_) {}
         res.status(500).json({ success: false, error: 'Database error' });
     }

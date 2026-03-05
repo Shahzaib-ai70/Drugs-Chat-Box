@@ -11,6 +11,7 @@ interface UserCode {
     status: string;
     serviceCount: number;
     owner_name?: string;
+    max_services?: number;
 }
 
 export default function AdminPanel({ onLogout }: AdminPanelProps) {
@@ -19,6 +20,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     const [generating, setGenerating] = useState(false);
     const [customCode, setCustomCode] = useState('');
     const [ownerName, setOwnerName] = useState('');
+    const [maxServices, setMaxServices] = useState('5');
     
     // Editing state
     const [editingCode, setEditingCode] = useState<string | null>(null);
@@ -51,12 +53,13 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             const res = await fetch('/api/admin/generate-code', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customCode, ownerName })
+                body: JSON.stringify({ customCode, ownerName, maxServices })
             });
             const data = await res.json();
             if (data.success) {
                 setCustomCode('');
                 setOwnerName('');
+                setMaxServices('5');
                 fetchUsers();
             } else {
                 alert('Error: ' + data.error);
@@ -153,6 +156,14 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                 onChange={e => setOwnerName(e.target.value)}
                                 className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 rounded-xl flex-1 focus:outline-none focus:border-amber-500 focus:bg-white transition-all placeholder-slate-400"
                             />
+                            <input 
+                                type="number" 
+                                placeholder="Max Accounts" 
+                                value={maxServices} 
+                                onChange={e => setMaxServices(e.target.value)}
+                                min="1"
+                                className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 rounded-xl w-32 focus:outline-none focus:border-amber-500 focus:bg-white transition-all placeholder-slate-400"
+                            />
                         </div>
                         <button
                             onClick={generateCode}
@@ -217,7 +228,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.serviceCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                                    {user.serviceCount} Services
+                                                    {user.serviceCount} / {user.max_services || 5} Services
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
