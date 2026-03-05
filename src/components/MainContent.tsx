@@ -193,6 +193,7 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     media?: { mimetype: string; data: string; filename?: string };
     ack?: number;
     quotedMsg?: { id: string; body: string; author: string; fromMe: boolean };
+    reactions?: Array<{ emoji: string; fromMe: boolean }>;
   }>>>({});
   const [translations, setTranslations] = useState<Record<string, string>>({}); // msgId -> translated text
   const [outgoingOriginals, setOutgoingOriginals] = useState<Record<string, string>>(() => {
@@ -471,6 +472,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
             chatId: activeChatId,
             body: content,
             quotedMessageId: replyingTo?.id,
+            quotedMsg: replyingTo ? {
+                id: replyingTo.id,
+                body: replyingTo.body,
+                author: replyingTo.author || '',
+                fromMe: replyingTo.fromMe
+            } : undefined,
             media: media
         }, (response: any) => {
             if (response?.status === 'error') {
@@ -908,6 +915,26 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                 ...prev,
                 [normId]: current.filter(m => m.id !== messageId)
             };
+        });
+    });
+
+    socket.on('message_reaction', ({ chatId, messageId, reaction, fromMe }: { chatId: string, messageId: string, reaction: string, fromMe: boolean }) => {
+        setMessagesByChat(prev => {
+            const normId = normalizeId(chatId);
+            const current = prev[normId] || [];
+            const updated = current.map(m => {
+                if (m.id === messageId) {
+                    const existingReactions = m.reactions || [];
+                    // Simple logic: Add reaction. In real app, might want to toggle or group count.
+                    // Checking if same reaction exists from same 'me' status to avoid dupes visually if re-emitted
+                    if (fromMe && existingReactions.some(r => r.fromMe && r.emoji === reaction)) {
+                        return m;
+                    }
+                    return { ...m, reactions: [...existingReactions, { emoji: reaction, fromMe }] };
+                }
+                return m;
+            });
+            return { ...prev, [normId]: updated };
         });
     });
 
@@ -1425,6 +1452,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
 
                                 {/* Metadata (Time & Ticks) */}
                                 <div className={`flex items-center justify-end gap-1 mt-1 select-none ${m.fromMe ? 'text-gray-600' : 'text-gray-400'}`}>
+                                    {m.reactions && m.reactions.length > 0 && (
+                                        <div className="flex gap-0.5 mr-1">
+                                            {m.reactions.map((r, idx) => (
+                                                <span key={idx} className="text-[10px] bg-white/50 border border-gray-200/50 px-1 rounded-full shadow-sm">{r.emoji}</span>
+                                            ))}
+                                        </div>
+                                    )}
                                     <span className="text-[10px] font-medium opacity-80">
                                         {new Date((m.timestamp || Date.now()) * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </span>

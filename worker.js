@@ -6,7 +6,7 @@ import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 const { Client, LocalAuth, MessageMedia } = pkg;
-import { TelegramClient } from 'telegram';
+import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
 
@@ -134,8 +134,53 @@ process.on('message', async (msg) => {
         }
     } else if (command === 'download_media') {
         handleDownloadMedia(data);
+    } else if (command === 'react_message') {
+        handleReactMessage(data);
     }
 });
+
+const handleReactMessage = async (data) => {
+    const { chatId, messageId, reaction } = data;
+    log(`Reacting to ${messageId} in ${chatId} with ${reaction}`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            // We need the message object to react. Fetch recent messages.
+            // This is a limitation of whatsapp-web.js, we can't react by ID directly easily.
+            const messages = await chat.fetchMessages({ limit: 50 });
+            const msg = messages.find(m => m.id._serialized === messageId);
+            
+            if (msg) {
+                await msg.react(reaction);
+                // Emit back to frontend to update UI immediately
+                io.to(SERVICE_ID).emit('message_reaction', {
+                    chatId,
+                    messageId,
+                    reaction,
+                    fromMe: true
+                });
+            } else {
+                log('Message not found for reaction');
+            }
+        } catch (e) { log(`WA React Error: ${e}`); }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            await sessionState.client.invoke(new Api.messages.SendReaction({
+                peer: chatId,
+                msgId: parseInt(messageId),
+                reaction: [new Api.ReactionEmoji({ emoticon: reaction })]
+            }));
+            
+            io.to(SERVICE_ID).emit('message_reaction', {
+                chatId,
+                messageId,
+                reaction,
+                fromMe: true
+            });
+        } catch (e) { log(`TG React Error: ${e}`); }
+    }
+};
 
 const handleDownloadMedia = async (data) => {
     const { messageId, chatId } = data;
@@ -184,9 +229,9 @@ const handleDownloadMedia = async (data) => {
 
 const handleSendMessage = async (data) => {
     const body = data.message || data.body;
-    // const { quotedMessageId } = data; // Tagging disabled as per user request
+    const { quotedMessageId, quotedMsg } = data; // Tagging disabled as per user request
     
-    // if (quotedMessageId) log(`Sending message with reply to: ${quotedMessageId}`);
+    if (quotedMessageId) log(`Sending message with reply to: ${quotedMessageId}`);
 
     let response = { status: 'error', error: 'Unknown error' };
 
@@ -195,9 +240,9 @@ const handleSendMessage = async (data) => {
             let sentMsg;
             if (data.media) {
                 const media = new MessageMedia(data.media.mimetype, data.media.data, data.media.filename);
-                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body });
+                sentMsg = await sessionState.client.sendMessage(data.chatId, media, { caption: body, quotedMessageId });
             } else {
-                sentMsg = await sessionState.client.sendMessage(data.chatId, body, {}); 
+                sentMsg = await sessionState.client.sendMessage(data.chatId, body, { quotedMessageId }); 
             }
             if (sentMsg) {
                  response = { status: 'success', messageId: sentMsg.id._serialized };
@@ -213,7 +258,7 @@ const handleSendMessage = async (data) => {
                     type: sentMsg.type || 'chat',
                     hasMedia: !!data.media,
                     media: data.media || null, 
-                    quotedMsg: null,
+                    quotedMsg: quotedMsg || null,
                     ack: 1 // Sent
                  };
                  io.to(SERVICE_ID).emit('newMessage', mappedMsg);
@@ -225,14 +270,14 @@ const handleSendMessage = async (data) => {
     } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
         try {
             let result;
-            // const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
+            const replyTo = quotedMessageId ? parseInt(quotedMessageId) : undefined;
 
             if (data.media) {
                 const buffer = Buffer.from(data.media.data, 'base64');
                 // GramJS expects 'file' parameter. Buffer works.
-                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, file: buffer, replyTo });
             } else {
-                result = await sessionState.client.sendMessage(data.chatId, { message: body });
+                result = await sessionState.client.sendMessage(data.chatId, { message: body, replyTo });
             }
              if (result) {
                  // GramJS message object has id property
@@ -250,7 +295,7 @@ const handleSendMessage = async (data) => {
                     type: 'chat',
                     hasMedia: !!data.media,
                     media: data.media || null, 
-                    quotedMsg: null,
+                    quotedMsg: quotedMsg || null,
                     ack: 1 // Sent
                  };
                  io.to(SERVICE_ID).emit('newMessage', mappedMsg);
@@ -689,6 +734,15 @@ const initializeWhatsApp = async () => {
     };
     io.to(SERVICE_ID).emit('newMessage', mappedMsg);
     fetchAndEmitChats();
+  });
+
+  client.on('message_reaction', async (reaction) => {
+    io.to(SERVICE_ID).emit('message_reaction', {
+        chatId: reaction.msgId.remote,
+        messageId: reaction.msgId._serialized,
+        reaction: reaction.reaction,
+        fromMe: reaction.senderId ? reaction.senderId._serialized === (sessionState.userInfo ? sessionState.userInfo.id : '') : false
+    });
   });
 
   client.on('message_ack', async (msg, ack) => {
