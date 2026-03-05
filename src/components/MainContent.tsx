@@ -1,4 +1,4 @@
-import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft, Globe } from 'lucide-react';
+import { MessageCircle, Download, Smartphone, Check, CheckCheck, Lock, RefreshCcw, Send, Mic, Smile, Clock, Search, MoreVertical, Phone, Video, X, Camera, Trash2, CornerUpLeft, Copy, ChevronLeft, Globe, FileText, Type } from 'lucide-react';
 import { IoMdAdd, IoMdRefresh } from 'react-icons/io';
 import QRCode from 'react-qr-code';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -16,6 +16,10 @@ interface MainContentProps {
   onChatSelect?: (chatId: string | null) => void;
   onToggleTranslation?: () => void;
   isTranslationOpen?: boolean;
+  onToggleScript?: () => void;
+  isScriptOpen?: boolean;
+  onToggleAi?: () => void;
+  isAiOpen?: boolean;
   onOpenMobileMenu?: () => void;
 }
 
@@ -27,7 +31,7 @@ interface PendingOriginal {
     chatId?: string;
 }
 
-const MainContent = ({ activeService, translationSettings, onChatSelect, onToggleTranslation, isTranslationOpen, onOpenMobileMenu }: MainContentProps) => {
+const MainContent = ({ activeService, translationSettings, onChatSelect, onToggleTranslation, isTranslationOpen, onToggleScript, isScriptOpen, onToggleAi, isAiOpen, onOpenMobileMenu }: MainContentProps) => {
   const { t } = useLanguage();
   const isWhatsApp = !!activeService?.service.name.toLowerCase().includes('whatsapp') || !!activeService?.service.name.toLowerCase().includes('telegram');
   const serviceName = activeService?.service.name || 'Service';
@@ -1327,6 +1331,30 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                             }`}
                         >
                             <Globe size={20} />
+                        </button>
+
+                        {/* Script Toggle for Mobile Chat View */}
+                        <button 
+                            onClick={onToggleScript}
+                            className={`md:hidden p-2 rounded-full transition-all hover:scale-110 ${
+                                isScriptOpen 
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-200' 
+                                : 'hover:bg-blue-50 hover:text-blue-600'
+                            }`}
+                        >
+                            <FileText size={20} />
+                        </button>
+
+                        {/* AI Assistant Toggle for Mobile Chat View */}
+                        <button 
+                            onClick={onToggleAi}
+                            className={`md:hidden p-2 rounded-full transition-all hover:scale-110 ${
+                                isAiOpen 
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-200' 
+                                : 'hover:bg-blue-50 hover:text-blue-600'
+                            }`}
+                        >
+                            <Type size={20} />
                         </button>
                         
                         <button className="hover:text-blue-600 transition-all hover:scale-110 hover:bg-blue-50 p-2 rounded-full"><Search size={20} /></button>

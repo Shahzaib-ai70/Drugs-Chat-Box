@@ -406,8 +406,24 @@ function App() {
         activeService={activeService} 
         translationSettings={activeSettings}
         onChatSelect={setActiveChatId}
-        onToggleTranslation={() => setIsTranslationPanelOpen(!isTranslationPanelOpen)}
+        onToggleTranslation={() => {
+            setIsTranslationPanelOpen(!isTranslationPanelOpen);
+            setIsScriptPanelOpen(false);
+            setIsAiPanelOpen(false);
+        }}
         isTranslationOpen={isTranslationPanelOpen}
+        onToggleScript={() => {
+            setIsScriptPanelOpen(!isScriptPanelOpen);
+            setIsTranslationPanelOpen(false);
+            setIsAiPanelOpen(false);
+        }}
+        isScriptOpen={isScriptPanelOpen}
+        onToggleAi={() => {
+            setIsAiPanelOpen(!isAiPanelOpen);
+            setIsTranslationPanelOpen(false);
+            setIsScriptPanelOpen(false);
+        }}
+        isAiOpen={isAiPanelOpen}
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
       />
         
