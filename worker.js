@@ -556,8 +556,8 @@ const initializeWhatsApp = async () => {
                     i++;
                     if (chat.profilePicUrl) continue;
                     try {
-                        const contact = await client.getContactById(chat.id);
-                        const picUrl = await contact.getProfilePicUrl();
+                        // Use client.getProfilePicUrl directly for better reliability
+                        const picUrl = await client.getProfilePicUrl(chat.id);
                         if (picUrl) {
                             chat.profilePicUrl = picUrl;
                             const stateChat = sessionState.chats.find(c => c.id === chat.id);
@@ -610,8 +610,7 @@ const initializeWhatsApp = async () => {
     (async () => {
         try {
             const senderId = msg.author || msg.from;
-            const contact = await client.getContactById(senderId);
-            const picUrl = await contact.getProfilePicUrl();
+            const picUrl = await client.getProfilePicUrl(senderId);
             if (picUrl) {
                 // Update local cache
                 const chat = sessionState.chats.find(c => c.id === chatId);
@@ -866,7 +865,7 @@ const initializeTelegram = async () => {
                  try {
                     const buffer = await client.downloadProfilePhoto(chat.id);
                     if (buffer && buffer.length > 0) {
-                        const picUrl = buffer.toString('base64');
+                        const picUrl = 'data:image/jpeg;base64,' + buffer.toString('base64');
                         chat.profilePicUrl = picUrl;
                         io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                     }
