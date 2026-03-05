@@ -136,8 +136,76 @@ process.on('message', async (msg) => {
         handleDownloadMedia(data);
     } else if (command === 'react_message') {
         handleReactMessage(data);
+    } else if (command === 'get_chat_media') {
+        handleGetChatMedia(data);
     }
 });
+
+const handleGetChatMedia = async (data) => {
+    const { chatId } = data;
+    log(`Fetching media for ${chatId}`);
+
+    if (SERVICE_TYPE === 'whatsapp' && sessionState.client) {
+        try {
+            const chat = await sessionState.client.getChatById(chatId);
+            const messages = await chat.fetchMessages({ limit: 100 });
+            // Filter for media, reverse to get newest first, take last 20
+            const mediaMsgs = messages.filter(m => m.hasMedia).reverse().slice(0, 20);
+
+            const mediaList = [];
+            for (const msg of mediaMsgs) {
+                try {
+                    const downloaded = await msg.downloadMedia();
+                    if (downloaded) {
+                        mediaList.push({
+                            id: msg.id._serialized,
+                            mimetype: downloaded.mimetype,
+                            data: downloaded.data,
+                            timestamp: msg.timestamp
+                        });
+                    }
+                } catch (e) { log(`Error downloading media for msg ${msg.id._serialized}: ${e}`); }
+            }
+
+            io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
+        } catch (e) {
+            log(`WA Media Fetch Error: ${e}`);
+            io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: [] });
+        }
+    } else if (SERVICE_TYPE === 'telegram' && sessionState.client) {
+        try {
+            // Fetch last 100 messages and filter for media
+            const messages = await sessionState.client.getMessages(chatId, { limit: 100 });
+            const mediaMsgs = messages.filter(m => m.media && (m.media.photo || m.media.document)).slice(0, 20);
+
+            const mediaList = [];
+            for (const msg of mediaMsgs) {
+                try {
+                     const buffer = await sessionState.client.downloadMedia(msg, {});
+                     if (buffer) {
+                         const base64 = buffer.toString('base64');
+                         let mimetype = 'application/octet-stream';
+                         if (msg.media.photo) mimetype = 'image/jpeg';
+                         else if (msg.media.document) mimetype = msg.media.document.mimeType || 'application/octet-stream';
+
+                         if (mimetype.startsWith('image') || mimetype.startsWith('video')) {
+                             mediaList.push({
+                                id: msg.id.toString(),
+                                mimetype,
+                                data: base64,
+                                timestamp: msg.date
+                             });
+                         }
+                     }
+                } catch (e) { log(`TG Media Download Error: ${e}`); }
+            }
+             io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: mediaList });
+        } catch (e) {
+             log(`TG Media Fetch Error: ${e}`);
+             io.to(SERVICE_ID).emit('chat_media_history', { chatId, media: [] });
+        }
+    }
+};
 
 const handleReactMessage = async (data) => {
     const { chatId, messageId, reaction } = data;
