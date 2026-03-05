@@ -201,6 +201,22 @@ const handleSendMessage = async (data) => {
             }
             if (sentMsg) {
                  response = { status: 'success', messageId: sentMsg.id._serialized };
+                 
+                 // Real-time update: Emit newMessage immediately
+                 const mappedMsg = {
+                    id: sentMsg.id._serialized,
+                    chatId: data.chatId,
+                    author: sessionState.userInfo ? sessionState.userInfo.name : 'Me',
+                    fromMe: true,
+                    body: body,
+                    timestamp: sentMsg.timestamp,
+                    type: sentMsg.type || 'chat',
+                    hasMedia: !!data.media,
+                    media: data.media || null, 
+                    quotedMsg: null,
+                    ack: 1 // Sent
+                 };
+                 io.to(SERVICE_ID).emit('newMessage', mappedMsg);
             }
         } catch(e) { 
             log(`Send Error: ${e}`);
@@ -220,7 +236,24 @@ const handleSendMessage = async (data) => {
             }
              if (result) {
                  // GramJS message object has id property
-                 response = { status: 'success', messageId: result.id.toString() };
+                 const msgId = result.id.toString();
+                 response = { status: 'success', messageId: msgId };
+                 
+                 // Real-time update: Emit newMessage immediately
+                 const mappedMsg = {
+                    id: msgId,
+                    chatId: data.chatId,
+                    author: sessionState.userInfo ? sessionState.userInfo.name : 'Me',
+                    fromMe: true,
+                    body: result.text || body || '',
+                    timestamp: result.date,
+                    type: 'chat',
+                    hasMedia: !!data.media,
+                    media: data.media || null, 
+                    quotedMsg: null,
+                    ack: 1 // Sent
+                 };
+                 io.to(SERVICE_ID).emit('newMessage', mappedMsg);
             }
         } catch(e) { 
             log(`Send Error: ${e}`);
