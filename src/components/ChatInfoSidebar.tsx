@@ -23,6 +23,8 @@ const ChatInfoSidebar = ({ chat, messages, fetchedMedia = [], onClose, onUpdateC
     const handleSave = () => {
         onUpdateContactName(chat.id, editedName);
         setIsEditing(false);
+        // Optimistic update local state to reflect change immediately even after close/reopen in this session
+        chat.name = editedName; 
     };
 
     // Combine loaded messages with fetched media history

@@ -116,10 +116,23 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
             });
             // Optimistic update
             setChats(prev => prev.map(c => c.id === chatId ? { ...c, name: newName } : c));
+            
+            // Persist locally for this session to survive refreshes if backend doesn't persist
+            const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
+            savedNames[chatId] = newName;
+            localStorage.setItem('custom_contact_names', JSON.stringify(savedNames));
         }
   };
 
-  const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
+  // Load custom names on init
+    useEffect(() => {
+        const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
+        if (Object.keys(savedNames).length > 0 && chats.length > 0) {
+            setChats(prev => prev.map(c => savedNames[c.id] ? { ...c, name: savedNames[c.id] } : c));
+        }
+    }, [chats.length]); // Run when chats are loaded
+
+    const [activeTab, setActiveTab] = useState<'chats' | 'archived'>('chats');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, chatId: string, archived: boolean } | null>(null);
   const [msgContextMenu, setMsgContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
   const [deleteModal, setDeleteModal] = useState<{show: boolean, msg: any | null}>({show: false, msg: null});
