@@ -748,6 +748,12 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
       }));
     });
 
+    socket.on('unread_total', ({ serviceId, count }) => {
+        // Dispatch custom event for Sidebar to pick up
+        const event = new CustomEvent('unread_total_update', { detail: { serviceId, count } });
+        window.dispatchEvent(event);
+    });
+
     socket.on('newMessage', async (msg) => {
       console.log('New message received:', msg);
       setLastEventLog(`New Msg: ${msg.body?.substring(0, 20)}... from ${msg.chatId}`);
@@ -758,6 +764,16 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
                serviceId: activeService.id,
                chatId: msg.chatId
            });
+      } else if (!msg.fromMe) {
+           // Update Sidebar Unread Count if message is not from me and chat is not active
+           const totalUnread = chats.reduce((sum, c) => {
+               if (normalizeId(c.id) === normalizeId(msg.chatId)) return sum + 1;
+               return sum + (c.unreadCount || 0);
+           }, 0) + 1; // +1 for the new message
+           
+           // Dispatch local event for immediate sidebar update
+           const event = new CustomEvent('unread_total_update', { detail: { serviceId: activeService.id, count: totalUnread } });
+           window.dispatchEvent(event);
       }
 
       // Incoming Translation Logic

@@ -71,14 +71,24 @@ const SidebarLeft = ({
 
     socket.on('unread_total', (data: { serviceId: string, count: number }) => {
         console.log('SidebarLeft: Received unread_total', data);
-        setUnreadCounts(prev => {
-            const newState = {
-                ...prev,
-                [data.serviceId]: data.count
-            };
-            return newState;
-        });
+        setUnreadCounts(prev => ({
+            ...prev,
+            [data.serviceId]: data.count
+        }));
     });
+
+    // Listen for custom event from MainContent (local updates)
+    const handleLocalUpdate = (e: Event) => {
+        const customEvent = e as CustomEvent<{ serviceId: string, count: number }>;
+        if (customEvent.detail) {
+            setUnreadCounts(prev => ({
+                ...prev,
+                [customEvent.detail.serviceId]: customEvent.detail.count
+            }));
+        }
+    };
+    
+    window.addEventListener('unread_total_update', handleLocalUpdate);
 
     socket.on('wa_user_info', (data: { id: string, name: string, profilePicUrl?: string, serviceId?: string }) => {
         if (data.serviceId && data.profilePicUrl) {
@@ -90,6 +100,7 @@ const SidebarLeft = ({
     });
 
     return () => {
+        window.removeEventListener('unread_total_update', handleLocalUpdate);
         socket.disconnect();
     };
   }, []);
