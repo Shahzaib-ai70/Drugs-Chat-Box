@@ -79,7 +79,7 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
              </div>
 
              {/* Inputs */}
-             <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-[1fr_100px] gap-4">
+             <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-[1fr_100px] gap-4 text-gray-900">
                 <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t.serviceName}</label>
                     <div className="relative">
@@ -88,7 +88,7 @@ const AddServiceModal = ({ onClose, onAdd }: { onClose: () => void, onAdd: (serv
                             value={appName}
                             onChange={(e) => setAppName(e.target.value)}
                             placeholder={t.selectServicePlaceholder}
-                            className="w-full h-11 px-4 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder-gray-400"
+                            className="w-full h-11 px-4 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                         />
                         {!selectedService && (
                             <div className="absolute inset-0 bg-gray-50/50 cursor-not-allowed rounded-lg" title="Please select a service first" />
