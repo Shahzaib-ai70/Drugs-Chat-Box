@@ -199,7 +199,7 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
       
       <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-transparent relative z-0">
         {imageSrc ? (
-          <div className="relative group perspective-1000">
+          <div className="relative group perspective-1000 w-full h-full flex items-center justify-center">
               <img
                 ref={imgRef}
                 src={imageSrc}
