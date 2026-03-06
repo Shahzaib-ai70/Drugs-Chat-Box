@@ -197,20 +197,20 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
         </div>
       </div>
       
-      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-transparent relative z-0">
+      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-white relative z-0">
         {imageSrc ? (
           <div className="relative group perspective-1000 w-full h-full flex items-center justify-center">
               <img
                 ref={imgRef}
                 src={imageSrc}
                 alt="Remote Browser"
-                className="shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 rounded-xl max-w-full max-h-full object-contain bg-white transform transition-transform duration-300"
+                className="shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-gray-200 rounded-xl max-w-full max-h-full object-contain bg-white transform transition-transform duration-300"
                 onClick={(e) => handleMouseEvent(e, 'click')}
                 style={{ cursor: 'pointer' }}
               />
           </div>
         ) : (
-          <div className="text-gray-400 flex flex-col items-center gap-6">
+          <div className="text-gray-500 flex flex-col items-center gap-6">
             <div className="relative">
                 <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -218,7 +218,7 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
                 </div>
             </div>
             <div className="text-center">
-                <p className="text-lg font-light tracking-wide text-white">Initializing Remote Browser</p>
+                <p className="text-lg font-light tracking-wide text-gray-800">Initializing Remote Browser</p>
                 <p className="text-xs text-gray-500 mt-2 tracking-widest uppercase">Secure Connection</p>
             </div>
           </div>
