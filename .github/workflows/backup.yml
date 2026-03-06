@@ -17,10 +17,10 @@ jobs:
       - name: Create backup zip
         run: |
           mkdir -p artifacts
-          zip -r "artifacts/Drug load fully optional backup file.zip" . -x "node_modules/*" ".git/*" ".github/*" "database.db*" "node.exe" "*.zip" "*.log" "dist/*"
+          zip -r "artifacts/DL_optional_backup_file.zip" . -x "node_modules/*" ".git/*" ".github/*" "database.db*" "node.exe" "*.zip" "*.log" "dist/*"
             
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Drug-load-fully-optional-backup
-          path: artifacts/Drug load fully optional backup file.zip
+          name: DL-optional-backup
+          path: artifacts/DL_optional_backup_file.zip
