@@ -197,14 +197,14 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
         </div>
       </div>
       
-      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-white relative z-0">
+      <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-gray-50 relative z-0">
         {imageSrc ? (
           <div className="relative group perspective-1000 w-full h-full flex items-center justify-center">
               <img
                 ref={imgRef}
                 src={imageSrc}
                 alt="Remote Browser"
-                className="shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-gray-200 rounded-xl max-w-full max-h-full object-contain bg-white transform transition-transform duration-300"
+                className="shadow-2xl border border-gray-300 rounded-lg max-w-full max-h-full object-contain bg-white"
                 onClick={(e) => handleMouseEvent(e, 'click')}
                 style={{ cursor: 'pointer' }}
               />
