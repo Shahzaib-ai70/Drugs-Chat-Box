@@ -138,6 +138,21 @@ process.on('message', async (msg) => {
         handleReactMessage(data);
     } else if (command === 'get_chat_media') {
         handleGetChatMedia(data);
+    } else if (command === 'update_contact_name') {
+        const { chatId, newName } = data;
+        log(`Updating contact name for ${chatId} to ${newName}`);
+        
+        // Update local session state
+        const chat = sessionState.chats.find(c => c.id === chatId);
+        if (chat) {
+            chat.name = newName;
+            // Broadcast to all clients (desktop and mobile)
+            io.to(SERVICE_ID).emit('wa_chat_update', { 
+                id: chatId, 
+                name: newName,
+                serviceId: SERVICE_ID 
+            });
+        }
     }
 });
 

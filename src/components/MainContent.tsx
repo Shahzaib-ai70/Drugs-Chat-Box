@@ -673,10 +673,17 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     
     socket.on('wa_chat_update', (update) => {
         const savedNames = JSON.parse(localStorage.getItem('custom_contact_names') || '{}');
+        
+        // If the update contains a name change from another device, save it locally to keep in sync
+        if (update.name) {
+             savedNames[update.id] = update.name;
+             localStorage.setItem('custom_contact_names', JSON.stringify(savedNames));
+        }
+
         setChats(prev => {
             const updated = prev.map(c => {
                 if (c.id === update.id) {
-                    // Preserve custom name if it exists
+                    // Preserve custom name if it exists or use the new update name
                     const effectiveName = savedNames[c.id] || update.name || c.name;
                     return { ...c, ...update, name: effectiveName };
                 }
