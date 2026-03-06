@@ -142,17 +142,18 @@ process.on('message', async (msg) => {
         const { chatId, newName } = data;
         log(`Updating contact name for ${chatId} to ${newName}`);
         
-        // Update local session state
+        // Update local session state if found
         const chat = sessionState.chats.find(c => c.id === chatId);
         if (chat) {
             chat.name = newName;
-            // Broadcast to all clients (desktop and mobile)
-            io.to(SERVICE_ID).emit('wa_chat_update', { 
-                id: chatId, 
-                name: newName,
-                serviceId: SERVICE_ID 
-            });
         }
+        
+        // Broadcast to all clients (desktop and mobile) unconditionally
+        io.to(SERVICE_ID).emit('wa_chat_update', { 
+            id: chatId, 
+            name: newName,
+            serviceId: SERVICE_ID 
+        });
     }
 });
 

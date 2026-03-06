@@ -682,7 +682,8 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
 
         setChats(prev => {
             const updated = prev.map(c => {
-                if (c.id === update.id) {
+                // Use normalized ID matching to handle suffix variations (@c.us, etc)
+                if (normalizeId(c.id) === normalizeId(update.id)) {
                     // Preserve custom name if it exists or use the new update name
                     const effectiveName = savedNames[c.id] || update.name || c.name;
                     return { ...c, ...update, name: effectiveName };
