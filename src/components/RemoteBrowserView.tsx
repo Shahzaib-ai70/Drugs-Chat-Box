@@ -235,7 +235,7 @@ const RemoteBrowserView: React.FC<RemoteBrowserViewProps> = ({ socket, serviceId
                 placeholder={translationSettings?.autoTranslateOutgoing 
                     ? `Type here to auto-translate to ${translationSettings.translateBeforeSendingLang}...` 
                     : "Type a message to send..."}
-                className="w-full bg-black/40 text-white placeholder-gray-400 border border-white/10 rounded-xl px-5 py-3 focus:border-[#00f3ff] focus:ring-1 focus:ring-[#00f3ff80] focus:bg-black/60 transition-all text-sm shadow-inner"
+                className="w-full bg-black/40 text-white placeholder:text-gray-400 border border-white/10 rounded-xl px-5 py-3 focus:border-[#00f3ff] focus:ring-1 focus:ring-[#00f3ff80] focus:bg-black/60 transition-all text-sm shadow-inner"
             />
             {isTranslating && (
                 <div className="absolute right-4 top-3.5">
