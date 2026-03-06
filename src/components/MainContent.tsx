@@ -695,12 +695,13 @@ const MainContent = ({ activeService, translationSettings, onChatSelect, onToggl
     });
 
     socket.on('chat_typing', ({ chatId, isTyping }) => {
-        setTypingStatus(prev => ({ ...prev, [chatId]: isTyping }));
-        if (isTyping) {
-            setTimeout(() => {
-                setTypingStatus(prev => ({ ...prev, [chatId]: false }));
-            }, 5000);
-        }
+        const normId = normalizeId(chatId);
+        setTypingStatus(prev => ({ ...prev, [normId]: isTyping }));
+        
+        // Auto-clear typing status after 3 seconds
+        setTimeout(() => {
+             setTypingStatus(prev => ({ ...prev, [normId]: false }));
+        }, 3000);
     });
 
     socket.on('wa_loading', ({ percent, message }) => {

@@ -805,8 +805,18 @@ const initializeWhatsApp = async () => {
     fetchAndEmitChats();
     setTimeout(fetchAndEmitChats, 5000);
   });
+  
+  // WHATSAPP: Listen for typing and presence events (Requires wwebjs latest or beta)
+  // Since specific typing events are tricky in standard wwebjs, we simulate "Typing..." 
+  // if we receive a 'chat_update' with presence info if available.
+  // BUT, a more robust way is to inject a listener into the page.
+  
+  // For now, we will use a best-effort approach:
+  // We can't easily get real-time "typing" without specific wwebjs support which varies by version.
+  // However, we can track "Last Seen" by updating the chat's timestamp whenever a message arrives.
+  
+  // TELEGRAM: Has better support for updates.
 
-  client.on('message', async (msg) => {
     let chatId = msg.from; 
     try { chatId = (await msg.getChat()).id._serialized; } catch (e) { chatId = msg.id.remote || msg.from; }
     
@@ -1142,6 +1152,60 @@ const initializeTelegram = async () => {
     fetchChats();
   }, new NewMessage({}));
 
+  // TELEGRAM: Real-time User Status Updates (Typing, Online)
+  // GramJS doesn't have a simple "on('user_status')" but we can hook raw updates.
+  // Using client.addEventHandler with raw event filter.
+  
+  client.addEventHandler((update) => {
+      // Check for UserStatus updates or Typing updates
+      // update can be UpdateUserStatus, UpdateChatUserTyping, etc.
+      
+      try {
+          if (update.className === 'UpdateUserStatus') {
+             // User went online/offline
+             const userId = update.userId.toString();
+             let statusText = '';
+             
+             if (update.status.className === 'UserStatusOnline') {
+                 statusText = 'Online';
+             } else if (update.status.className === 'UserStatusOffline') {
+                 statusText = new Date(update.status.wasOnline * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+             } else if (update.status.className === 'UserStatusRecently') {
+                 statusText = 'Last seen recently';
+             }
+             
+             if (statusText) {
+                 // Broadcast update
+                 // Note: We need to find which chat this user belongs to, which is hard if it's 1-on-1 vs group.
+                 // For 1-on-1, chatID == userID usually.
+                 io.to(SERVICE_ID).emit('wa_chat_update', { 
+                     id: userId, 
+                     lastSeen: statusText,
+                     serviceId: SERVICE_ID 
+                 });
+             }
+          }
+          
+          if (update.className === 'UpdateChatUserTyping' || update.className === 'UpdateUserTyping') {
+              // Typing status
+              const chatId = update.chatId ? update.chatId.toString() : (update.userId ? update.userId.toString() : '');
+              const userId = update.userId ? update.userId.toString() : '';
+              
+              if (chatId) {
+                  // Emit typing event
+                  io.to(SERVICE_ID).emit('chat_typing', {
+                      chatId: chatId,
+                      userId: userId,
+                      isTyping: true,
+                      serviceId: SERVICE_ID
+                  });
+              }
+          }
+      } catch(e) {
+          // log(`Update Error: ${e}`);
+      }
+  });
+
   try {
     await client.connect();
     if (!fs.existsSync(sessionFile)) {
@@ -1174,6 +1238,11 @@ const initializeTelegram = async () => {
     log(`TG Init Failed: ${e}`);
   }
 };
+
+// --- TELEGRAM EVENT HANDLER FOR TYPING & PRESENCE ---
+// We need to add this inside initializeTelegram after client is created
+
+// ...
 
 // Start Service
 if (SERVICE_TYPE === 'whatsapp') {
