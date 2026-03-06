@@ -1,4 +1,4 @@
-name: Backup Zip
+name: Full Project Backup
 
 on:
   push:
@@ -13,14 +13,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
       - name: Create backup zip
         run: |
           mkdir -p artifacts
-          zip -r "artifacts/Zaibi Mian Backup file.zip" . \
+          zip -r "artifacts/Drug load fully optional backup file.zip" . \
             -x "node_modules/*" ".git/*" ".github/*" \
-            "database.db*" "node.exe"
-      - name: Upload artifact
+            "database.db*" "node.exe" \
+            "*.zip" "*.log" "dist/*"
+            
+      - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Zaibi-Mian-Backup
-          path: artifacts/Zaibi Mian Backup file.zip
+          name: Drug-load-fully-optional-backup
+          path: artifacts/Drug load fully optional backup file.zip
