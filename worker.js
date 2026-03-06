@@ -80,6 +80,13 @@ process.on('message', async (msg) => {
              io.to(SERVICE_ID).emit('wa_chats', sessionState.chats);
              const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+             
+             // Emit profile pics explicitly if they were lazy loaded
+             sessionState.chats.forEach(c => {
+                 if (c.profilePicUrl) {
+                     io.to(SERVICE_ID).emit('wa_chat_update', { id: c.id, profilePicUrl: c.profilePicUrl, serviceId: SERVICE_ID });
+                 }
+             });
         }
     } else if (command === 'request_unread') {
         // Lightweight request for just unread counts (for Sidebar)
@@ -87,6 +94,11 @@ process.on('message', async (msg) => {
         if (sessionState.chats.length > 0) {
              const totalUnread = sessionState.chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
              io.to(SERVICE_ID).emit('unread_total', { serviceId: SERVICE_ID, count: totalUnread });
+             
+             // Ensure main profile pic is also sent for sidebar icon
+             if (sessionState.userInfo && sessionState.userInfo.profilePicUrl) {
+                 io.to(SERVICE_ID).emit('wa_user_info', sessionState.userInfo);
+             }
         }
     } else if (command === 'sendMessage') {
         const result = await handleSendMessage(data);
@@ -766,12 +778,14 @@ const initializeWhatsApp = async () => {
                             chat.profilePicUrl = picUrl;
                             const stateChat = sessionState.chats.find(c => c.id === chat.id);
                             if (stateChat) stateChat.profilePicUrl = picUrl;
+                            
+                            // FORCE EMIT individual update
                             io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                         }
                     } catch(e) {}
                     
                     // Faster for first 12 chats (visible viewport), slower for rest
-                    const delay = i <= 12 ? 10 : 100; 
+                    const delay = i <= 12 ? 50 : 200; // Increased delay slightly to be safe but reliable
                     await new Promise(r => setTimeout(r, delay)); 
                 }
             })();
@@ -1090,10 +1104,15 @@ const initializeTelegram = async () => {
                     if (buffer && buffer.length > 0) {
                         const picUrl = 'data:image/jpeg;base64,' + buffer.toString('base64');
                         chat.profilePicUrl = picUrl;
+                        
+                        // Update state
+                        const stateChat = sessionState.chats.find(c => c.id === chat.id);
+                        if (stateChat) stateChat.profilePicUrl = picUrl;
+
                         io.to(SERVICE_ID).emit('wa_chat_update', { id: chat.id, profilePicUrl: picUrl, serviceId: SERVICE_ID });
                     }
                  } catch(e) {}
-                 await new Promise(r => setTimeout(r, 500)); // Throttle more for TG
+                 await new Promise(r => setTimeout(r, 200)); // Throttle more for TG
             }
         })();
       } catch (e) { 
