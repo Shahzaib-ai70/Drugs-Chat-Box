@@ -829,8 +829,7 @@ const initializeWhatsApp = async () => {
   // We can't easily get real-time "typing" without specific wwebjs support which varies by version.
   // However, we can track "Last Seen" by updating the chat's timestamp whenever a message arrives.
   
-  // TELEGRAM: Has better support for updates.
-
+  client.on('message', async (msg) => {
     let chatId = msg.from; 
     try { chatId = (await msg.getChat()).id._serialized; } catch (e) { chatId = msg.id.remote || msg.from; }
     
